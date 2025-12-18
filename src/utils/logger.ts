@@ -10,6 +10,11 @@ export function setBotInstance(bot: Bot): void {
 export type LogLevel = 'info' | 'warn' | 'error'
 
 export async function logToTelegram(message: string, level: LogLevel = 'info'): Promise<void> {
+  // В тестах не отправляем логи в Telegram, чтобы не засорять вывод
+  if (process.env.NODE_ENV === 'test') {
+    return
+  }
+
   if (!botInstance) {
     console.warn('Bot instance not set, logging to console only')
     console.log(`[${level.toUpperCase()}] ${message}`)

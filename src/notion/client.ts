@@ -3,12 +3,38 @@ import { config } from '../config'
 import { getDatabases } from '../utils/environment'
 
 export class NotionClient {
-  private client: Client
+  private client: Client | null = null
+  private mockClient: Client | null = null
 
-  constructor() {
-    this.client = new Client({
-      auth: config.notion.apiKey,
-    })
+  // Установить mock client (для тестов)
+  setMockClient(mockClient: Client): void {
+    this.mockClient = mockClient
+  }
+
+  // Очистить mock client
+  clearMockClient(): void {
+    this.mockClient = null
+  }
+
+  private getClientInstance(): Client {
+    // Если установлен mock client, используем его (для тестов)
+    if (this.mockClient) {
+      return this.mockClient
+    }
+
+    if (!this.client) {
+      if (!config.notion.apiKey) {
+        throw new Error(
+          'NOTION_API_KEY is not set. Please check your .env file or environment variables.'
+        )
+      }
+
+      this.client = new Client({
+        auth: config.notion.apiKey,
+      })
+    }
+
+    return this.client
   }
 
   getDatabases(chatId: number | string) {
@@ -16,7 +42,7 @@ export class NotionClient {
   }
 
   getClient(): Client {
-    return this.client
+    return this.getClientInstance()
   }
 }
 
