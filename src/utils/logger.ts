@@ -35,6 +35,12 @@ export async function logToTelegram(message: string, level: LogLevel = 'info'): 
 
   const logMessage = `[${emoji[level]} ${level.toUpperCase()}] ${timestamp}\n${message}`
 
+  // Если logChatId не настроен, просто выводим в консоль
+  if (!config.telegram.logChatId) {
+    console.log(logMessage)
+    return
+  }
+
   try {
     await botInstance.api.sendMessage(config.telegram.logChatId, logMessage)
   } catch (error) {

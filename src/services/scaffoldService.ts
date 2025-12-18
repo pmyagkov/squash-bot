@@ -86,6 +86,9 @@ export class ScaffoldService {
       )
     }
 
+    // Use default value of 26 hours if not specified
+    const hoursBefore = announceHoursBefore ?? 26
+
     const id = await this.getNextScaffoldId(chatId)
 
     const response = await client.pages.create({
@@ -122,11 +125,9 @@ export class ScaffoldService {
         is_active: {
           checkbox: true,
         },
-        ...(announceHoursBefore !== undefined && {
-          announce_hours_before: {
-            number: announceHoursBefore,
-          },
-        }),
+        announce_hours_before: {
+          number: hoursBefore,
+        },
       },
     })
 
