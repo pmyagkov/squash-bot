@@ -76,13 +76,13 @@ export class ScaffoldService {
 
     // Validate time format (HH:MM)
     if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
-      throw new Error('Неверный формат времени. Используйте HH:MM (например, 21:00)')
+      throw new Error('Invalid time format. Use HH:MM (e.g., 21:00)')
     }
 
     // Validate day of week
     if (!Object.values(DAYS_OF_WEEK).includes(dayOfWeek)) {
       throw new Error(
-        `Неверный день недели. Используйте: ${Object.values(DAYS_OF_WEEK).join(', ')}`
+        `Invalid day of week. Use: ${Object.values(DAYS_OF_WEEK).join(', ')}`
       )
     }
 
@@ -140,7 +140,7 @@ export class ScaffoldService {
   async toggleScaffold(chatId: number | string, id: string): Promise<Scaffold> {
     const scaffold = await this.getScaffoldById(chatId, id)
     if (!scaffold) {
-      throw new Error(`Scaffold ${id} не найден`)
+      throw new Error(`Scaffold ${id} not found`)
     }
 
     const client = notionClient.getClient()
@@ -158,7 +158,7 @@ export class ScaffoldService {
     })
 
     if (scaffolds.results.length === 0) {
-      throw new Error(`Scaffold ${id} не найден`)
+      throw new Error(`Scaffold ${id} not found`)
     }
 
     const pageId = scaffolds.results[0].id
@@ -184,7 +184,7 @@ export class ScaffoldService {
   async removeScaffold(chatId: number | string, id: string): Promise<void> {
     const scaffold = await this.getScaffoldById(chatId, id)
     if (!scaffold) {
-      throw new Error(`Scaffold ${id} не найден`)
+      throw new Error(`Scaffold ${id} not found`)
     }
 
     const client = notionClient.getClient()
@@ -202,7 +202,7 @@ export class ScaffoldService {
     })
 
     if (scaffolds.results.length === 0) {
-      throw new Error(`Scaffold ${id} не найден`)
+      throw new Error(`Scaffold ${id} not found`)
     }
 
     const pageId = scaffolds.results[0].id

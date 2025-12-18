@@ -1,10 +1,10 @@
-# Интеграционные тесты
+# Integration Tests
 
-## Настройка
+## Setup
 
-Перед запуском тестов убедитесь, что у вас настроены переменные окружения:
+Before running tests, make sure you have configured environment variables:
 
-1. Создайте `.env.test` файл (или используйте `.env`) с настройками для тестовой среды:
+1. Create a `.env.test` file (or use `.env`) with test environment settings:
    ```
    TELEGRAM_BOT_TOKEN=fake-token-for-testing
    TELEGRAM_TEST_CHAT_ID=-1001234567890
@@ -13,35 +13,32 @@
    NOTION_DATABASE_SCAFFOLDS_TEST=your-test-database-id
    ```
 
-2. Убедитесь, что тестовые таблицы созданы в Notion (с суффиксом `_Test`)
+2. Make sure test tables are created in Notion (with `_Test` suffix)
 
-## Запуск тестов
+## Running Tests
 
 ```bash
-# Запустить все тесты один раз
+# Run all tests once
 npm test
 
-# Запустить тесты в watch режиме
+# Run tests in watch mode
 npm run test:watch
 
-# Запустить тесты с UI
+# Run tests with UI
 npm run test:ui
 ```
 
-## Структура тестов
+## Test Structure
 
-- `integration/scaffold.test.ts` - тесты для команд scaffold
-- `helpers/botMock.ts` - утилиты для мокирования Telegram Bot API
-- `helpers/updateHelpers.ts` - утилиты для создания mock Update объектов
-- `helpers/notionHelpers.ts` - утилиты для работы с Notion в тестах
-- `helpers/testFixtures.ts` - тестовые константы
+- `integration/scaffold.test.ts` - tests for scaffold commands
+- `helpers/botMock.ts` - utilities for mocking Telegram Bot API
+- `helpers/updateHelpers.ts` - utilities for creating mock Update objects
+- `helpers/notionHelpers.ts` - utilities for working with Notion in tests
+- `helpers/testFixtures.ts` - test constants
 
-## Как работают тесты
+## How Tests Work
 
-1. **Эмуляция входящих сообщений**: Создаем mock Update объект, который имитирует сообщение от пользователя
-2. **Обработка через бота**: Передаем Update в `bot.handleUpdate()`
-3. **Мокирование исходящих сообщений**: Перехватываем `bot.api.sendMessage()` чтобы проверить ответы бота
-4. **Проверка в Notion**: Проверяем, что данные корректно созданы/изменены в тестовых таблицах
-
-
-
+1. **Emulating incoming messages**: Create a mock Update object that simulates a message from a user
+2. **Processing through bot**: Pass Update to `bot.handleUpdate()`
+3. **Mocking outgoing messages**: Intercept `bot.api.sendMessage()` to check bot responses
+4. **Notion verification**: Verify that data is correctly created/modified in test tables

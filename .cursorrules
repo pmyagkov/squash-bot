@@ -1,0 +1,18 @@
+# Agent Rules for Squash Bot Repository
+
+## Language Guidelines
+
+### Communication
+- **Chat communication**: All conversations in chat should be conducted in **Russian**
+- When discussing requirements, asking questions, or providing explanations to the user, use Russian
+
+### Code and Documentation
+- **Code**: All code, including variable names, function names, class names, and file names, must be in **English**
+- **Comments**: All code comments and inline documentation must be in **English**
+- **Documentation files**: All documentation files (README.md, architecture.md, etc.) must be written in **English**
+- **Commit messages**: All commit messages should be in **English**
+
+## Summary
+- Chat: Russian (русский)
+- Code, comments, documentation: English
+

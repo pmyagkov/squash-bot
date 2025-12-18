@@ -2,17 +2,17 @@ import { vi } from 'vitest'
 import type { Client } from '@notionhq/client'
 import type { Scaffold } from '~/types'
 
-// In-memory хранилище для мокированных данных
+// In-memory storage for mocked data
 class MockNotionStore {
   private scaffolds: Map<string, Scaffold> = new Map()
   private pageIdCounter = 1
 
-  // Генерируем уникальный page ID
+  // Generate unique page ID
   private generatePageId(): string {
     return `mock-page-${this.pageIdCounter++}`
   }
 
-  // Преобразуем Scaffold в формат Notion Page
+  // Convert Scaffold to Notion Page format
   private scaffoldToNotionPage(scaffold: Scaffold, pageId: string): any {
     return {
       id: pageId,
@@ -58,12 +58,12 @@ class MockNotionStore {
   }
 
 
-  // Получить все scaffold
+  // Get all scaffolds
   getAllScaffolds(): Scaffold[] {
     return Array.from(this.scaffolds.values())
   }
 
-  // Создать scaffold
+  // Create scaffold
   createScaffold(scaffold: Scaffold): any {
     const pageId = this.generatePageId()
     const page = this.scaffoldToNotionPage(scaffold, pageId)
@@ -71,7 +71,7 @@ class MockNotionStore {
     return page
   }
 
-  // Обновить scaffold
+  // Update scaffold
   updateScaffold(id: string, updates: Partial<Scaffold>): any {
     const existing = this.scaffolds.get(id)
     if (!existing) {
@@ -80,33 +80,33 @@ class MockNotionStore {
 
     const updated = { ...existing, ...updates }
     this.scaffolds.set(id, updated)
-    // Используем pageId из существующего scaffold или генерируем новый
+    // Use pageId from existing scaffold or generate new one
     const pageId = `mock-page-${id}`
     return this.scaffoldToNotionPage(updated, pageId)
   }
 
-  // Найти scaffold по ID
+  // Find scaffold by ID
   findScaffoldById(id: string): Scaffold | undefined {
     return this.scaffolds.get(id)
   }
 
-  // Удалить scaffold (архивировать)
+  // Remove scaffold (archive)
   archiveScaffold(id: string): void {
     this.scaffolds.delete(id)
   }
 
-  // Очистить все данные
+  // Clear all data
   clear(): void {
     this.scaffolds.clear()
     this.pageIdCounter = 1
   }
 }
 
-// Глобальное хранилище для всех тестов
+// Global storage for all tests
 const mockStore = new MockNotionStore()
 
 /**
- * Создает mock для Notion Client
+ * Creates mock for Notion Client
  */
 export function createMockNotionClient(): Client {
   const mockClient = {
@@ -114,7 +114,7 @@ export function createMockNotionClient(): Client {
       query: vi.fn(async ({ database_id: _database_id, filter }: any) => {
         let scaffolds = mockStore.getAllScaffolds()
 
-        // Поддерживаем фильтрацию по ID (для toggle и remove)
+        // Support filtering by ID (for toggle and remove)
         if (filter?.property === 'id' && filter?.title?.equals) {
           const targetId = filter.title.equals
           const scaffold = mockStore.findScaffoldById(targetId)
@@ -122,7 +122,7 @@ export function createMockNotionClient(): Client {
         }
 
         const pages = scaffolds.map((scaffold) => {
-          // Используем приватный метод через any для доступа
+          // Use private method via any for access
           const store = mockStore as any
           return store.scaffoldToNotionPage(scaffold, `mock-page-${scaffold.id}`)
         })
@@ -148,15 +148,15 @@ export function createMockNotionClient(): Client {
         return mockStore.createScaffold(scaffold)
       }),
       update: vi.fn(async ({ page_id, properties, archived }: any) => {
-        // Если archived = true, удаляем scaffold
+        // If archived = true, remove scaffold
         if (archived) {
-          // Извлекаем ID из page_id (формат: mock-page-sc_1)
+          // Extract ID from page_id (format: mock-page-sc_1)
           const scaffoldId = page_id.replace('mock-page-', '')
           mockStore.archiveScaffold(scaffoldId)
           return { id: page_id, archived: true }
         }
 
-        // Находим scaffold по page_id (используем ID из хранилища)
+        // Find scaffold by page_id (use ID from storage)
         const scaffoldId = page_id.replace('mock-page-', '')
         const scaffold = mockStore.findScaffoldById(scaffoldId)
 
@@ -178,14 +178,14 @@ export function createMockNotionClient(): Client {
 }
 
 /**
- * Очищает mock хранилище
+ * Clears mock storage
  */
 export function clearMockNotionStore(): void {
   mockStore.clear()
 }
 
 /**
- * Получить текущее состояние mock хранилища (для отладки)
+ * Get current state of mock storage (for debugging)
  */
 export function getMockNotionStore(): MockNotionStore {
   return mockStore

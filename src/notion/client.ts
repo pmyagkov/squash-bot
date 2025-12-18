@@ -6,18 +6,18 @@ export class NotionClient {
   private client: Client | null = null
   private mockClient: Client | null = null
 
-  // Установить mock client (для тестов)
+  // Set mock client (for tests)
   setMockClient(mockClient: Client): void {
     this.mockClient = mockClient
   }
 
-  // Очистить mock client
+  // Clear mock client
   clearMockClient(): void {
     this.mockClient = null
   }
 
   private getClientInstance(): Client {
-    // Если установлен mock client, используем его (для тестов)
+    // If mock client is set, use it (for tests)
     if (this.mockClient) {
       return this.mockClient
     }

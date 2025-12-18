@@ -10,7 +10,7 @@ export function setBotInstance(bot: Bot): void {
 export type LogLevel = 'info' | 'warn' | 'error'
 
 export async function logToTelegram(message: string, level: LogLevel = 'info'): Promise<void> {
-  // В тестах не отправляем логи в Telegram, чтобы не засорять вывод
+  // Don't send logs to Telegram in tests to avoid cluttering output
   if (process.env.NODE_ENV === 'test') {
     return
   }
@@ -21,7 +21,7 @@ export async function logToTelegram(message: string, level: LogLevel = 'info'): 
     return
   }
 
-  const timestamp = new Date().toLocaleString('ru-RU', {
+  const timestamp = new Date().toLocaleString('en-US', {
     timeZone: config.timezone,
     dateStyle: 'short',
     timeStyle: 'medium',
@@ -35,7 +35,7 @@ export async function logToTelegram(message: string, level: LogLevel = 'info'): 
 
   const logMessage = `[${emoji[level]} ${level.toUpperCase()}] ${timestamp}\n${message}`
 
-  // Если logChatId не настроен, просто выводим в консоль
+  // If logChatId is not configured, just output to console
   if (!config.telegram.logChatId) {
     console.log(logMessage)
     return

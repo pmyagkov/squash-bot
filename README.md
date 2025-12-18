@@ -1,67 +1,67 @@
 # Squash Payment Bot
 
-Telegram-бот для управления платежами за сквош-занятия в комьюнити.
+Telegram bot for managing squash court payments in a community.
 
-## Описание
+## Description
 
-Бот автоматизирует запись на занятия, расчёт стоимости и трекинг оплат. Подробная архитектура описана в [docs/architecture.md](./docs/architecture.md).
+The bot automates session registration, cost calculation, and payment tracking. Detailed architecture is described in [docs/architecture.md](./docs/architecture.md).
 
-## Установка
+## Installation
 
-1. Клонировать репозиторий
-2. Установить зависимости:
+1. Clone the repository
+2. Install dependencies:
    ```bash
    npm install
    ```
-3. Создать файл `.env` на основе `.env.example` и заполнить все переменные
-4. Запустить в режиме разработки:
+3. Create a `.env` file based on `.env.example` and fill in all variables
+4. Run in development mode:
    ```bash
    npm run dev
    ```
-   Или через Docker:
+   Or via Docker:
    ```bash
    docker-compose up
    ```
 
-## Разработка
+## Development
 
-- `npm run dev` - запуск в режиме разработки с hot-reload
-- `npm run build` - сборка TypeScript
-- `npm run start` - запуск собранного приложения
-- `npm run lint` - проверка кода линтером
-- `npm run lint:fix` - автоматическое исправление ошибок линтера
-- `npm run format` - форматирование кода
-- `npm run type-check` - проверка типов без сборки
-- `npm test` - запуск тестов
-- `npm run test:watch` - запуск тестов в watch режиме
+- `npm run dev` - run in development mode with hot-reload
+- `npm run build` - build TypeScript
+- `npm run start` - run the built application
+- `npm run lint` - check code with linter
+- `npm run lint:fix` - automatically fix linter errors
+- `npm run format` - format code
+- `npm run type-check` - type check without building
+- `npm test` - run tests
+- `npm run test:watch` - run tests in watch mode
 
-## Тестирование
+## Testing
 
-### Быстрый запуск для тестирования
+### Quick start for testing
 
-1. Настройте `.env` файл (см. [docs/manual-testing.md](./docs/manual-testing.md))
-2. Запустите бота:
+1. Configure `.env` file (see [docs/manual-testing.md](./docs/manual-testing.md))
+2. Start the bot:
    ```bash
    npm run dev
    ```
-3. Откройте тестовый чат в Telegram
-4. Отправьте `/test info` для проверки окружения
+3. Open the test chat in Telegram
+4. Send `/test info` to check the environment
 
-Подробные инструкции по настройке и тестированию см. в [docs/manual-testing.md](./docs/manual-testing.md).
+Detailed setup and testing instructions can be found in [docs/manual-testing.md](./docs/manual-testing.md).
 
-### Основные команды для тестирования
+### Main commands for testing
 
-- `/getchatid` - получить Chat ID (работает в любом чате)
-- `/test info` - информация о тестовом окружении (только в тестовом чате)
-- `/test config` - проверка конфигурации (только в тестовом чате)
-- `/test scaffold add <day> <time> <courts>` - создать шаблон в тестовом режиме
+- `/getchatid` - get Chat ID (works in any chat)
+- `/test info` - test environment information (only in test chat)
+- `/test config` - configuration check (only in test chat)
+- `/test scaffold add <day> <time> <courts>` - create scaffold in test mode
 
-## Структура проекта
+## Project Structure
 
 ```
 src/
   bot/           # Telegram bot logic
-  api/           # REST endpoints для n8n
+  api/           # REST endpoints for n8n
   notion/        # Notion API client
   services/      # Business logic
   types/         # TypeScript types
@@ -72,10 +72,9 @@ src/
 ## API Endpoints
 
 - `GET /health` - healthcheck
-- `POST /check-events` - проверка и создание events (требует API key)
-- `POST /check-payments` - проверка и отправка напоминаний (требует API key)
+- `POST /check-events` - check and create events (requires API key)
+- `POST /check-payments` - check and send reminders (requires API key)
 
-## Лицензия
+## License
 
 ISC
-

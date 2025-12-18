@@ -12,18 +12,18 @@ export function createTextMessageUpdate(
   text: string,
   options: CreateMessageOptions
 ): Update {
-  // Определяем, является ли текст командой
+  // Determine if text is a command
   const isCommand = text.startsWith('/')
   const commandParts = isCommand ? text.split(/\s+/) : []
   const commandName = isCommand ? commandParts[0].substring(1) : null
 
-  // Создаем entities для команды (grammy использует их для распознавания команд)
+  // Create entities for command (grammy uses them for command recognition)
   const entities: any[] = []
   if (isCommand && commandName) {
     entities.push({
       type: 'bot_command',
       offset: 0,
-      length: commandName.length + 1, // +1 для '/'
+      length: commandName.length + 1, // +1 for '/'
     })
   }
 

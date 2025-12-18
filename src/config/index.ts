@@ -1,25 +1,25 @@
 import dotenv from 'dotenv'
 import path from 'path'
 
-// Функция для загрузки переменных окружения
+// Function to load environment variables
 function loadEnv() {
   const rootDir = path.resolve(__dirname, '../..')
-  // Сначала .env (основной), потом .env.test (переопределения)
+  // First .env (main), then .env.test (overrides)
   dotenv.config({ path: path.join(rootDir, '.env'), override: false })
   dotenv.config({ path: path.join(rootDir, '.env.test'), override: false })
-  // Также загружаем из текущей директории (на случай если запускаем из другой папки)
+  // Also load from current directory (in case we run from another folder)
   dotenv.config({ override: false })
 }
 
-// Загружаем переменные окружения при импорте модуля
+// Load environment variables when module is imported
 loadEnv()
 
-// Экспортируем функцию для перезагрузки (для тестов)
+// Export function for reloading (for tests)
 export function reloadConfig() {
   loadEnv()
 }
 
-// Создаем функцию для получения конфига, которая всегда читает актуальные значения из process.env
+// Create function to get config that always reads current values from process.env
 function getConfig() {
   return {
     telegram: {
@@ -56,7 +56,7 @@ function getConfig() {
   }
 }
 
-// Экспортируем config как Proxy, который всегда читает актуальные значения
+// Export config as Proxy that always reads current values
 export const config = new Proxy({} as ReturnType<typeof getConfig>, {
   get(_target, prop) {
     const currentConfig = getConfig()

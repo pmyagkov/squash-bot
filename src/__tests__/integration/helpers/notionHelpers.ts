@@ -1,7 +1,7 @@
 import { scaffoldService } from '~/services/scaffoldService'
 
 /**
- * Очищает все scaffold из тестовой таблицы Notion
+ * Clears all scaffolds from test Notion table
  */
 export async function cleanupTestScaffolds(chatId: number | string): Promise<void> {
   const scaffolds = await scaffoldService.getScaffolds(chatId)
@@ -10,7 +10,7 @@ export async function cleanupTestScaffolds(chatId: number | string): Promise<voi
     try {
       await scaffoldService.removeScaffold(chatId, scaffold.id)
     } catch (error) {
-      // Игнорируем ошибки при удалении (может быть уже удален)
+      // Ignore errors when deleting (may already be deleted)
       console.warn(`Failed to remove scaffold ${scaffold.id}:`, error)
     }
   }

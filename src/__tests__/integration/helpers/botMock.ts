@@ -7,20 +7,20 @@ export interface SentMessage {
 }
 
 /**
- * Настраивает mock transformer для перехвата всех API запросов бота.
- * Использует официальный API grammy: https://grammy.dev/advanced/transformers
+ * Sets up mock transformer to intercept all bot API requests.
+ * Uses official grammy API: https://grammy.dev/advanced/transformers
  *
- * @param bot - Экземпляр бота для мокирования
- * @returns Массив отправленных сообщений, который будет обновляться при каждом вызове API
+ * @param bot - Bot instance to mock
+ * @returns Array of sent messages that will be updated on each API call
  */
 export function setupMockBotApi(bot: Bot): SentMessage[] {
   const sentMessages: SentMessage[] = []
 
-  // Устанавливаем transformer через bot.api.config.use() (правильный способ по документации grammy)
+  // Set transformer via bot.api.config.use() (correct way according to grammy documentation)
   // https://grammy.dev/advanced/transformers
   bot.api.config.use((prev, method, payload, signal) => {
     if (method === 'sendMessage') {
-      // Типизируем payload для sendMessage
+      // Type payload for sendMessage
       const sendMessagePayload = payload as {
         chat_id: number | string
         text: string
@@ -39,7 +39,7 @@ export function setupMockBotApi(bot: Bot): SentMessage[] {
         },
       })
 
-      // Возвращаем mock response вместо реального API вызова
+      // Return mock response instead of real API call
       return Promise.resolve({
         ok: true,
         result: {
@@ -68,7 +68,7 @@ export function setupMockBotApi(bot: Bot): SentMessage[] {
       return Promise.resolve({ ok: true, result: true } as any)
     }
 
-    // Для остальных методов вызываем оригинальный transformer
+    // For other methods, call original transformer
     return prev(method, payload, signal)
   })
 

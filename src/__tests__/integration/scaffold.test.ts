@@ -15,35 +15,35 @@ describe('scaffold add command', () => {
   const testChatId = String(TEST_CHAT_ID)
 
   beforeEach(async () => {
-    // Мокируем Notion API
+    // Mock Notion API
     const mockNotionClient = createMockNotionClient()
     notionClient.setMockClient(mockNotionClient)
 
-    // Очищаем mock хранилище перед каждым тестом
+    // Clear mock storage before each test
     clearMockNotionStore()
 
-    // Создаем бота через createBot (со всеми командами)
+    // Create bot via createBot (with all commands)
     bot = await createBot()
 
-    // Настраиваем mock transformer для перехвата всех API запросов
+    // Set up mock transformer to intercept all API requests
     sentMessages = setupMockBotApi(bot)
 
-    // Устанавливаем bot instance для logger (чтобы не было ошибок)
+    // Set bot instance for logger (to avoid errors)
     setBotInstance(bot)
 
-    // Инициализируем бота (нужно для handleUpdate)
+    // Initialize bot (needed for handleUpdate)
     await bot.init()
   })
 
   afterEach(async () => {
-    // Очищаем mock хранилище после каждого теста
+    // Clear mock storage after each test
     clearMockNotionStore()
-    // Очищаем mock client
+    // Clear mock client
     notionClient.clearMockClient()
   })
 
   it('should create scaffold successfully', async () => {
-    // Эмулируем входящее сообщение от пользователя
+    // Emulate incoming message from user
     const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
@@ -51,19 +51,19 @@ describe('scaffold add command', () => {
       firstName: 'Test Admin',
     })
 
-    // Обрабатываем update (как будто пришло от Telegram)
+    // Process update (as if it came from Telegram)
     await bot.handleUpdate(update)
 
-    // Проверяем, что бот отправил ответ
+    // Check that bot sent a response
     expect(sentMessages.length).toBeGreaterThan(0)
     const successMessage = sentMessages.find((msg) =>
-      msg.text.includes('✅ Создан шаблон')
+      msg.text.includes('✅ Created scaffold')
     )
     expect(successMessage).toBeDefined()
     expect(successMessage?.text).toContain('Tue 21:00')
-    expect(successMessage?.text).toContain('2 корт')
+    expect(successMessage?.text).toContain('2 court')
 
-    // Проверяем, что scaffold создан в Notion
+    // Check that scaffold is created in Notion
     const scaffolds = await scaffoldService.getScaffolds(testChatId)
     expect(scaffolds).toHaveLength(1)
     expect(scaffolds[0].day_of_week).toBe('Tue')
@@ -74,21 +74,21 @@ describe('scaffold add command', () => {
 
   it('should reject command from non-admin', async () => {
     const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
-      userId: NON_ADMIN_ID, // не админ
+      userId: NON_ADMIN_ID, // not admin
       chatId: TEST_CHAT_ID,
       username: 'regularuser',
     })
 
     await bot.handleUpdate(update)
 
-    // Проверяем, что бот отправил сообщение об ошибке
+    // Check that bot sent an error message
     expect(sentMessages.length).toBeGreaterThan(0)
     const errorMessage = sentMessages.find((msg) =>
-      msg.text.includes('❌ Эта команда доступна только администратору')
+      msg.text.includes('❌ This command is only available to administrators')
     )
     expect(errorMessage).toBeDefined()
 
-    // Проверяем, что scaffold НЕ создан
+    // Check that scaffold is NOT created
     const scaffolds = await scaffoldService.getScaffolds(testChatId)
     expect(scaffolds).toHaveLength(0)
   })
@@ -101,13 +101,13 @@ describe('scaffold add command', () => {
 
     await bot.handleUpdate(update)
 
-    // Проверяем сообщение об ошибке
+    // Check error message
     const errorMessage = sentMessages.find((msg) =>
-      msg.text.includes('Неверный день недели')
+      msg.text.includes('Invalid day of week')
     )
     expect(errorMessage).toBeDefined()
 
-    // Проверяем, что scaffold НЕ создан
+    // Check that scaffold is NOT created
     const scaffolds = await scaffoldService.getScaffolds(testChatId)
     expect(scaffolds).toHaveLength(0)
   })
@@ -120,11 +120,11 @@ describe('scaffold add command', () => {
 
     await bot.handleUpdate(update)
 
-    // Проверяем сообщение об ошибке (время должно быть валидным)
-    // В scaffoldService есть валидация времени
+    // Check error message (time should be valid)
+    // scaffoldService has time validation
     const scaffolds = await scaffoldService.getScaffolds(testChatId)
-    // Если валидация работает, scaffold не должен быть создан
-    // или должна быть ошибка
+    // If validation works, scaffold should not be created
+    // or there should be an error
     expect(scaffolds.length).toBeLessThanOrEqual(0)
   })
 
@@ -136,13 +136,13 @@ describe('scaffold add command', () => {
 
     await bot.handleUpdate(update)
 
-    // Проверяем сообщение об ошибке
+    // Check error message
     const errorMessage = sentMessages.find((msg) =>
-      msg.text.includes('положительным числом')
+      msg.text.includes('positive number')
     )
     expect(errorMessage).toBeDefined()
 
-    // Проверяем, что scaffold НЕ создан
+    // Check that scaffold is NOT created
     const scaffolds = await scaffoldService.getScaffolds(testChatId)
     expect(scaffolds).toHaveLength(0)
   })
@@ -155,13 +155,13 @@ describe('scaffold add command', () => {
 
     await bot.handleUpdate(update)
 
-    // Проверяем сообщение об использовании
+    // Check usage message
     const usageMessage = sentMessages.find((msg) =>
-      msg.text.includes('Использование: /scaffold add')
+      msg.text.includes('Usage: /scaffold add')
     )
     expect(usageMessage).toBeDefined()
 
-    // Проверяем, что scaffold НЕ создан
+    // Check that scaffold is NOT created
     const scaffolds = await scaffoldService.getScaffolds(testChatId)
     expect(scaffolds).toHaveLength(0)
   })
