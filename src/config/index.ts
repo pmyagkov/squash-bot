@@ -1,6 +1,6 @@
-import dotenv from 'dotenv';
+import dotenv from 'dotenv'
 
-dotenv.config();
+dotenv.config()
 
 export const config = {
   telegram: {
@@ -34,4 +34,4 @@ export const config = {
     apiKey: process.env.API_KEY!,
   },
   timezone: process.env.TIMEZONE || 'Europe/Belgrade',
-};
+}
