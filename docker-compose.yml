@@ -6,9 +6,9 @@ services:
     container_name: squash-bot
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.prod
     ports:
-      - '3000:3000'
+      - '3010:3010'
     volumes:
       - ./src:/app/src
     command: npm run dev

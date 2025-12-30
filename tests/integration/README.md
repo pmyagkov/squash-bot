@@ -4,14 +4,19 @@
 
 Before running tests, make sure you have configured environment variables:
 
-1. Create a `.env.test` file (or use `.env`) with test environment settings:
+1. Create a `.env.test` file based on `.env.example` with test environment settings:
    ```
    TELEGRAM_BOT_TOKEN=fake-token-for-testing
-   TELEGRAM_TEST_CHAT_ID=-1001234567890
    ADMIN_TELEGRAM_ID=123456789
    NOTION_API_KEY=your-notion-api-key
-   NOTION_DATABASE_SCAFFOLDS_TEST=your-test-database-id
+   NOTION_DATABASE_SCAFFOLDS=your-test-database-id
+   NOTION_DATABASE_EVENTS=your-test-events-database-id
+   NOTION_DATABASE_PARTICIPANTS=your-test-participants-database-id
+   NOTION_DATABASE_EVENT_PARTICIPANTS=your-test-event-participants-database-id
+   NOTION_DATABASE_PAYMENTS=your-test-payments-database-id
+   NOTION_DATABASE_SETTINGS=your-test-settings-database-id
    ```
+   Note: Variable names are the same as in `.env.prod`, but values point to test databases.
 
 2. Make sure test tables are created in Notion (with `_Test` suffix)
 

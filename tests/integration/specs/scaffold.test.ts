@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createBot } from '~/bot'
 import { scaffoldService } from '~/services/scaffoldService'
-import { createTextMessageUpdate } from './helpers/updateHelpers'
-import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from './helpers/testFixtures'
+import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
+import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { setBotInstance } from '~/utils/logger'
 import { notionClient } from '~/notion/client'
-import { createMockNotionClient, clearMockNotionStore } from './helpers/notionMock'
-import { setupMockBotApi, type SentMessage } from './helpers/botMock'
+import { createMockNotionClient, clearMockNotionStore } from '@integration/mocks/notionMock'
+import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
 
 describe('scaffold add command', () => {
   let bot: Bot
@@ -56,9 +56,7 @@ describe('scaffold add command', () => {
 
     // Check that bot sent a response
     expect(sentMessages.length).toBeGreaterThan(0)
-    const successMessage = sentMessages.find((msg) =>
-      msg.text.includes('✅ Created scaffold')
-    )
+    const successMessage = sentMessages.find((msg) => msg.text.includes('✅ Created scaffold'))
     expect(successMessage).toBeDefined()
     expect(successMessage?.text).toContain('Tue 21:00')
     expect(successMessage?.text).toContain('2 court')
@@ -102,9 +100,7 @@ describe('scaffold add command', () => {
     await bot.handleUpdate(update)
 
     // Check error message
-    const errorMessage = sentMessages.find((msg) =>
-      msg.text.includes('Invalid day of week')
-    )
+    const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid day of week'))
     expect(errorMessage).toBeDefined()
 
     // Check that scaffold is NOT created
@@ -137,9 +133,7 @@ describe('scaffold add command', () => {
     await bot.handleUpdate(update)
 
     // Check error message
-    const errorMessage = sentMessages.find((msg) =>
-      msg.text.includes('positive number')
-    )
+    const errorMessage = sentMessages.find((msg) => msg.text.includes('positive number'))
     expect(errorMessage).toBeDefined()
 
     // Check that scaffold is NOT created
@@ -156,9 +150,7 @@ describe('scaffold add command', () => {
     await bot.handleUpdate(update)
 
     // Check usage message
-    const usageMessage = sentMessages.find((msg) =>
-      msg.text.includes('Usage: /scaffold add')
-    )
+    const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /scaffold add'))
     expect(usageMessage).toBeDefined()
 
     // Check that scaffold is NOT created
@@ -166,4 +158,3 @@ describe('scaffold add command', () => {
     expect(scaffolds).toHaveLength(0)
   })
 })
-

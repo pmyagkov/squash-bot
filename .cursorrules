@@ -12,7 +12,20 @@
 - **Documentation files**: All documentation files (README.md, architecture.md, etc.) must be written in **English**
 - **Commit messages**: All commit messages should be in **English**
 
+## TypeScript Guidelines
+
+### Type Safety
+- **Avoid `as any`**: Do not use `as any` type assertions in TypeScript code unless absolutely necessary and there is no other way to solve the type issue
+- When `as any` is unavoidable, add a comment explaining why it's necessary and what alternatives were considered
+
+### Import Paths
+- **Use `~` alias**: Always use the `~` alias for imports instead of deep relative paths (e.g., `../../../`)
+- Prefer `~/src/...` over relative paths like `../../..`
+- Example: Use `import { something } from '~/src/utils/logger'` instead of `import { something } from '../../../utils/logger'`
+
 ## Summary
 - Chat: Russian (русский)
 - Code, comments, documentation: English
+- TypeScript: Avoid `as any` unless absolutely necessary
+- Imports: Use `~` alias instead of deep relative paths
 

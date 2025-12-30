@@ -7,8 +7,9 @@ import { reloadConfig } from '~/config'
 const rootDir = path.resolve(process.cwd())
 
 // Load environment variables for tests
-// First .env (main), then .env.test (overrides for tests)
-dotenv.config({ path: path.join(rootDir, '.env') })
+// Set ENVIRONMENT=test before loading config
+process.env.ENVIRONMENT = 'test'
+// Load .env.test file for tests
 dotenv.config({ path: path.join(rootDir, '.env.test') })
 
 // Also load from current directory (in case we run from another folder)
@@ -25,4 +26,3 @@ reloadConfig()
 
 // Check that key variables are loaded
 // (warnings removed for clean test output)
-

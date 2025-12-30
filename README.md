@@ -13,10 +13,20 @@ The bot automates session registration, cost calculation, and payment tracking. 
    ```bash
    npm install
    ```
-3. Create a `.env` file based on `.env.example` and fill in all variables
+3. Create environment files:
+   - Copy `.env.example` to `.env.prod` and fill in production values
+   - Copy `.env.example` to `.env.test` and fill in test values
+   - Both files use the same variable names (e.g., `TELEGRAM_BOT_TOKEN`, `NOTION_DATABASE_SCAFFOLDS`)
+   - Production values go in `.env.prod`, test values go in `.env.test`
+   - See `.env.example` for the full list of required variables
+
 4. Run in development mode:
    ```bash
-   npm run dev
+   # Production environment
+   npm run dev:prod
+
+   # Test environment
+   npm run dev:test
    ```
    Or via Docker:
    ```bash
@@ -25,9 +35,20 @@ The bot automates session registration, cost calculation, and payment tracking. 
 
 ## Development
 
-- `npm run dev` - run in development mode with hot-reload
+### Running the Bot
+
+The bot supports two environments: **production** and **test**. Each environment uses different bot tokens and databases.
+
+- `npm run dev` - run in development mode with hot-reload (defaults to production)
+- `npm run dev:prod` - run in development mode with production environment
+- `npm run dev:test` - run in development mode with test environment
 - `npm run build` - build TypeScript
-- `npm run start` - run the built application
+- `npm run start` - run the built application (defaults to production)
+- `npm run start:prod` - run the built application in production mode
+- `npm run start:test` - run the built application in test mode
+
+### Other Commands
+
 - `npm run lint` - check code with linter
 - `npm run lint:fix` - automatically fix linter errors
 - `npm run format` - format code
@@ -39,10 +60,14 @@ The bot automates session registration, cost calculation, and payment tracking. 
 
 ### Quick start for testing
 
-1. Configure `.env` file (see [docs/manual-testing.md](./docs/manual-testing.md))
-2. Start the bot:
+1. Create `.env.test` file based on `.env.example` and fill in test values:
+   - `TELEGRAM_BOT_TOKEN` - test bot token
+   - `TELEGRAM_TEST_CHAT_ID` - test chat ID
+   - `NOTION_DATABASE_*` - test database IDs
+   - See [docs/manual-testing.md](./docs/manual-testing.md) for details
+2. Start the bot in test mode:
    ```bash
-   npm run dev
+   npm run dev:test
    ```
 3. Open the test chat in Telegram
 4. Send `/test info` to check the environment

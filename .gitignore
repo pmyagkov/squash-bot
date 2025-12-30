@@ -8,6 +8,10 @@ dist/
 .env
 .env.local
 .env.*.local
+.env.prod
+.env.test
+# But keep .env.example
+!.env.example
 
 # IDE
 .vscode/
@@ -33,3 +37,6 @@ coverage/
 .dockerignore
 
 docs/
+test-results/
+playwright-report/
+.auth/

@@ -4,6 +4,7 @@ export interface SentMessage {
   chatId: number | string
   text: string
   options?: any
+  reply_markup?: any
 }
 
 /**
@@ -33,6 +34,7 @@ export function setupMockBotApi(bot: Bot): SentMessage[] {
       sentMessages.push({
         chatId,
         text,
+        reply_markup: sendMessagePayload.reply_markup,
         options: {
           parse_mode: sendMessagePayload.parse_mode,
           reply_markup: sendMessagePayload.reply_markup,
@@ -68,10 +70,17 @@ export function setupMockBotApi(bot: Bot): SentMessage[] {
       return Promise.resolve({ ok: true, result: true } as any)
     }
 
+    if (method === 'pinChatMessage') {
+      return Promise.resolve({ ok: true, result: true } as any)
+    }
+
+    if (method === 'unpinAllChatMessages') {
+      return Promise.resolve({ ok: true, result: true } as any)
+    }
+
     // For other methods, call original transformer
     return prev(method, payload, signal)
   })
 
   return sentMessages
 }
-

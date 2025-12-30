@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "~/*": ["src/*"],
+      "@e2e/*": ["tests/e2e/*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["../integration/**"]
+}

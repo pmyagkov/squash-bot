@@ -10,11 +10,6 @@ export function setBotInstance(bot: Bot): void {
 export type LogLevel = 'info' | 'warn' | 'error'
 
 export async function logToTelegram(message: string, level: LogLevel = 'info'): Promise<void> {
-  // Don't send logs to Telegram in tests to avoid cluttering output
-  if (process.env.NODE_ENV === 'test') {
-    return
-  }
-
   if (!botInstance) {
     console.warn('Bot instance not set, logging to console only')
     console.log(`[${level.toUpperCase()}] ${message}`)
@@ -36,12 +31,13 @@ export async function logToTelegram(message: string, level: LogLevel = 'info'): 
   const logMessage = `[${emoji[level]} ${level.toUpperCase()}] ${timestamp}\n${message}`
 
   // If logChatId is not configured, just output to console
-  if (!config.telegram.logChatId) {
+  if (!config.telegram.logChatId || process.env.NODE_ENV === 'test') {
     console.log(logMessage)
     return
   }
 
   try {
+    console.log(logMessage)
     await botInstance.api.sendMessage(config.telegram.logChatId, logMessage)
   } catch (error) {
     console.error('Failed to send log to Telegram:', error)

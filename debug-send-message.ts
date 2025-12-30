@@ -20,7 +20,7 @@ interface EventState {
 
 async function main() {
   const botToken = process.env.TELEGRAM_BOT_TOKEN
-  const testChatId = process.env.TELEGRAM_TEST_CHAT_ID
+  const testChatId = process.env.TELEGRAM_MAIN_CHAT_ID
 
   if (!botToken) {
     console.error('❌ TELEGRAM_BOT_TOKEN не установлен в .env')
@@ -28,7 +28,7 @@ async function main() {
   }
 
   if (!testChatId) {
-    console.error('❌ TELEGRAM_TEST_CHAT_ID не установлен в .env')
+    console.error('❌ TELEGRAM_MAIN_CHAT_ID не установлен в .env')
     process.exit(1)
   }
 
@@ -91,15 +91,17 @@ ${participantsList}`
     console.log('📤 Отправляю сообщение в тестовый чат...')
     console.log(`Chat ID: ${testChatId}`)
 
-    const sentMessage = await bot.api.sendMessage(testChatId, messageText, {
-      reply_markup: createKeyboard(),
-    })
+    if (testChatId) {
+      const sentMessage = await bot.api.sendMessage(testChatId, messageText, {
+        reply_markup: createKeyboard(),
+      })
 
-    eventState.messageId = sentMessage.message_id
+      eventState.messageId = sentMessage.message_id
 
-    console.log('✅ Сообщение успешно отправлено!')
-    console.log(`Message ID: ${eventState.messageId}`)
-    console.log(`Chat: ${sentMessage.chat.title || 'Private chat'}`)
+      console.log('✅ Сообщение успешно отправлено!')
+      console.log(`Message ID: ${eventState.messageId}`)
+      console.log(`Chat: ${sentMessage.chat.title || 'Private chat'}`)
+    }
 
     // Обработчик callback для кнопок
     bot.callbackQuery('event_join', async (ctx) => {
@@ -123,7 +125,9 @@ ${participantsList}`
 
       await ctx.answerCallbackQuery({ text: 'Вы записались!' })
       await updateMessage()
-      console.log(`User ${userId} (@${username || displayName}) clicked "Я иду" (участий: ${participant.participations})`)
+      console.log(
+        `User ${userId} (@${username || displayName}) clicked "Я иду" (участий: ${participant.participations})`
+      )
     })
 
     bot.callbackQuery('event_leave', async (ctx) => {
@@ -173,6 +177,16 @@ ${participantsList}`
       console.log(`User ${ctx.from?.id} clicked "✅ Finalize"`)
     })
 
+    // Простая обработка входящих сообщений: логируем идентификатор чата
+    bot.on('message', async (ctx) => {
+      try {
+        const chatId = ctx.chat?.id
+        console.log(`📩 Received message in chat ${chatId}`)
+      } catch (err) {
+        console.error('Error in message listener:', err)
+      }
+    })
+
     // Запускаем бота для обработки callback'ов
     console.log('\n🤖 Бот запущен для обработки нажатий на кнопки...')
     console.log('Нажмите Ctrl+C для остановки\n')
@@ -188,4 +202,3 @@ ${participantsList}`
 }
 
 main().catch(console.error)
-

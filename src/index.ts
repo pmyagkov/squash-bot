@@ -11,7 +11,7 @@ async function main() {
     await logToTelegram('Telegram bot started', 'info')
 
     // Start API server
-    const server = await createApiServer()
+    const server = await createApiServer(bot)
     await server.listen({ port: config.server.port, host: '0.0.0.0' })
     await logToTelegram(`API server started on port ${config.server.port}`, 'info')
 

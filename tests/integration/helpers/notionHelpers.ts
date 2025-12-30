@@ -15,4 +15,3 @@ export async function cleanupTestScaffolds(chatId: number | string): Promise<voi
     }
   }
 }
-

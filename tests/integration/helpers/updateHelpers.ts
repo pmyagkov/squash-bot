@@ -8,10 +8,7 @@ export interface CreateMessageOptions {
   lastName?: string
 }
 
-export function createTextMessageUpdate(
-  text: string,
-  options: CreateMessageOptions
-): Update {
+export function createTextMessageUpdate(text: string, options: CreateMessageOptions): Update {
   // Determine if text is a command
   const isCommand = text.startsWith('/')
   const commandParts = isCommand ? text.split(/\s+/) : []
@@ -49,4 +46,3 @@ export function createTextMessageUpdate(
     } as Message.TextMessage,
   } as Update
 }
-
