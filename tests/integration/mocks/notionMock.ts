@@ -1,219 +1,308 @@
 import { vi } from 'vitest'
 import type { Client } from '@notionhq/client'
-import type { Scaffold, Event } from '~/types'
+import type { EntityRegistry, EntityConfig } from './entityConfig'
+import { createScaffoldEntityConfig } from './entities/scaffoldEntity'
+import { createEventEntityConfig } from './entities/eventEntity'
 
-// In-memory storage for mocked data
-class MockNotionStore {
-  private scaffolds: Map<string, Scaffold> = new Map()
-  private events: Map<string, Event> = new Map()
-  private scaffoldPageIdMap: Map<string, string> = new Map() // scaffold ID -> page ID
-  private eventPageIdMap: Map<string, string> = new Map() // event ID -> page ID
+// Database IDs from the actual configuration
+const SCAFFOLD_DB_ID = '1c6408e91d3a4d308b0736e79ff5b937'
+const EVENT_DB_ID = '4e6dc64564e042c9991daf38f6b0ec85'
+
+/**
+ * Mock Notion Client using Entity Registry pattern
+ *
+ * This implementation completely eliminates indirect inference by using:
+ * 1. Database ID → Entity Config mapping
+ * 2. Page ID → Database ID mapping
+ *
+ * No more guessing entity types based on ID prefixes or property patterns!
+ */
+class MockNotionClient {
+  private entityRegistry: EntityRegistry
+  private pageIdToDatabaseId: Map<string, string> = new Map()
   private pageIdCounter = 1
 
-  // Generate unique page ID
+  constructor() {
+    // Initialize entity registry with database ID mappings
+    const scaffoldConfig = createScaffoldEntityConfig()
+    const eventConfig = createEventEntityConfig()
+
+    this.entityRegistry = {
+      [SCAFFOLD_DB_ID]: scaffoldConfig as EntityConfig<unknown>,
+      [EVENT_DB_ID]: eventConfig as EntityConfig<unknown>,
+    }
+  }
+
+  /**
+   * Generate unique page ID
+   */
   private generatePageId(): string {
     return `mock-page-${this.pageIdCounter++}`
   }
 
-  // Convert Scaffold to Notion Page format
-  private scaffoldToNotionPage(scaffold: Scaffold, pageId: string): any {
+  /**
+   * Get entity config for a database ID
+   */
+  private getEntityConfigByDatabaseId(databaseId: string): EntityConfig<unknown> {
+    const config = this.entityRegistry[databaseId]
+    if (!config) {
+      throw new Error(`No entity configuration found for database ID: ${databaseId}`)
+    }
+    return config
+  }
+
+  /**
+   * Get entity config for a page ID
+   */
+  private getEntityConfigByPageId(pageId: string): EntityConfig<unknown> {
+    const databaseId = this.pageIdToDatabaseId.get(pageId)
+    if (!databaseId) {
+      throw new Error(`Page ID ${pageId} not found`)
+    }
+    return this.getEntityConfigByDatabaseId(databaseId)
+  }
+
+  /**
+   * databases.query implementation
+   */
+  async databasesQuery({ database_id, filter }: any) {
+    // Use database_id to look up entity config
+    const config = this.getEntityConfigByDatabaseId(database_id)
+
+    // Get all entities from the store
+    let entities = config.store.getAll()
+
+    // Apply filter if provided
+    if (filter?.property === 'id' && filter?.title?.equals) {
+      const targetId = filter.title.equals
+      const entity = config.store.findById(targetId)
+      entities = entity ? [entity] : []
+    }
+
+    // Convert entities to Notion page format
+    const results = entities.map(entity => {
+      const entityId = (entity as any).id
+      const pageId = config.pageIdMap.get(entityId)
+      if (!pageId) {
+        throw new Error(`Page ID not found for entity ${entityId}`)
+      }
+
+      // Build context for conversion
+      const context: Record<string, unknown> = {
+        databaseId: database_id,
+      }
+
+      // For events with scaffold relations, add scaffold page ID
+      if (config.name === 'event' && (entity as any).scaffold_id) {
+        const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+        const scaffoldPageId = scaffoldConfig.pageIdMap.get((entity as any).scaffold_id)
+        if (scaffoldPageId) {
+          context.scaffoldPageId = scaffoldPageId
+        }
+      }
+
+      return config.converters.toNotionPage(entity, pageId, context)
+    })
+
     return {
-      id: pageId,
-      properties: {
-        id: {
-          title: [
-            {
-              plain_text: scaffold.id,
-              text: {
-                content: scaffold.id,
-              },
-            },
-          ],
-        },
-        day_of_week: {
-          select: {
-            name: scaffold.day_of_week,
-          },
-        },
-        time: {
-          rich_text: [
-            {
-              plain_text: scaffold.time,
-              text: {
-                content: scaffold.time,
-              },
-            },
-          ],
-        },
-        default_courts: {
-          number: scaffold.default_courts,
-        },
-        is_active: {
-          checkbox: scaffold.is_active,
-        },
-        ...(scaffold.announce_hours_before !== undefined && {
-          announce_hours_before: {
-            number: scaffold.announce_hours_before,
-          },
-        }),
-      },
+      results,
+      has_more: false,
+      next_cursor: null,
     }
   }
 
-  // Get all scaffolds
-  getAllScaffolds(): Scaffold[] {
-    return Array.from(this.scaffolds.values())
-  }
+  /**
+   * pages.create implementation
+   */
+  async pagesCreate({ parent, properties }: any) {
+    const databaseId = parent.database_id
 
-  // Create scaffold
-  createScaffold(scaffold: Scaffold): any {
-    const pageId = this.generatePageId()
-    const page = this.scaffoldToNotionPage(scaffold, pageId)
-    this.scaffolds.set(scaffold.id, scaffold)
-    this.scaffoldPageIdMap.set(scaffold.id, pageId)
-    return page
-  }
+    // Use database_id to determine entity type
+    const config = this.getEntityConfigByDatabaseId(databaseId)
 
-  // Update scaffold
-  updateScaffold(id: string, updates: Partial<Scaffold>): any {
-    const existing = this.scaffolds.get(id)
-    if (!existing) {
-      throw new Error(`Scaffold ${id} not found`)
+    // Build context for conversion
+    const context: Record<string, unknown> = {
+      databaseId,
     }
 
-    const updated = { ...existing, ...updates }
-    this.scaffolds.set(id, updated)
-    // Use pageId from existing scaffold or generate new one
-    const pageId = `mock-page-${id}`
-    return this.scaffoldToNotionPage(updated, pageId)
-  }
+    // For events with scaffold relations, provide scaffoldPageIdMap for reverse lookup
+    if (config.name === 'event') {
+      const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+      // Create reverse map: pageId -> scaffoldId
+      const reverseMap = new Map<string, string>()
+      for (const [scaffoldId, pageId] of scaffoldConfig.pageIdMap.entries()) {
+        reverseMap.set(pageId, scaffoldId)
+      }
+      context.scaffoldPageIdMap = reverseMap
+    }
 
-  // Find scaffold by ID
-  findScaffoldById(id: string): Scaffold | undefined {
-    return this.scaffolds.get(id)
-  }
+    // Parse properties to create entity
+    const entity = config.converters.fromNotionProperties(properties, context)
 
-  // Remove scaffold (archive)
-  archiveScaffold(id: string): void {
-    this.scaffolds.delete(id)
-  }
+    // Store entity
+    const storedEntity = config.store.create(entity)
 
-  // Event methods
-  getAllEvents(): Event[] {
-    return Array.from(this.events.values())
-  }
-
-  createEvent(event: Event, scaffoldPageId?: string): any {
+    // Generate and map page ID
     const pageId = this.generatePageId()
-    this.events.set(event.id, event)
-    this.eventPageIdMap.set(event.id, pageId)
-    if (scaffoldPageId) {
-      // Store relation
-      const entries = Array.from(this.scaffoldPageIdMap.entries())
-      const found = entries.find(([_, pid]: [string, string]) => pid === scaffoldPageId)
-      const scaffoldId = found ? found[0] : undefined
-      if (scaffoldId) {
-        // Store relation mapping
+    const entityId = config.converters.extractEntityId(properties)
+    config.pageIdMap.set(entityId, pageId)
+    this.pageIdToDatabaseId.set(pageId, databaseId)
+
+    // Build context for toNotionPage conversion
+    const conversionContext: Record<string, unknown> = {
+      databaseId,
+    }
+
+    // For events with scaffold relations, add scaffold page ID
+    if (config.name === 'event' && (storedEntity as any).scaffold_id) {
+      const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+      const scaffoldPageId = scaffoldConfig.pageIdMap.get((storedEntity as any).scaffold_id)
+      if (scaffoldPageId) {
+        conversionContext.scaffoldPageId = scaffoldPageId
       }
     }
-    return this.eventToNotionPage(event, pageId, scaffoldPageId)
+
+    // Convert to Notion page format
+    return config.converters.toNotionPage(storedEntity, pageId, conversionContext)
   }
 
-  findEventById(id: string): Event | undefined {
-    return this.events.get(id)
-  }
+  /**
+   * pages.update implementation
+   */
+  async pagesUpdate({ page_id, properties, archived }: any) {
+    // Use page_id to find entity config
+    const config = this.getEntityConfigByPageId(page_id)
 
-  updateEvent(id: string, updates: Partial<Event>): any {
-    const existing = this.events.get(id)
-    if (!existing) {
-      throw new Error(`Event ${id} not found`)
+    // Find entity ID from page ID
+    let entityId: string | undefined
+    for (const [id, pid] of config.pageIdMap.entries()) {
+      if (pid === page_id) {
+        entityId = id
+        break
+      }
     }
-    const updated = { ...existing, ...updates }
-    this.events.set(id, updated)
-    const pageId = this.eventPageIdMap.get(id) || `mock-page-${id}`
-    const scaffoldPageId = existing.scaffold_id
-      ? this.scaffoldPageIdMap.get(existing.scaffold_id)
-      : undefined
-    return this.eventToNotionPage(updated, pageId, scaffoldPageId)
-  }
 
-  eventToNotionPage(event: Event, pageId: string, scaffoldPageId?: string): any {
-    return {
-      id: pageId,
-      properties: {
-        id: {
-          title: [
-            {
-              plain_text: event.id,
-              text: {
-                content: event.id,
-              },
-            },
-          ],
-        },
-        datetime: {
-          date: {
-            start: event.datetime instanceof Date ? event.datetime.toISOString() : new Date(event.datetime).toISOString(),
-          },
-        },
-        courts: {
-          number: event.courts,
-        },
-        status: {
-          select: {
-            name: event.status,
-          },
-        },
-        ...(event.scaffold_id &&
-          scaffoldPageId && {
-            scaffold_id: {
-              relation: [
-                {
-                  id: scaffoldPageId,
-                },
-              ],
-            },
-          }),
-        ...(event.telegram_message_id && {
-          telegram_message_id: {
-            rich_text: [
-              {
-                plain_text: event.telegram_message_id,
-                text: {
-                  content: event.telegram_message_id,
-                },
-              },
-            ],
-          },
-        }),
-        ...(event.payment_message_id && {
-          payment_message_id: {
-            rich_text: [
-              {
-                plain_text: event.payment_message_id,
-                text: {
-                  content: event.payment_message_id,
-                },
-              },
-            ],
-          },
-        }),
-      },
+    if (!entityId) {
+      throw new Error(`Entity not found for page ID: ${page_id}`)
     }
+
+    // Handle archiving
+    if (archived) {
+      config.store.delete(entityId)
+      config.pageIdMap.delete(entityId)
+      this.pageIdToDatabaseId.delete(page_id)
+      return { id: page_id, archived: true }
+    }
+
+    // Parse property updates based on entity type
+    const updates: Record<string, any> = {}
+
+    if (config.name === 'scaffold') {
+      if (properties.is_active !== undefined) {
+        updates.is_active = properties.is_active.checkbox
+      }
+    } else if (config.name === 'event') {
+      if (properties.status !== undefined) {
+        updates.status = properties.status.select.name
+      }
+      if (properties.telegram_message_id !== undefined) {
+        updates.telegram_message_id = properties.telegram_message_id.rich_text[0].text.content
+      }
+      if (properties.payment_message_id !== undefined) {
+        updates.payment_message_id = properties.payment_message_id.rich_text[0].text.content
+      }
+      if (properties.courts !== undefined) {
+        updates.courts = properties.courts.number
+      }
+    }
+
+    // Update entity
+    const updatedEntity = config.store.update(entityId, updates)
+
+    // Get database ID for context
+    const databaseId = this.pageIdToDatabaseId.get(page_id)
+
+    // Build context for conversion
+    const context: Record<string, unknown> = {
+      databaseId,
+    }
+
+    // For events with scaffold relations, add scaffold page ID
+    if (config.name === 'event' && (updatedEntity as any).scaffold_id) {
+      const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+      const scaffoldPageId = scaffoldConfig.pageIdMap.get((updatedEntity as any).scaffold_id)
+      if (scaffoldPageId) {
+        context.scaffoldPageId = scaffoldPageId
+      }
+    }
+
+    // Convert to Notion page format
+    return config.converters.toNotionPage(updatedEntity, page_id, context)
   }
 
-  // Clear all data
+  /**
+   * pages.retrieve implementation
+   */
+  async pagesRetrieve({ page_id }: any) {
+    // Use page_id to find entity config
+    const config = this.getEntityConfigByPageId(page_id)
+
+    // Find entity ID from page ID
+    let entityId: string | undefined
+    for (const [id, pid] of config.pageIdMap.entries()) {
+      if (pid === page_id) {
+        entityId = id
+        break
+      }
+    }
+
+    if (!entityId) {
+      throw new Error(`Entity not found for page ID: ${page_id}`)
+    }
+
+    // Retrieve entity
+    const entity = config.store.findById(entityId)
+    if (!entity) {
+      throw new Error(`Entity ${entityId} not found in store`)
+    }
+
+    // Get database ID for context
+    const databaseId = this.pageIdToDatabaseId.get(page_id)
+
+    // Build context for conversion
+    const context: Record<string, unknown> = {
+      databaseId,
+    }
+
+    // For events with scaffold relations, add scaffold page ID
+    if (config.name === 'event' && (entity as any).scaffold_id) {
+      const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+      const scaffoldPageId = scaffoldConfig.pageIdMap.get((entity as any).scaffold_id)
+      if (scaffoldPageId) {
+        context.scaffoldPageId = scaffoldPageId
+      }
+    }
+
+    // Convert to Notion page format
+    return config.converters.toNotionPage(entity, page_id, context)
+  }
+
+  /**
+   * Clear all data
+   */
   clear(): void {
-    this.scaffolds.clear()
-    this.events.clear()
-    this.scaffoldPageIdMap.clear()
-    this.eventPageIdMap.clear()
+    // Clear all entity stores and page ID maps
+    for (const config of Object.values(this.entityRegistry)) {
+      config.store.clear()
+      config.pageIdMap.clear()
+    }
+    this.pageIdToDatabaseId.clear()
     this.pageIdCounter = 1
   }
 }
 
-// Global storage for all tests
-const mockStore = new MockNotionStore()
+// Global instance
+const mockNotionClient = new MockNotionClient()
 
 /**
  * Creates mock for Notion Client
@@ -221,255 +310,19 @@ const mockStore = new MockNotionStore()
 export function createMockNotionClient(): Client {
   const mockClient = {
     databases: {
-      query: vi.fn(async ({ database_id, filter }: any) => {
-        const store = mockStore as any
-        const scaffolds = store.getAllScaffolds()
-        const events = store.getAllEvents()
-
-        let results: any[] = []
-
-        // Determine database type by:
-        // 1. Filter pattern (if filtering by ID with ev_* or sc_* prefix)
-        // 2. Database ID (check which database is being queried)
-        // 3. Fallback to what data we have
-
-        const isEventQuery =
-          filter?.property === 'id' &&
-          filter?.title?.equals &&
-          filter.title.equals.startsWith('ev_')
-        const isScaffoldQuery =
-          filter?.property === 'id' &&
-          filter?.title?.equals &&
-          filter.title.equals.startsWith('sc_')
-
-        // Determine which database to query
-        // Priority: explicit filter pattern > database_id match > data availability
-        let shouldQueryEvents: boolean
-        if (isEventQuery) {
-          shouldQueryEvents = true
-        } else if (isScaffoldQuery) {
-          shouldQueryEvents = false
-        } else {
-          // Check database_id to determine which database is being queried
-          // In tests, scaffold DB ID is 1c6408e91d3a4d308b0736e79ff5b937
-          // and events DB ID is 4e6dc64564e042c9991daf38f6b0ec85
-          const isScaffoldDatabase = database_id === '1c6408e91d3a4d308b0736e79ff5b937'
-          const isEventDatabase = database_id === '4e6dc64564e042c9991daf38f6b0ec85'
-
-          if (isEventDatabase) {
-            shouldQueryEvents = true
-          } else if (isScaffoldDatabase) {
-            shouldQueryEvents = false
-          } else {
-            // Fallback: if we have events and no scaffolds, query events; otherwise query scaffolds
-            shouldQueryEvents = events.length > 0 && scaffolds.length === 0
-          }
-        }
-
-        if (shouldQueryEvents) {
-          // Query events
-          let filteredEvents = events
-
-          if (filter?.property === 'id' && filter?.title?.equals) {
-            const targetId = filter.title.equals
-            const event = store.findEventById(targetId)
-            filteredEvents = event ? [event] : []
-          }
-
-          results = filteredEvents.map((event: Event) => {
-            const pageId = store.eventPageIdMap?.get(event.id) || `mock-page-${event.id}`
-            const scaffoldPageId = event.scaffold_id
-              ? store.scaffoldPageIdMap?.get(event.scaffold_id)
-              : undefined
-            return store.eventToNotionPage(event, pageId, scaffoldPageId)
-          })
-        } else {
-          // Query scaffolds
-          let filteredScaffolds = scaffolds
-
-          if (filter?.property === 'id' && filter?.title?.equals) {
-            const targetId = filter.title.equals
-            const scaffold = store.findScaffoldById(targetId)
-            filteredScaffolds = scaffold ? [scaffold] : []
-          }
-
-          results = filteredScaffolds.map((scaffold: Scaffold) => {
-            const pageId = store.scaffoldPageIdMap?.get(scaffold.id) || `mock-page-${scaffold.id}`
-            return store.scaffoldToNotionPage(scaffold, pageId)
-          })
-        }
-
-        return {
-          results,
-          has_more: false,
-          next_cursor: null,
-        }
+      query: vi.fn(async (params: any) => {
+        return mockNotionClient.databasesQuery(params)
       }),
     },
     pages: {
-      create: vi.fn(async ({ parent: _parent, properties }: any) => {
-        const store = mockStore as any
-
-        // Check if it's a scaffold or event by checking properties
-        if (properties.day_of_week) {
-          // It's a scaffold
-          const scaffold: Scaffold = {
-            id: properties.id.title[0].text.content,
-            day_of_week: properties.day_of_week.select.name,
-            time: properties.time.rich_text[0].text.content,
-            default_courts: properties.default_courts.number,
-            is_active: properties.is_active.checkbox,
-            announce_hours_before: properties.announce_hours_before?.number,
-          }
-          return store.createScaffold(scaffold)
-        } else if (properties.datetime) {
-          // It's an event
-          const event: Event = {
-            id: properties.id.title[0].text.content,
-            scaffold_id: undefined,
-            datetime: new Date(properties.datetime.date.start),
-            courts: properties.courts.number,
-            status: (properties.status.select.name as any) || 'created',
-            telegram_message_id: properties.telegram_message_id?.rich_text?.[0]?.text?.content,
-            payment_message_id: properties.payment_message_id?.rich_text?.[0]?.text?.content,
-          }
-
-          // Handle scaffold_id relation
-          let scaffoldPageId: string | undefined
-          if (properties.scaffold_id?.relation?.[0]?.id) {
-            scaffoldPageId = properties.scaffold_id.relation[0].id
-            // Find scaffold ID from page ID
-            const entries = Array.from(
-              (store.scaffoldPageIdMap as Map<string, string>)?.entries() || []
-            )
-            const found = entries.find(([_, pid]: [string, string]) => pid === scaffoldPageId)
-            if (found) {
-              event.scaffold_id = found[0]
-            }
-          }
-
-          return store.createEvent(event, scaffoldPageId)
-        }
-
-        throw new Error('Unknown page type')
+      create: vi.fn(async (params: any) => {
+        return mockNotionClient.pagesCreate(params)
       }),
-      update: vi.fn(async ({ page_id, properties, archived }: any) => {
-        const store = mockStore as any
-
-        // If archived = true, remove
-        if (archived) {
-          // Try to find as scaffold first
-          const scaffoldEntries = Array.from(
-            (store.scaffoldPageIdMap as Map<string, string>)?.entries() || []
-          )
-          const scaffoldFound = scaffoldEntries.find(
-            ([_, pid]: [string, string]) => pid === page_id
-          )
-          const scaffoldId = scaffoldFound ? scaffoldFound[0] : undefined
-          if (scaffoldId) {
-            store.archiveScaffold(scaffoldId)
-            return { id: page_id, archived: true }
-          }
-
-          // Try to find as event
-          const eventEntries = Array.from(
-            (store.eventPageIdMap as Map<string, string>)?.entries() || []
-          )
-          const eventFound = eventEntries.find(([_, pid]: [string, string]) => pid === page_id)
-          const eventId = eventFound ? eventFound[0] : undefined
-          if (eventId) {
-            store.events.delete(eventId)
-            store.eventPageIdMap.delete(eventId)
-            return { id: page_id, archived: true }
-          }
-
-          throw new Error(`Page ${page_id} not found`)
-        }
-
-        // Try scaffold first
-        const scaffoldEntries = Array.from(
-          (store.scaffoldPageIdMap as Map<string, string>)?.entries() || []
-        )
-        const scaffoldFound = scaffoldEntries.find(([_, pid]: [string, string]) => pid === page_id)
-        const scaffoldId = scaffoldFound ? scaffoldFound[0] : undefined
-        if (scaffoldId) {
-          const scaffold = store.findScaffoldById(scaffoldId)
-          if (!scaffold) {
-            throw new Error(`Page ${page_id} not found`)
-          }
-
-          const updates: Partial<Scaffold> = {}
-          if (properties.is_active !== undefined) {
-            updates.is_active = properties.is_active.checkbox
-          }
-
-          return store.updateScaffold(scaffold.id, updates)
-        }
-
-        // Try event
-        const eventEntries = Array.from(
-          (store.eventPageIdMap as Map<string, string>)?.entries() || []
-        )
-        const eventFound = eventEntries.find(([_, pid]: [string, string]) => pid === page_id)
-        const eventId = eventFound ? eventFound[0] : undefined
-        if (eventId) {
-          const event = store.findEventById(eventId)
-          if (!event) {
-            throw new Error(`Page ${page_id} not found`)
-          }
-
-          const updates: Partial<Event> = {}
-          if (properties.status !== undefined) {
-            updates.status = properties.status.select.name
-          }
-          if (properties.telegram_message_id !== undefined) {
-            updates.telegram_message_id = properties.telegram_message_id.rich_text[0].text.content
-          }
-          if (properties.payment_message_id !== undefined) {
-            updates.payment_message_id = properties.payment_message_id.rich_text[0].text.content
-          }
-          if (properties.courts !== undefined) {
-            updates.courts = properties.courts.number
-          }
-
-          return store.updateEvent(event.id, updates)
-        }
-
-        throw new Error(`Page ${page_id} not found`)
+      update: vi.fn(async (params: any) => {
+        return mockNotionClient.pagesUpdate(params)
       }),
-      retrieve: vi.fn(async ({ page_id }: any) => {
-        const store = mockStore as any
-
-        // Try scaffold first
-        const scaffoldEntries = Array.from(
-          (store.scaffoldPageIdMap as Map<string, string>)?.entries() || []
-        )
-        const scaffoldFound = scaffoldEntries.find(([_, pid]: [string, string]) => pid === page_id)
-        const scaffoldId = scaffoldFound ? scaffoldFound[0] : undefined
-        if (scaffoldId) {
-          const scaffold = store.findScaffoldById(scaffoldId)
-          if (scaffold) {
-            return store.scaffoldToNotionPage(scaffold, page_id)
-          }
-        }
-
-        // Try event
-        const eventEntries = Array.from(
-          (store.eventPageIdMap as Map<string, string>)?.entries() || []
-        )
-        const eventFound = eventEntries.find(([_, pid]: [string, string]) => pid === page_id)
-        const eventId = eventFound ? eventFound[0] : undefined
-        if (eventId) {
-          const event = store.findEventById(eventId)
-          if (event) {
-            const scaffoldPageId = event.scaffold_id
-              ? store.scaffoldPageIdMap?.get(event.scaffold_id)
-              : undefined
-            return store.eventToNotionPage(event, page_id, scaffoldPageId)
-          }
-        }
-
-        throw new Error(`Page ${page_id} not found`)
+      retrieve: vi.fn(async (params: any) => {
+        return mockNotionClient.pagesRetrieve(params)
       }),
     },
   } as unknown as Client
@@ -481,12 +334,12 @@ export function createMockNotionClient(): Client {
  * Clears mock storage
  */
 export function clearMockNotionStore(): void {
-  mockStore.clear()
+  mockNotionClient.clear()
 }
 
 /**
  * Get current state of mock storage (for debugging)
  */
-export function getMockNotionStore(): MockNotionStore {
-  return mockStore
+export function getMockNotionStore(): MockNotionClient {
+  return mockNotionClient
 }
