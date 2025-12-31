@@ -147,15 +147,9 @@ export async function handleCommand(
         status: 'created',
       })
 
-      // Get bot instance from global
-      if (!globalBotInstance) {
-        throw new Error('Bot instance not available')
-      }
-      await eventService.announceEvent(effectiveChatId, event.id, globalBotInstance)
-
       const formattedDate = dayjs.tz(nextOccurrence, config.timezone).format('ddd D MMM HH:mm')
       await ctx.reply(
-        `✅ Created and announced event ${event.id} from scaffold ${scaffoldId} (${formattedDate}, ${scaffold.default_courts} courts)`
+        `✅ Created event ${event.id} from scaffold ${scaffoldId} (${formattedDate}, ${scaffold.default_courts} courts). To announce: /event announce ${event.id}`
       )
 
       await logToTelegram(

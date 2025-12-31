@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createBot } from '~/bot'
 import { eventService } from '~/services/eventService'
+import { scaffoldService } from '~/services/scaffoldService'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { setBotInstance } from '~/utils/logger'
@@ -657,6 +658,120 @@ describe('event commands', () => {
       // Should include participants section
       expect(announcementMessage?.text).toContain('Participants:')
       expect(announcementMessage?.text).toContain('(nobody yet)')
+    })
+  })
+
+  describe('/event add-by-scaffold', () => {
+    it('should create event from scaffold without auto-announce', async () => {
+      // Create a scaffold first
+      const scaffold = await scaffoldService.createScaffold(testChatId, 'Tue', '21:00', 3)
+
+      const update = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+
+      await bot.handleUpdate(update)
+
+      // Check that event was created
+      const events = await eventService.getEvents(testChatId)
+      expect(events.length).toBeGreaterThan(0)
+      const createdEvent = events.find((e) => e.scaffold_id === scaffold.id)
+      expect(createdEvent).toBeDefined()
+
+      // Verify event properties from scaffold
+      expect(createdEvent?.courts).toBe(3) // from scaffold.default_courts
+      expect(createdEvent?.status).toBe('created') // should NOT be announced automatically
+      expect(createdEvent?.scaffold_id).toBe(scaffold.id)
+
+      // Check success message includes announce instruction
+      const successMessage = sentMessages.find(
+        (msg) => msg.text.includes(`✅ Created event`) && msg.text.includes(scaffold.id)
+      )
+      expect(successMessage).toBeDefined()
+      expect(successMessage?.text).toContain('3 courts')
+      expect(successMessage?.text).toContain('To announce: /event announce')
+
+      // Check that NO announcement was sent (no 🎾 Squash message)
+      const announcementMessage = sentMessages.find((msg) => msg.text.includes('🎾 Squash'))
+      expect(announcementMessage).toBeUndefined()
+    })
+
+    it('should reject add-by-scaffold without scaffold ID', async () => {
+      const update = createTextMessageUpdate('/event add-by-scaffold', {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+
+      await bot.handleUpdate(update)
+
+      // Check usage message
+      const usageMessage = sentMessages.find((msg) =>
+        msg.text.includes('Usage: /event add-by-scaffold')
+      )
+      expect(usageMessage).toBeDefined()
+
+      // Check that no event was created
+      const events = await eventService.getEvents(testChatId)
+      expect(events).toHaveLength(0)
+    })
+
+    it('should reject add-by-scaffold for non-existent scaffold', async () => {
+      const update = createTextMessageUpdate('/event add-by-scaffold sc_nonexistent', {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+
+      await bot.handleUpdate(update)
+
+      // Check error message
+      const errorMessage = sentMessages.find((msg) =>
+        msg.text.includes('❌ Scaffold sc_nonexistent not found')
+      )
+      expect(errorMessage).toBeDefined()
+
+      // Check that no event was created
+      const events = await eventService.getEvents(testChatId)
+      expect(events).toHaveLength(0)
+    })
+
+    it('should reject duplicate event creation', async () => {
+      // Create a scaffold
+      const scaffold = await scaffoldService.createScaffold(testChatId, 'Wed', '19:00', 2)
+
+      // Create event first time
+      const update1 = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+
+      await bot.handleUpdate(update1)
+
+      // Verify first event was created
+      const events1 = await eventService.getEvents(testChatId)
+      expect(events1).toHaveLength(1)
+
+      // Clear sent messages
+      sentMessages.length = 0
+
+      // Try to create the same event again
+      const update2 = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+
+      await bot.handleUpdate(update2)
+
+      // Check error message about duplicate
+      const errorMessage = sentMessages.find((msg) =>
+        msg.text.includes('❌ Event already exists')
+      )
+      expect(errorMessage).toBeDefined()
+      expect(errorMessage?.text).toContain(scaffold.id)
+
+      // Check that no additional event was created
+      const events2 = await eventService.getEvents(testChatId)
+      expect(events2).toHaveLength(1)
     })
   })
 

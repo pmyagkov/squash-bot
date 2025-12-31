@@ -421,7 +421,7 @@ Participants:
       throw new Error(`Invalid scaffold: invalid time values (${hours}:${minutes})`)
     }
 
-    const now = dayjs.tz(config.timezone)
+    const now = dayjs().tz(config.timezone)
 
     // Find next occurrence of this day
     let daysUntil = targetDayOfWeek - now.day()
@@ -545,21 +545,19 @@ Participants:
 
     let scaffoldId: string | undefined = undefined
 
-    console.log('props', props)
-    console.log('props.scaffold_id', props.scaffold_id)
-    console.log('props.scaffold_id.relation', props.scaffold_id?.relation)
-    console.log('props.scaffold_id.relation.id', props.scaffold_id?.relation.id)
+    // Notion relation is an array, but types show it as object - use type assertion
+    const relation = props.scaffold_id?.relation as unknown as { id: string }[] | undefined
 
-    if (props.scaffold_id?.relation.id) {
-      scaffoldId = await notionClient.getScaffoldIdFromPageId(props.scaffold_id.relation.id)
+    if (relation?.[0]?.id) {
+      scaffoldId = await notionClient.getScaffoldIdFromPageId(relation[0].id)
     }
 
     return {
       id: this.getTitleProperty(props.id),
       scaffold_id: scaffoldId,
-      datetime: props.datetime.date?.start ? new Date(props.datetime.date.start) : new Date(),
-      courts: props.courts.number || 0,
-      status: (props.status.select?.name as EventStatus) || 'created',
+      datetime: props.datetime?.date?.start ? new Date(props.datetime.date.start) : new Date(),
+      courts: props.courts?.number || 0,
+      status: (props.status?.select?.name as EventStatus) || 'created',
       telegram_message_id: props.telegram_message_id
         ? this.getRichTextProperty(props.telegram_message_id)
         : undefined,

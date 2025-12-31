@@ -40,3 +40,5 @@ docs/
 test-results/
 playwright-report/
 .auth/
+
+.claude/settings.local.json

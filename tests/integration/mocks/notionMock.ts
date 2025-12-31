@@ -137,7 +137,7 @@ class MockNotionStore {
     return this.eventToNotionPage(updated, pageId, scaffoldPageId)
   }
 
-  private eventToNotionPage(event: Event, pageId: string, scaffoldPageId?: string): any {
+  eventToNotionPage(event: Event, pageId: string, scaffoldPageId?: string): any {
     return {
       id: pageId,
       properties: {
@@ -153,7 +153,7 @@ class MockNotionStore {
         },
         datetime: {
           date: {
-            start: event.datetime.toISOString(),
+            start: event.datetime instanceof Date ? event.datetime.toISOString() : new Date(event.datetime).toISOString(),
           },
         },
         courts: {
@@ -221,17 +221,17 @@ const mockStore = new MockNotionStore()
 export function createMockNotionClient(): Client {
   const mockClient = {
     databases: {
-      query: vi.fn(async ({ database_id: _database_id, filter }: any) => {
+      query: vi.fn(async ({ database_id, filter }: any) => {
         const store = mockStore as any
         const scaffolds = store.getAllScaffolds()
         const events = store.getAllEvents()
 
         let results: any[] = []
 
-        // Determine database type by filter pattern or by what we have
-        // If filter is for events (checking event ID pattern ev_*), return events
-        // If filter is for scaffolds (checking scaffold ID pattern sc_*), return scaffolds
-        // Otherwise, if we have events, return events; if we have scaffolds, return scaffolds
+        // Determine database type by:
+        // 1. Filter pattern (if filtering by ID with ev_* or sc_* prefix)
+        // 2. Database ID (check which database is being queried)
+        // 3. Fallback to what data we have
 
         const isEventQuery =
           filter?.property === 'id' &&
@@ -243,9 +243,28 @@ export function createMockNotionClient(): Client {
           filter.title.equals.startsWith('sc_')
 
         // Determine which database to query
-        // Priority: filter pattern > events existence > scaffolds existence
-        // If no filter and we have both, prefer events
-        const shouldQueryEvents = isEventQuery || (!isScaffoldQuery && events.length > 0)
+        // Priority: explicit filter pattern > database_id match > data availability
+        let shouldQueryEvents: boolean
+        if (isEventQuery) {
+          shouldQueryEvents = true
+        } else if (isScaffoldQuery) {
+          shouldQueryEvents = false
+        } else {
+          // Check database_id to determine which database is being queried
+          // In tests, scaffold DB ID is 1c6408e91d3a4d308b0736e79ff5b937
+          // and events DB ID is 4e6dc64564e042c9991daf38f6b0ec85
+          const isScaffoldDatabase = database_id === '1c6408e91d3a4d308b0736e79ff5b937'
+          const isEventDatabase = database_id === '4e6dc64564e042c9991daf38f6b0ec85'
+
+          if (isEventDatabase) {
+            shouldQueryEvents = true
+          } else if (isScaffoldDatabase) {
+            shouldQueryEvents = false
+          } else {
+            // Fallback: if we have events and no scaffolds, query events; otherwise query scaffolds
+            shouldQueryEvents = events.length > 0 && scaffolds.length === 0
+          }
+        }
 
         if (shouldQueryEvents) {
           // Query events
@@ -307,9 +326,7 @@ export function createMockNotionClient(): Client {
           // It's an event
           const event: Event = {
             id: properties.id.title[0].text.content,
-            scaffold_id: properties.scaffold_id?.relation?.[0]?.id
-              ? undefined // Will be resolved later
-              : undefined,
+            scaffold_id: undefined,
             datetime: new Date(properties.datetime.date.start),
             courts: properties.courts.number,
             status: (properties.status.select.name as any) || 'created',
@@ -326,9 +343,8 @@ export function createMockNotionClient(): Client {
               (store.scaffoldPageIdMap as Map<string, string>)?.entries() || []
             )
             const found = entries.find(([_, pid]: [string, string]) => pid === scaffoldPageId)
-            const scaffoldId = found ? found[0] : undefined
-            if (scaffoldId) {
-              event.scaffold_id = scaffoldId
+            if (found) {
+              event.scaffold_id = found[0]
             }
           }
 
