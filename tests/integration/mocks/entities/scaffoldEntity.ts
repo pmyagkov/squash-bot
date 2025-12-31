@@ -172,12 +172,12 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
   }
 
   matchesEntityType(properties: CreatePageParameters['properties']): boolean {
-    // A scaffold has day_of_week (select) and time (rich_text) properties
+    // A scaffold has day_of_week (select) and default_courts (number) properties
     // This distinguishes it from events which have datetime instead
     const hasDayOfWeek = 'day_of_week' in properties
-    const hasTime = 'time' in properties
+    const hasDefaultCourts = 'default_courts' in properties
 
-    return hasDayOfWeek && hasTime
+    return hasDayOfWeek && hasDefaultCourts
   }
 }
 

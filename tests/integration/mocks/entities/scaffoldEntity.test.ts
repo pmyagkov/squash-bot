@@ -74,7 +74,7 @@ describe('Scaffold Entity Config', () => {
   it('should identify scaffold properties correctly', () => {
     const scaffoldProps = {
       day_of_week: { select: { name: 'Mon' } },
-      time: { rich_text: [] },
+      default_courts: { number: 2 },
     }
 
     const eventProps = {
