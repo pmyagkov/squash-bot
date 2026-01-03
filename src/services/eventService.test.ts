@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { eventService } from './eventService'
 import { setupFakeTime } from '../../tests/integration/helpers/timeHelpers'
-import type { Scaffold } from '../types'
+import type { Scaffold, DayOfWeek } from '../types'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
@@ -232,7 +232,7 @@ describe('eventService.calculateNextOccurrence', () => {
       days.forEach(({ day, dayNum }) => {
         const scaffold: Scaffold = {
           id: 'sc_test',
-          day_of_week: day as any,
+          day_of_week: day as unknown as DayOfWeek,
           time: '19:00',
           default_courts: 2,
           is_active: true,
@@ -246,7 +246,7 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should reject invalid day of week', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Invalid' as any,
+        day_of_week: 'Invalid' as unknown as DayOfWeek,
         time: '19:00',
         default_courts: 2,
         is_active: true,
@@ -260,7 +260,7 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should reject missing day of week', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: undefined as any,
+        day_of_week: undefined as unknown as DayOfWeek,
         time: '19:00',
         default_courts: 2,
         is_active: true,
@@ -277,7 +277,7 @@ describe('eventService.calculateNextOccurrence', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
         day_of_week: 'Tue',
-        time: undefined as any,
+        time: undefined as unknown as string,
         default_courts: 2,
         is_active: true,
       }
