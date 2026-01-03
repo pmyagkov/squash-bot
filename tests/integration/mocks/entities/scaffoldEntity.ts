@@ -1,4 +1,7 @@
-import type { PageObjectResponse, CreatePageParameters } from '@notionhq/client/build/src/api-endpoints'
+import type {
+  PageObjectResponse,
+  CreatePageParameters,
+} from '@notionhq/client/build/src/api-endpoints'
 import type { EntityStore, EntityConverters, EntityConfig } from '../entityConfig'
 import type { Scaffold, DayOfWeek } from '~/types'
 
@@ -131,28 +134,42 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
     } as PageObjectResponse
   }
 
-  fromNotionProperties(properties: CreatePageParameters['properties'], context?: Record<string, unknown>): Scaffold {
+  fromNotionProperties(properties: CreatePageParameters['properties'], _context?: Record<string, unknown>): Scaffold {
     const id = this.extractEntityId(properties)
 
     // Extract day_of_week
-    const dayOfWeekProp = properties.day_of_week as any
-    const day_of_week = dayOfWeekProp?.select?.name as DayOfWeek
+    const dayOfWeekProp = properties.day_of_week
+    const day_of_week = (dayOfWeekProp && typeof dayOfWeekProp === 'object' && 'select' in dayOfWeekProp
+      ? dayOfWeekProp.select?.name
+      : undefined) as DayOfWeek
 
     // Extract time
-    const timeProp = properties.time as any
-    const time = timeProp?.rich_text?.[0]?.plain_text || timeProp?.rich_text?.[0]?.text?.content || ''
+    const timeProp = properties.time
+    let time = ''
+    if (timeProp && typeof timeProp === 'object' && 'rich_text' in timeProp) {
+      const firstItem = timeProp.rich_text?.[0]
+      if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+        time = firstItem.text.content
+      }
+    }
 
     // Extract default_courts
-    const defaultCourtsProp = properties.default_courts as any
-    const default_courts = defaultCourtsProp?.number ?? 0
+    const defaultCourtsProp = properties.default_courts
+    const default_courts = defaultCourtsProp && typeof defaultCourtsProp === 'object' && 'number' in defaultCourtsProp
+      ? defaultCourtsProp.number ?? 0
+      : 0
 
     // Extract is_active
-    const isActiveProp = properties.is_active as any
-    const is_active = isActiveProp?.checkbox ?? false
+    const isActiveProp = properties.is_active
+    const is_active = isActiveProp && typeof isActiveProp === 'object' && 'checkbox' in isActiveProp
+      ? isActiveProp.checkbox ?? false
+      : false
 
     // Extract optional announce_hours_before
-    const announceHoursBeforeProp = properties.announce_hours_before as any
-    const announce_hours_before = announceHoursBeforeProp?.number
+    const announceHoursBeforeProp = properties.announce_hours_before
+    const announce_hours_before = announceHoursBeforeProp && typeof announceHoursBeforeProp === 'object' && 'number' in announceHoursBeforeProp
+      ? announceHoursBeforeProp.number
+      : undefined
 
     return {
       id,
@@ -167,8 +184,14 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
   }
 
   extractEntityId(properties: CreatePageParameters['properties']): string {
-    const idProp = properties.id as any
-    return idProp?.title?.[0]?.plain_text || idProp?.title?.[0]?.text?.content || ''
+    const idProp = properties.id
+    if (idProp && typeof idProp === 'object' && 'title' in idProp) {
+      const firstItem = idProp.title?.[0]
+      if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+        return firstItem.text.content
+      }
+    }
+    return ''
   }
 
   matchesEntityType(properties: CreatePageParameters['properties']): boolean {

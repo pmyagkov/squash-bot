@@ -1,4 +1,7 @@
-import type { PageObjectResponse, CreatePageParameters } from '@notionhq/client/build/src/api-endpoints'
+import type {
+  PageObjectResponse,
+  CreatePageParameters,
+} from '@notionhq/client/build/src/api-endpoints'
 import type { EntityStore, EntityConverters, EntityConfig } from '../entityConfig'
 import type { Event, EventStatus } from '~/types'
 
@@ -112,7 +115,6 @@ class EventConverters implements EntityConverters<Event> {
                 id: 'scaffold_id',
                 type: 'relation',
                 relation: [{ id: context.scaffoldPageId as string }],
-                has_more: false,
               },
             }
           : {}),
@@ -174,20 +176,29 @@ class EventConverters implements EntityConverters<Event> {
     const id = this.extractEntityId(properties)
 
     // Extract datetime
-    const datetimeProp = properties.datetime as any
-    const datetime = new Date(datetimeProp?.date?.start || '')
+    const datetimeProp = properties.datetime
+    const datetimeStart = datetimeProp && typeof datetimeProp === 'object' && 'date' in datetimeProp
+      ? datetimeProp.date?.start
+      : undefined
+    const datetime = new Date(datetimeStart || '')
 
     // Extract courts
-    const courtsProp = properties.courts as any
-    const courts = courtsProp?.number ?? 0
+    const courtsProp = properties.courts
+    const courts = courtsProp && typeof courtsProp === 'object' && 'number' in courtsProp
+      ? courtsProp.number ?? 0
+      : 0
 
     // Extract status
-    const statusProp = properties.status as any
-    const status = statusProp?.select?.name as EventStatus
+    const statusProp = properties.status
+    const status = (statusProp && typeof statusProp === 'object' && 'select' in statusProp
+      ? statusProp.select?.name
+      : undefined) as EventStatus
 
     // Extract optional scaffold_id (needs reverse lookup from page ID to scaffold ID)
-    const scaffoldIdProp = properties.scaffold_id as any
-    const scaffoldPageId = scaffoldIdProp?.relation?.[0]?.id
+    const scaffoldIdProp = properties.scaffold_id
+    const scaffoldPageId = scaffoldIdProp && typeof scaffoldIdProp === 'object' && 'relation' in scaffoldIdProp
+      ? scaffoldIdProp.relation?.[0]?.id
+      : undefined
     let scaffold_id: string | undefined
     if (scaffoldPageId && context?.scaffoldPageIdMap) {
       const scaffoldPageIdMap = context.scaffoldPageIdMap as Map<string, string>
@@ -195,12 +206,24 @@ class EventConverters implements EntityConverters<Event> {
     }
 
     // Extract optional telegram_message_id
-    const telegramMessageIdProp = properties.telegram_message_id as any
-    const telegram_message_id = telegramMessageIdProp?.rich_text?.[0]?.plain_text || telegramMessageIdProp?.rich_text?.[0]?.text?.content
+    const telegramMessageIdProp = properties.telegram_message_id
+    let telegram_message_id: string | undefined
+    if (telegramMessageIdProp && typeof telegramMessageIdProp === 'object' && 'rich_text' in telegramMessageIdProp) {
+      const firstItem = telegramMessageIdProp.rich_text?.[0]
+      if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+        telegram_message_id = firstItem.text.content
+      }
+    }
 
     // Extract optional payment_message_id
-    const paymentMessageIdProp = properties.payment_message_id as any
-    const payment_message_id = paymentMessageIdProp?.rich_text?.[0]?.plain_text || paymentMessageIdProp?.rich_text?.[0]?.text?.content
+    const paymentMessageIdProp = properties.payment_message_id
+    let payment_message_id: string | undefined
+    if (paymentMessageIdProp && typeof paymentMessageIdProp === 'object' && 'rich_text' in paymentMessageIdProp) {
+      const firstItem = paymentMessageIdProp.rich_text?.[0]
+      if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+        payment_message_id = firstItem.text.content
+      }
+    }
 
     return {
       id,
@@ -214,8 +237,14 @@ class EventConverters implements EntityConverters<Event> {
   }
 
   extractEntityId(properties: CreatePageParameters['properties']): string {
-    const idProp = properties.id as any
-    return idProp?.title?.[0]?.plain_text || idProp?.title?.[0]?.text?.content || ''
+    const idProp = properties.id
+    if (idProp && typeof idProp === 'object' && 'title' in idProp) {
+      const firstItem = idProp.title?.[0]
+      if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+        return firstItem.text.content
+      }
+    }
+    return ''
   }
 
   matchesEntityType(properties: CreatePageParameters['properties']): boolean {

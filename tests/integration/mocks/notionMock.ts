@@ -1,5 +1,11 @@
 import { vi } from 'vitest'
 import type { Client } from '@notionhq/client'
+import type {
+  QueryDatabaseParameters,
+  CreatePageParameters,
+  UpdatePageParameters,
+  GetPageParameters,
+} from '@notionhq/client/build/src/api-endpoints'
 import type { EntityRegistry, EntityConfig } from './entityConfig'
 import { createScaffoldEntityConfig } from './entities/scaffoldEntity'
 import { createEventEntityConfig } from './entities/eventEntity'
@@ -65,7 +71,9 @@ class MockNotionClient {
   /**
    * databases.query implementation
    */
-  async databasesQuery({ database_id, filter }: any) {
+  async databasesQuery(params: QueryDatabaseParameters) {
+    const { database_id, filter } = params
+
     // Use database_id to look up entity config
     const config = this.getEntityConfigByDatabaseId(database_id)
 
@@ -73,15 +81,18 @@ class MockNotionClient {
     let entities = config.store.getAll()
 
     // Apply filter if provided
-    if (filter?.property === 'id' && filter?.title?.equals) {
-      const targetId = filter.title.equals
-      const entity = config.store.findById(targetId)
-      entities = entity ? [entity] : []
+    if (filter && typeof filter === 'object' && 'property' in filter && filter.property === 'id' && 'title' in filter) {
+      const titleFilter = filter.title as { equals?: string }
+      if (titleFilter?.equals) {
+        const targetId = titleFilter.equals
+        const entity = config.store.findById(targetId)
+        entities = entity ? [entity] : []
+      }
     }
 
     // Convert entities to Notion page format
     const results = entities.map(entity => {
-      const entityId = (entity as any).id
+      const entityId = (entity as { id: string }).id
       const pageId = config.pageIdMap.get(entityId)
       if (!pageId) {
         throw new Error(`Page ID not found for entity ${entityId}`)
@@ -93,11 +104,14 @@ class MockNotionClient {
       }
 
       // For events with scaffold relations, add scaffold page ID
-      if (config.name === 'event' && (entity as any).scaffold_id) {
-        const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
-        const scaffoldPageId = scaffoldConfig.pageIdMap.get((entity as any).scaffold_id)
-        if (scaffoldPageId) {
-          context.scaffoldPageId = scaffoldPageId
+      if (config.name === 'event') {
+        const eventEntity = entity as { scaffold_id?: string }
+        if (eventEntity.scaffold_id) {
+          const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+          const scaffoldPageId = scaffoldConfig.pageIdMap.get(eventEntity.scaffold_id)
+          if (scaffoldPageId) {
+            context.scaffoldPageId = scaffoldPageId
+          }
         }
       }
 
@@ -114,8 +128,9 @@ class MockNotionClient {
   /**
    * pages.create implementation
    */
-  async pagesCreate({ parent, properties }: any) {
-    const databaseId = parent.database_id
+  async pagesCreate(params: CreatePageParameters) {
+    const { parent, properties } = params
+    const databaseId = parent && 'database_id' in parent ? parent.database_id : ''
 
     // Use database_id to determine entity type
     const config = this.getEntityConfigByDatabaseId(databaseId)
@@ -154,11 +169,14 @@ class MockNotionClient {
     }
 
     // For events with scaffold relations, add scaffold page ID
-    if (config.name === 'event' && (storedEntity as any).scaffold_id) {
-      const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
-      const scaffoldPageId = scaffoldConfig.pageIdMap.get((storedEntity as any).scaffold_id)
-      if (scaffoldPageId) {
-        conversionContext.scaffoldPageId = scaffoldPageId
+    if (config.name === 'event') {
+      const eventEntity = storedEntity as { scaffold_id?: string }
+      if (eventEntity.scaffold_id) {
+        const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+        const scaffoldPageId = scaffoldConfig.pageIdMap.get(eventEntity.scaffold_id)
+        if (scaffoldPageId) {
+          conversionContext.scaffoldPageId = scaffoldPageId
+        }
       }
     }
 
@@ -169,7 +187,9 @@ class MockNotionClient {
   /**
    * pages.update implementation
    */
-  async pagesUpdate({ page_id, properties, archived }: any) {
+  async pagesUpdate(params: UpdatePageParameters) {
+    const { page_id, properties = {}, archived } = params
+
     // Use page_id to find entity config
     const config = this.getEntityConfigByPageId(page_id)
 
@@ -195,24 +215,35 @@ class MockNotionClient {
     }
 
     // Parse property updates based on entity type
-    const updates: Record<string, any> = {}
+    const updates: Record<string, unknown> = {}
 
     if (config.name === 'scaffold') {
-      if (properties.is_active !== undefined) {
-        updates.is_active = properties.is_active.checkbox
+      const isActiveProp = properties.is_active
+      if (isActiveProp && typeof isActiveProp === 'object' && 'checkbox' in isActiveProp) {
+        updates.is_active = isActiveProp.checkbox
       }
     } else if (config.name === 'event') {
-      if (properties.status !== undefined) {
-        updates.status = properties.status.select.name
+      const statusProp = properties.status
+      if (statusProp && typeof statusProp === 'object' && 'select' in statusProp && statusProp.select) {
+        updates.status = statusProp.select.name
       }
-      if (properties.telegram_message_id !== undefined) {
-        updates.telegram_message_id = properties.telegram_message_id.rich_text[0].text.content
+      const telegramProp = properties.telegram_message_id
+      if (telegramProp && typeof telegramProp === 'object' && 'rich_text' in telegramProp) {
+        const firstItem = telegramProp.rich_text[0]
+        if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+          updates.telegram_message_id = firstItem.text.content
+        }
       }
-      if (properties.payment_message_id !== undefined) {
-        updates.payment_message_id = properties.payment_message_id.rich_text[0].text.content
+      const paymentProp = properties.payment_message_id
+      if (paymentProp && typeof paymentProp === 'object' && 'rich_text' in paymentProp) {
+        const firstItem = paymentProp.rich_text[0]
+        if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+          updates.payment_message_id = firstItem.text.content
+        }
       }
-      if (properties.courts !== undefined) {
-        updates.courts = properties.courts.number
+      const courtsProp = properties.courts
+      if (courtsProp && typeof courtsProp === 'object' && 'number' in courtsProp) {
+        updates.courts = courtsProp.number
       }
     }
 
@@ -228,11 +259,14 @@ class MockNotionClient {
     }
 
     // For events with scaffold relations, add scaffold page ID
-    if (config.name === 'event' && (updatedEntity as any).scaffold_id) {
-      const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
-      const scaffoldPageId = scaffoldConfig.pageIdMap.get((updatedEntity as any).scaffold_id)
-      if (scaffoldPageId) {
-        context.scaffoldPageId = scaffoldPageId
+    if (config.name === 'event') {
+      const eventEntity = updatedEntity as { scaffold_id?: string }
+      if (eventEntity.scaffold_id) {
+        const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+        const scaffoldPageId = scaffoldConfig.pageIdMap.get(eventEntity.scaffold_id)
+        if (scaffoldPageId) {
+          context.scaffoldPageId = scaffoldPageId
+        }
       }
     }
 
@@ -243,7 +277,9 @@ class MockNotionClient {
   /**
    * pages.retrieve implementation
    */
-  async pagesRetrieve({ page_id }: any) {
+  async pagesRetrieve(params: GetPageParameters) {
+    const { page_id } = params
+
     // Use page_id to find entity config
     const config = this.getEntityConfigByPageId(page_id)
 
@@ -275,11 +311,14 @@ class MockNotionClient {
     }
 
     // For events with scaffold relations, add scaffold page ID
-    if (config.name === 'event' && (entity as any).scaffold_id) {
-      const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
-      const scaffoldPageId = scaffoldConfig.pageIdMap.get((entity as any).scaffold_id)
-      if (scaffoldPageId) {
-        context.scaffoldPageId = scaffoldPageId
+    if (config.name === 'event') {
+      const eventEntity = entity as { scaffold_id?: string }
+      if (eventEntity.scaffold_id) {
+        const scaffoldConfig = this.entityRegistry[SCAFFOLD_DB_ID]
+        const scaffoldPageId = scaffoldConfig.pageIdMap.get(eventEntity.scaffold_id)
+        if (scaffoldPageId) {
+          context.scaffoldPageId = scaffoldPageId
+        }
       }
     }
 
@@ -310,18 +349,18 @@ const mockNotionClient = new MockNotionClient()
 export function createMockNotionClient(): Client {
   const mockClient = {
     databases: {
-      query: vi.fn(async (params: any) => {
+      query: vi.fn(async (params: QueryDatabaseParameters) => {
         return mockNotionClient.databasesQuery(params)
       }),
     },
     pages: {
-      create: vi.fn(async (params: any) => {
+      create: vi.fn(async (params: CreatePageParameters) => {
         return mockNotionClient.pagesCreate(params)
       }),
-      update: vi.fn(async (params: any) => {
+      update: vi.fn(async (params: UpdatePageParameters) => {
         return mockNotionClient.pagesUpdate(params)
       }),
-      retrieve: vi.fn(async (params: any) => {
+      retrieve: vi.fn(async (params: GetPageParameters) => {
         return mockNotionClient.pagesRetrieve(params)
       }),
     },
