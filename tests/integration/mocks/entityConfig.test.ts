@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { EntityConfig, EntityStore } from './entityConfig'
+import type { EntityStore } from './entityConfig'
 import type { Scaffold } from '~/types'
 
 describe('EntityConfig types', () => {
@@ -7,9 +7,9 @@ describe('EntityConfig types', () => {
     const mockScaffoldStore: EntityStore<Scaffold> = {
       getAll: () => [],
       create: (entity: Scaffold) => entity,
-      update: (id: string, updates: Partial<Scaffold>) => ({} as Scaffold),
-      findById: (id: string) => undefined,
-      delete: (id: string) => {},
+      update: (_id: string, _updates: Partial<Scaffold>) => ({} as Scaffold),
+      findById: (_id: string) => undefined,
+      delete: (_id: string) => {},
       clear: () => {},
     }
     expect(mockScaffoldStore).toBeDefined()

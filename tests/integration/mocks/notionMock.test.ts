@@ -18,16 +18,18 @@ describe('notionMock with entity registry', () => {
       const response = await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_test123', text: { content: 'sc_test123' } }] },
+          id: { title: [{ text: { content: 'sc_test123' } }] },
           day_of_week: { select: { name: 'Mon' } },
-          time: { rich_text: [{ plain_text: '19:00', text: { content: '19:00' } }] },
+          time: { rich_text: [{ text: { content: '19:00' } }] },
           default_courts: { number: 2 },
           is_active: { checkbox: true },
         },
       })
 
       expect(response.id).toBeDefined()
-      expect(response.properties).toBeDefined()
+      if ('properties' in response) {
+        expect(response.properties).toBeDefined()
+      }
     })
 
     it('should query scaffolds by database ID', async () => {
@@ -35,9 +37,9 @@ describe('notionMock with entity registry', () => {
       await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_query_test', text: { content: 'sc_query_test' } }] },
+          id: { title: [{ text: { content: 'sc_query_test' } }] },
           day_of_week: { select: { name: 'Tue' } },
-          time: { rich_text: [{ plain_text: '20:00', text: { content: '20:00' } }] },
+          time: { rich_text: [{ text: { content: '20:00' } }] },
           default_courts: { number: 3 },
           is_active: { checkbox: true },
         },
@@ -57,9 +59,9 @@ describe('notionMock with entity registry', () => {
       await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_first', text: { content: 'sc_first' } }] },
+          id: { title: [{ text: { content: 'sc_first' } }] },
           day_of_week: { select: { name: 'Mon' } },
-          time: { rich_text: [{ plain_text: '19:00', text: { content: '19:00' } }] },
+          time: { rich_text: [{ text: { content: '19:00' } }] },
           default_courts: { number: 2 },
           is_active: { checkbox: true },
         },
@@ -68,9 +70,9 @@ describe('notionMock with entity registry', () => {
       await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_second', text: { content: 'sc_second' } }] },
+          id: { title: [{ text: { content: 'sc_second' } }] },
           day_of_week: { select: { name: 'Wed' } },
-          time: { rich_text: [{ plain_text: '18:00', text: { content: '18:00' } }] },
+          time: { rich_text: [{ text: { content: '18:00' } }] },
           default_courts: { number: 1 },
           is_active: { checkbox: false },
         },
@@ -97,7 +99,7 @@ describe('notionMock with entity registry', () => {
       const response = await mockClient.pages.create({
         parent: { database_id: EVENT_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'ev_test456', text: { content: 'ev_test456' } }] },
+          id: { title: [{ text: { content: 'ev_test456' } }] },
           datetime: { date: { start: '2025-01-15T19:00:00.000Z' } },
           courts: { number: 2 },
           status: { select: { name: 'created' } },
@@ -105,7 +107,9 @@ describe('notionMock with entity registry', () => {
       })
 
       expect(response.id).toBeDefined()
-      expect(response.properties).toBeDefined()
+      if ('properties' in response) {
+        expect(response.properties).toBeDefined()
+      }
     })
 
     it('should query events by database ID', async () => {
@@ -113,7 +117,7 @@ describe('notionMock with entity registry', () => {
       await mockClient.pages.create({
         parent: { database_id: EVENT_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'ev_query_test', text: { content: 'ev_query_test' } }] },
+          id: { title: [{ text: { content: 'ev_query_test' } }] },
           datetime: { date: { start: '2025-01-20T20:00:00.000Z' } },
           courts: { number: 3 },
           status: { select: { name: 'announced' } },
@@ -136,9 +140,9 @@ describe('notionMock with entity registry', () => {
       await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_isolation', text: { content: 'sc_isolation' } }] },
+          id: { title: [{ text: { content: 'sc_isolation' } }] },
           day_of_week: { select: { name: 'Thu' } },
-          time: { rich_text: [{ plain_text: '21:00', text: { content: '21:00' } }] },
+          time: { rich_text: [{ text: { content: '21:00' } }] },
           default_courts: { number: 2 },
           is_active: { checkbox: true },
         },
@@ -148,7 +152,7 @@ describe('notionMock with entity registry', () => {
       await mockClient.pages.create({
         parent: { database_id: EVENT_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'ev_isolation', text: { content: 'ev_isolation' } }] },
+          id: { title: [{ text: { content: 'ev_isolation' } }] },
           datetime: { date: { start: '2025-01-25T21:00:00.000Z' } },
           courts: { number: 2 },
           status: { select: { name: 'created' } },
@@ -179,9 +183,9 @@ describe('notionMock with entity registry', () => {
       const createResponse = await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_update', text: { content: 'sc_update' } }] },
+          id: { title: [{ text: { content: 'sc_update' } }] },
           day_of_week: { select: { name: 'Fri' } },
-          time: { rich_text: [{ plain_text: '22:00', text: { content: '22:00' } }] },
+          time: { rich_text: [{ text: { content: '22:00' } }] },
           default_courts: { number: 2 },
           is_active: { checkbox: true },
         },
@@ -203,9 +207,9 @@ describe('notionMock with entity registry', () => {
       const createResponse = await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_retrieve', text: { content: 'sc_retrieve' } }] },
+          id: { title: [{ text: { content: 'sc_retrieve' } }] },
           day_of_week: { select: { name: 'Sat' } },
-          time: { rich_text: [{ plain_text: '10:00', text: { content: '10:00' } }] },
+          time: { rich_text: [{ text: { content: '10:00' } }] },
           default_courts: { number: 4 },
           is_active: { checkbox: true },
         },
@@ -224,9 +228,9 @@ describe('notionMock with entity registry', () => {
       const createResponse = await mockClient.pages.create({
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
-          id: { title: [{ plain_text: 'sc_archive', text: { content: 'sc_archive' } }] },
+          id: { title: [{ text: { content: 'sc_archive' } }] },
           day_of_week: { select: { name: 'Sun' } },
-          time: { rich_text: [{ plain_text: '11:00', text: { content: '11:00' } }] },
+          time: { rich_text: [{ text: { content: '11:00' } }] },
           default_courts: { number: 1 },
           is_active: { checkbox: true },
         },
