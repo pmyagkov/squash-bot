@@ -11,7 +11,7 @@ export interface Scaffold {
   time: string // HH:MM format
   default_courts: number
   is_active: boolean
-  announce_hours_before?: number
+  announcement_deadline?: string
 }
 
 // Event
@@ -23,6 +23,7 @@ export interface Event {
   status: EventStatus
   telegram_message_id?: string
   payment_message_id?: string
+  announcement_deadline?: string
 }
 
 // Participant

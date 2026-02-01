@@ -3,6 +3,7 @@ import { config } from '../config'
 import { logToTelegram, setBotInstance } from '../utils/logger'
 import { isAdmin } from '../utils/environment'
 import { loadCommands, type CommandModule } from './commands'
+import { handleCallbackQuery } from './callbacks'
 
 // Command handlers are now in separate files in ./commands directory
 
@@ -11,6 +12,9 @@ export async function createBot(): Promise<Bot> {
 
   // Set bot instance for logger
   setBotInstance(bot)
+
+  // Register callback query handler
+  bot.on('callback_query:data', handleCallbackQuery)
 
   // Basic commands
   bot.command('start', async (ctx) => {

@@ -17,7 +17,7 @@ describe('Scaffold Entity Config', () => {
       time: '19:00',
       default_courts: 2,
       is_active: true,
-      announce_hours_before: 24,
+      announcement_deadline: '-1d',
     }
 
     config.store.create(scaffold)
@@ -184,24 +184,24 @@ describe('Scaffold Entity Config', () => {
   })
 
   describe('Optional Field Handling', () => {
-    it('should handle scaffold with announce_hours_before = 0 (edge case)', () => {
+    it('should handle scaffold with announcement_deadline = "-0h" (edge case)', () => {
       const scaffold: Scaffold = {
         id: 'sc_zero_hours',
         day_of_week: 'Thu',
         time: '19:00',
         default_courts: 2,
         is_active: true,
-        announce_hours_before: 0,
+        announcement_deadline: '-0h',
       }
 
       config.store.create(scaffold)
       const retrieved = config.store.findById('sc_zero_hours')
 
       expect(retrieved).toEqual(scaffold)
-      expect(retrieved?.announce_hours_before).toBe(0)
+      expect(retrieved?.announcement_deadline).toBe('-0h')
     })
 
-    it('should handle scaffold WITHOUT announce_hours_before', () => {
+    it('should handle scaffold WITHOUT announcement_deadline', () => {
       const scaffold: Scaffold = {
         id: 'sc_no_announce',
         day_of_week: 'Fri',
@@ -214,26 +214,28 @@ describe('Scaffold Entity Config', () => {
       const retrieved = config.store.findById('sc_no_announce')
 
       expect(retrieved).toEqual(scaffold)
-      expect(retrieved?.announce_hours_before).toBeUndefined()
+      expect(retrieved?.announcement_deadline).toBeUndefined()
     })
 
-    it('should convert scaffold with announce_hours_before to Notion page', () => {
+    it('should convert scaffold with announcement_deadline to Notion page', () => {
       const scaffold: Scaffold = {
         id: 'sc_with_announce',
         day_of_week: 'Sat',
         time: '10:00',
         default_courts: 4,
         is_active: true,
-        announce_hours_before: 48,
+        announcement_deadline: '-2d',
       }
 
       const notionPage = config.converters.toNotionPage(scaffold, 'page-456')
 
-      expect(notionPage.properties.announce_hours_before).toBeDefined()
-      expect((notionPage.properties.announce_hours_before as any).number).toBe(48)
+      expect(notionPage.properties.announcement_deadline).toBeDefined()
+      expect((notionPage.properties.announcement_deadline as any).rich_text[0].plain_text).toBe(
+        '-2d'
+      )
     })
 
-    it('should convert scaffold WITHOUT announce_hours_before to Notion page', () => {
+    it('should convert scaffold WITHOUT announcement_deadline to Notion page', () => {
       const scaffold: Scaffold = {
         id: 'sc_without_announce',
         day_of_week: 'Sun',
@@ -244,10 +246,10 @@ describe('Scaffold Entity Config', () => {
 
       const notionPage = config.converters.toNotionPage(scaffold, 'page-789')
 
-      expect(notionPage.properties.announce_hours_before).toBeUndefined()
+      expect(notionPage.properties.announcement_deadline).toBeUndefined()
     })
 
-    it('should parse Notion properties with announce_hours_before', () => {
+    it('should parse Notion properties with announcement_deadline', () => {
       const properties = {
         id: {
           title: [{ plain_text: 'sc_parse_with', text: { content: 'sc_parse_with' } }],
@@ -264,17 +266,17 @@ describe('Scaffold Entity Config', () => {
         is_active: {
           checkbox: true,
         },
-        announce_hours_before: {
-          number: 24,
+        announcement_deadline: {
+          rich_text: [{ plain_text: '-1d', text: { content: '-1d' } }],
         },
       }
 
       const scaffold = config.converters.fromNotionProperties(properties)
 
-      expect(scaffold.announce_hours_before).toBe(24)
+      expect(scaffold.announcement_deadline).toBe('-1d')
     })
 
-    it('should parse Notion properties WITHOUT announce_hours_before', () => {
+    it('should parse Notion properties WITHOUT announcement_deadline', () => {
       const properties = {
         id: {
           title: [{ plain_text: 'sc_parse_without', text: { content: 'sc_parse_without' } }],
@@ -295,19 +297,19 @@ describe('Scaffold Entity Config', () => {
 
       const scaffold = config.converters.fromNotionProperties(properties)
 
-      expect(scaffold.announce_hours_before).toBeUndefined()
+      expect(scaffold.announcement_deadline).toBeUndefined()
     })
   })
 
   describe('Round-trip Conversions', () => {
-    it('should preserve all data in round-trip conversion WITH announce_hours_before', () => {
+    it('should preserve all data in round-trip conversion WITH announcement_deadline', () => {
       const originalScaffold: Scaffold = {
         id: 'sc_roundtrip_1',
         day_of_week: 'Wed',
         time: '19:30',
         default_courts: 2,
         is_active: true,
-        announce_hours_before: 36,
+        announcement_deadline: '-1d 12:00',
       }
 
       // Convert to Notion page
@@ -319,7 +321,7 @@ describe('Scaffold Entity Config', () => {
       expect(reconstructedScaffold).toEqual(originalScaffold)
     })
 
-    it('should preserve all data in round-trip conversion WITHOUT announce_hours_before', () => {
+    it('should preserve all data in round-trip conversion WITHOUT announcement_deadline', () => {
       const originalScaffold: Scaffold = {
         id: 'sc_roundtrip_2',
         day_of_week: 'Fri',
@@ -337,14 +339,14 @@ describe('Scaffold Entity Config', () => {
       expect(reconstructedScaffold).toEqual(originalScaffold)
     })
 
-    it('should preserve announce_hours_before = 0 in round-trip conversion', () => {
+    it('should preserve announcement_deadline = "-0h" in round-trip conversion', () => {
       const originalScaffold: Scaffold = {
         id: 'sc_roundtrip_zero',
         day_of_week: 'Sat',
         time: '10:00',
         default_courts: 1,
         is_active: true,
-        announce_hours_before: 0,
+        announcement_deadline: '-0h',
       }
 
       // Convert to Notion page
@@ -354,7 +356,7 @@ describe('Scaffold Entity Config', () => {
       const reconstructedScaffold = config.converters.fromNotionProperties(notionPage.properties)
 
       expect(reconstructedScaffold).toEqual(originalScaffold)
-      expect(reconstructedScaffold.announce_hours_before).toBe(0)
+      expect(reconstructedScaffold.announcement_deadline).toBe('-0h')
     })
   })
 })

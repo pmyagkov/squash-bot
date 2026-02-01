@@ -9,10 +9,14 @@ import type {
 import type { EntityRegistry, EntityConfig } from './entityConfig'
 import { createScaffoldEntityConfig } from './entities/scaffoldEntity'
 import { createEventEntityConfig } from './entities/eventEntity'
+import { createParticipantEntityConfig } from './entities/participantEntity'
+import { createEventParticipantEntityConfig } from './entities/eventParticipantEntity'
 
 // Database IDs from the actual configuration
 const SCAFFOLD_DB_ID = '1c6408e91d3a4d308b0736e79ff5b937'
 const EVENT_DB_ID = '4e6dc64564e042c9991daf38f6b0ec85'
+const PARTICIPANT_DB_ID = '734443ccc46d4c668ab2f34b34998e8f'
+const EVENT_PARTICIPANT_DB_ID = 'd14061191885481fa5cfbb3978cf0473'
 
 /**
  * Mock Notion Client using Entity Registry pattern
@@ -32,10 +36,14 @@ class MockNotionClient {
     // Initialize entity registry with database ID mappings
     const scaffoldConfig = createScaffoldEntityConfig()
     const eventConfig = createEventEntityConfig()
+    const participantConfig = createParticipantEntityConfig()
+    const eventParticipantConfig = createEventParticipantEntityConfig()
 
     this.entityRegistry = {
       [SCAFFOLD_DB_ID]: scaffoldConfig as EntityConfig<unknown>,
       [EVENT_DB_ID]: eventConfig as EntityConfig<unknown>,
+      [PARTICIPANT_DB_ID]: participantConfig as EntityConfig<unknown>,
+      [EVENT_PARTICIPANT_DB_ID]: eventParticipantConfig as EntityConfig<unknown>,
     }
   }
 
@@ -92,7 +100,15 @@ class MockNotionClient {
 
     // Convert entities to Notion page format
     const results = entities.map(entity => {
-      const entityId = (entity as { id: string }).id
+      // Get entity ID - for EventParticipant it's a composite key
+      let entityId: string
+      if (config.name === 'eventParticipant') {
+        const ep = entity as { event_id: string; participant_id: string }
+        entityId = `${ep.event_id}:${ep.participant_id}`
+      } else {
+        entityId = (entity as { id: string }).id
+      }
+
       const pageId = config.pageIdMap.get(entityId)
       if (!pageId) {
         throw new Error(`Page ID not found for entity ${entityId}`)
@@ -112,6 +128,23 @@ class MockNotionClient {
           if (scaffoldPageId) {
             context.scaffoldPageId = scaffoldPageId
           }
+        }
+      }
+
+      // For eventParticipant with relations, add page IDs
+      if (config.name === 'eventParticipant') {
+        const ep = entity as { event_id: string; participant_id: string }
+        const eventConfig = this.entityRegistry[EVENT_DB_ID]
+        const participantConfig = this.entityRegistry[PARTICIPANT_DB_ID]
+
+        const eventPageId = eventConfig.pageIdMap.get(ep.event_id)
+        const participantPageId = participantConfig.pageIdMap.get(ep.participant_id)
+
+        if (eventPageId) {
+          context.eventPageId = eventPageId
+        }
+        if (participantPageId) {
+          context.participantPageId = participantPageId
         }
       }
 
@@ -151,6 +184,26 @@ class MockNotionClient {
       context.scaffoldPageIdMap = reverseMap
     }
 
+    // For eventParticipant with relations, provide reverse maps
+    if (config.name === 'eventParticipant') {
+      const eventConfig = this.entityRegistry[EVENT_DB_ID]
+      const participantConfig = this.entityRegistry[PARTICIPANT_DB_ID]
+
+      // Create reverse map: pageId -> eventId
+      const eventReverseMap = new Map<string, string>()
+      for (const [eventId, pageId] of eventConfig.pageIdMap.entries()) {
+        eventReverseMap.set(pageId, eventId)
+      }
+      context.eventPageIdMap = eventReverseMap
+
+      // Create reverse map: pageId -> participantId
+      const participantReverseMap = new Map<string, string>()
+      for (const [participantId, pageId] of participantConfig.pageIdMap.entries()) {
+        participantReverseMap.set(pageId, participantId)
+      }
+      context.participantPageIdMap = participantReverseMap
+    }
+
     // Parse properties to create entity
     const entity = config.converters.fromNotionProperties(properties, context)
 
@@ -177,6 +230,23 @@ class MockNotionClient {
         if (scaffoldPageId) {
           conversionContext.scaffoldPageId = scaffoldPageId
         }
+      }
+    }
+
+    // For eventParticipant with relations, add page IDs
+    if (config.name === 'eventParticipant') {
+      const ep = storedEntity as { event_id: string; participant_id: string }
+      const eventConfig = this.entityRegistry[EVENT_DB_ID]
+      const participantConfig = this.entityRegistry[PARTICIPANT_DB_ID]
+
+      const eventPageId = eventConfig.pageIdMap.get(ep.event_id)
+      const participantPageId = participantConfig.pageIdMap.get(ep.participant_id)
+
+      if (eventPageId) {
+        conversionContext.eventPageId = eventPageId
+      }
+      if (participantPageId) {
+        conversionContext.participantPageId = participantPageId
       }
     }
 
@@ -244,6 +314,19 @@ class MockNotionClient {
       const courtsProp = properties.courts
       if (courtsProp && typeof courtsProp === 'object' && 'number' in courtsProp) {
         updates.courts = courtsProp.number
+      }
+    } else if (config.name === 'eventParticipant') {
+      const participationsProp = properties.participations
+      if (
+        participationsProp &&
+        typeof participationsProp === 'object' &&
+        'number' in participationsProp
+      ) {
+        console.log(
+          '[MOCK] Updating eventParticipant participations to:',
+          participationsProp.number
+        )
+        updates.participations = participationsProp.number
       }
     }
 

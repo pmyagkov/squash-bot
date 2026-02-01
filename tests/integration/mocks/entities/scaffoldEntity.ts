@@ -119,12 +119,27 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
           type: 'checkbox',
           checkbox: entity.is_active,
         },
-        ...(entity.announce_hours_before !== undefined
+        ...(entity.announcement_deadline !== undefined
           ? {
-              announce_hours_before: {
-                id: 'announce_hours_before',
-                type: 'number',
-                number: entity.announce_hours_before,
+              announcement_deadline: {
+                id: 'announcement_deadline',
+                type: 'rich_text',
+                rich_text: [
+                  {
+                    type: 'text',
+                    text: { content: entity.announcement_deadline, link: null },
+                    annotations: {
+                      bold: false,
+                      italic: false,
+                      strikethrough: false,
+                      underline: false,
+                      code: false,
+                      color: 'default',
+                    },
+                    plain_text: entity.announcement_deadline,
+                    href: null,
+                  },
+                ],
               },
             }
           : {}),
@@ -165,11 +180,15 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
       ? isActiveProp.checkbox ?? false
       : false
 
-    // Extract optional announce_hours_before
-    const announceHoursBeforeProp = properties.announce_hours_before
-    const announce_hours_before = announceHoursBeforeProp && typeof announceHoursBeforeProp === 'object' && 'number' in announceHoursBeforeProp
-      ? announceHoursBeforeProp.number
-      : undefined
+    // Extract optional announcement_deadline
+    const announcementDeadlineProp = properties.announcement_deadline
+    let announcement_deadline: string | undefined
+    if (announcementDeadlineProp && typeof announcementDeadlineProp === 'object' && 'rich_text' in announcementDeadlineProp) {
+      const firstItem = announcementDeadlineProp.rich_text?.[0]
+      if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+        announcement_deadline = firstItem.text.content
+      }
+    }
 
     return {
       id,
@@ -177,8 +196,8 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
       time,
       default_courts,
       is_active,
-      ...(announce_hours_before !== null && announce_hours_before !== undefined
-        ? { announce_hours_before }
+      ...(announcement_deadline !== undefined
+        ? { announcement_deadline }
         : {}),
     }
   }

@@ -88,16 +88,16 @@ export class EventCommands extends ChatPage {
    * Example:
    * "ev_15: Sat 20 Jan 19:00, 2 courts, created" → [{ id: "ev_15", status: "created", ... }]
    */
-  parseEventList(response: string): Array<{
+  parseEventList(response: string): {
     id: string
     courts: number
     status: string
-  }> {
-    const events: Array<{
+  }[] {
+    const events: {
       id: string
       courts: number
       status: string
-    }> = []
+    }[] = []
 
     // Match pattern: ev_15: Sat 20 Jan 19:00, 2 courts, created
     const regex = /(ev_[\w-]+):.*?(\d+)\s+courts?,\s+(\w+)/gi

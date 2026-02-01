@@ -169,8 +169,9 @@ export class NotionClient {
       time: this.getRichTextProperty(props.time as NotionRichTextProperty),
       default_courts: (props.default_courts as NotionNumberProperty)?.number || 0,
       is_active: (props.is_active as NotionCheckboxProperty)?.checkbox || false,
-      announce_hours_before:
-        (props.announce_hours_before as NotionNumberProperty)?.number ?? undefined,
+      announcement_deadline:
+        this.getRichTextProperty(props.announcement_deadline as NotionRichTextProperty) ||
+        undefined,
     }
   }
 

@@ -106,6 +106,14 @@ export class EventService {
   }
 
   /**
+   * Get event by telegram message ID
+   */
+  async getByMessageId(chatId: number | string, messageId: string): Promise<Event | null> {
+    const events = await this.getEvents(chatId)
+    return events.find((e) => e.telegram_message_id === messageId) || null
+  }
+
+  /**
    * Create a new event
    */
   async createEvent(
@@ -320,6 +328,32 @@ export class EventService {
   }
 
   /**
+   * Build inline keyboard based on event status
+   */
+  buildInlineKeyboard(status: EventStatus): InlineKeyboard {
+    if (status === 'cancelled') {
+      // Show only Restore button
+      return new InlineKeyboard().text('🔄 Restore', 'event:restore')
+    }
+
+    if (status === 'finalized') {
+      // No buttons for finalized events
+      return new InlineKeyboard()
+    }
+
+    // Active event (announced status)
+    return new InlineKeyboard()
+      .text("I'm in", 'event:join')
+      .text("I'm out", 'event:leave')
+      .row()
+      .text('+court', 'event:add_court')
+      .text('-court', 'event:rm_court')
+      .row()
+      .text('✅ Finalize', 'event:finalize')
+      .text('❌ Cancel', 'event:cancel')
+  }
+
+  /**
    * Announce event - send message to Telegram, pin it, save message_id
    */
   async announceEvent(chatId: number | string, id: string, bot: Bot): Promise<Event> {
@@ -355,9 +389,7 @@ Participants:
 (nobody yet)`
 
       // 3. Create inline keyboard
-      const keyboard = new InlineKeyboard()
-        .text("I'm in", `event_join_${id}`)
-        .text("I'm out", `event_leave_${id}`)
+      const keyboard = this.buildInlineKeyboard('announced')
 
       // 4. Send message
       const sentMessage = await bot.api.sendMessage(chatIdToUse, messageText, {

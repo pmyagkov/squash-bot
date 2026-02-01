@@ -47,11 +47,16 @@ class EventStore implements EntityStore<Event> {
  * Converters for transforming between Event and Notion API formats
  */
 class EventConverters implements EntityConverters<Event> {
-  toNotionPage(entity: Event, pageId: string, context?: Record<string, unknown>): PageObjectResponse {
+  toNotionPage(
+    entity: Event,
+    pageId: string,
+    context?: Record<string, unknown>
+  ): PageObjectResponse {
     // Handle Date serialization
-    const datetimeISO = entity.datetime instanceof Date
-      ? entity.datetime.toISOString()
-      : new Date(entity.datetime).toISOString()
+    const datetimeISO =
+      entity.datetime instanceof Date
+        ? entity.datetime.toISOString()
+        : new Date(entity.datetime).toISOString()
 
     return {
       object: 'page',
@@ -64,7 +69,7 @@ class EventConverters implements EntityConverters<Event> {
       icon: null,
       parent: {
         type: 'database_id',
-        database_id: context?.databaseId as string || 'mock-database-id',
+        database_id: (context?.databaseId as string) || 'mock-database-id',
       },
       archived: false,
       in_trash: false,
@@ -166,39 +171,71 @@ class EventConverters implements EntityConverters<Event> {
               },
             }
           : {}),
+        ...(entity.announcement_deadline !== undefined
+          ? {
+              announcement_deadline: {
+                id: 'announcement_deadline',
+                type: 'rich_text',
+                rich_text: [
+                  {
+                    type: 'text',
+                    text: { content: entity.announcement_deadline, link: null },
+                    annotations: {
+                      bold: false,
+                      italic: false,
+                      strikethrough: false,
+                      underline: false,
+                      code: false,
+                      color: 'default',
+                    },
+                    plain_text: entity.announcement_deadline,
+                    href: null,
+                  },
+                ],
+              },
+            }
+          : {}),
       },
       url: `https://notion.so/${pageId}`,
       public_url: null,
     } as PageObjectResponse
   }
 
-  fromNotionProperties(properties: CreatePageParameters['properties'], context?: Record<string, unknown>): Event {
+  fromNotionProperties(
+    properties: CreatePageParameters['properties'],
+    context?: Record<string, unknown>
+  ): Event {
     const id = this.extractEntityId(properties)
 
     // Extract datetime
     const datetimeProp = properties.datetime
-    const datetimeStart = datetimeProp && typeof datetimeProp === 'object' && 'date' in datetimeProp
-      ? datetimeProp.date?.start
-      : undefined
+    const datetimeStart =
+      datetimeProp && typeof datetimeProp === 'object' && 'date' in datetimeProp
+        ? datetimeProp.date?.start
+        : undefined
     const datetime = new Date(datetimeStart || '')
 
     // Extract courts
     const courtsProp = properties.courts
-    const courts = courtsProp && typeof courtsProp === 'object' && 'number' in courtsProp
-      ? courtsProp.number ?? 0
-      : 0
+    const courts =
+      courtsProp && typeof courtsProp === 'object' && 'number' in courtsProp
+        ? (courtsProp.number ?? 0)
+        : 0
 
     // Extract status
     const statusProp = properties.status
-    const status = (statusProp && typeof statusProp === 'object' && 'select' in statusProp
-      ? statusProp.select?.name
-      : undefined) as EventStatus
+    const status = (
+      statusProp && typeof statusProp === 'object' && 'select' in statusProp
+        ? statusProp.select?.name
+        : undefined
+    ) as EventStatus
 
     // Extract optional scaffold_id (needs reverse lookup from page ID to scaffold ID)
     const scaffoldIdProp = properties.scaffold_id
-    const scaffoldPageId = scaffoldIdProp && typeof scaffoldIdProp === 'object' && 'relation' in scaffoldIdProp
-      ? scaffoldIdProp.relation?.[0]?.id
-      : undefined
+    const scaffoldPageId =
+      scaffoldIdProp && typeof scaffoldIdProp === 'object' && 'relation' in scaffoldIdProp
+        ? scaffoldIdProp.relation?.[0]?.id
+        : undefined
     let scaffold_id: string | undefined
     if (scaffoldPageId && context?.scaffoldPageIdMap) {
       const scaffoldPageIdMap = context.scaffoldPageIdMap as Map<string, string>
@@ -208,7 +245,11 @@ class EventConverters implements EntityConverters<Event> {
     // Extract optional telegram_message_id
     const telegramMessageIdProp = properties.telegram_message_id
     let telegram_message_id: string | undefined
-    if (telegramMessageIdProp && typeof telegramMessageIdProp === 'object' && 'rich_text' in telegramMessageIdProp) {
+    if (
+      telegramMessageIdProp &&
+      typeof telegramMessageIdProp === 'object' &&
+      'rich_text' in telegramMessageIdProp
+    ) {
       const firstItem = telegramMessageIdProp.rich_text?.[0]
       if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
         telegram_message_id = firstItem.text.content
@@ -218,10 +259,28 @@ class EventConverters implements EntityConverters<Event> {
     // Extract optional payment_message_id
     const paymentMessageIdProp = properties.payment_message_id
     let payment_message_id: string | undefined
-    if (paymentMessageIdProp && typeof paymentMessageIdProp === 'object' && 'rich_text' in paymentMessageIdProp) {
+    if (
+      paymentMessageIdProp &&
+      typeof paymentMessageIdProp === 'object' &&
+      'rich_text' in paymentMessageIdProp
+    ) {
       const firstItem = paymentMessageIdProp.rich_text?.[0]
       if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
         payment_message_id = firstItem.text.content
+      }
+    }
+
+    // Extract optional announcement_deadline
+    const announcementDeadlineProp = properties.announcement_deadline
+    let announcement_deadline: string | undefined
+    if (
+      announcementDeadlineProp &&
+      typeof announcementDeadlineProp === 'object' &&
+      'rich_text' in announcementDeadlineProp
+    ) {
+      const firstItem = announcementDeadlineProp.rich_text?.[0]
+      if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
+        announcement_deadline = firstItem.text.content
       }
     }
 
@@ -233,6 +292,7 @@ class EventConverters implements EntityConverters<Event> {
       ...(scaffold_id !== undefined ? { scaffold_id } : {}),
       ...(telegram_message_id !== undefined ? { telegram_message_id } : {}),
       ...(payment_message_id !== undefined ? { payment_message_id } : {}),
+      ...(announcement_deadline !== undefined ? { announcement_deadline } : {}),
     }
   }
 

@@ -5,12 +5,12 @@ export class SettingsService {
   /**
    * Get all settings from Notion as key-value map
    */
-  async getSettings(chatId: number | string): Promise<Record<string, string>> {
+  async getSettings(): Promise<Record<string, string>> {
     const client = notionClient.getClient()
     const databases = getDatabases()
 
     if (!databases.settings) {
-      throw new Error(`Settings database ID is not configured. ChatId: ${chatId}`)
+      throw new Error('Settings database ID is not configured')
     }
 
     const response = await client.databases.query({
@@ -36,9 +36,63 @@ export class SettingsService {
   /**
    * Get single setting value by key
    */
-  async getSetting(chatId: number | string, key: string): Promise<string | null> {
-    const settings = await this.getSettings(chatId)
+  async getSetting(key: string): Promise<string | null> {
+    const settings = await this.getSettings()
     return settings[key] || null
+  }
+
+  /**
+   * Get court price setting
+   * @returns Court price in cents (default: 2000)
+   */
+  async getCourtPrice(): Promise<number> {
+    const value = await this.getSetting('court_price')
+    return value ? parseInt(value, 10) : 2000
+  }
+
+  /**
+   * Get timezone setting
+   * @returns Timezone string (default: "Europe/Belgrade")
+   */
+  async getTimezone(): Promise<string> {
+    const value = await this.getSetting('timezone')
+    return value || 'Europe/Belgrade'
+  }
+
+  /**
+   * Get announcement deadline setting
+   * @returns Time offset notation string (default: "-1d 12:00")
+   */
+  async getAnnouncementDeadline(): Promise<string> {
+    const value = await this.getSetting('announcement_deadline')
+    return value || '-1d 12:00'
+  }
+
+  /**
+   * Get cancellation deadline setting
+   * @returns Time offset notation string (default: "-1d 23:00")
+   */
+  async getCancellationDeadline(): Promise<string> {
+    const value = await this.getSetting('cancellation_deadline')
+    return value || '-1d 23:00'
+  }
+
+  /**
+   * Get maximum players per court setting
+   * @returns Max players per court (default: 4)
+   */
+  async getMaxPlayersPerCourt(): Promise<number> {
+    const value = await this.getSetting('max_players_per_court')
+    return value ? parseInt(value, 10) : 4
+  }
+
+  /**
+   * Get minimum players per court setting
+   * @returns Min players per court (default: 2)
+   */
+  async getMinPlayersPerCourt(): Promise<number> {
+    const value = await this.getSetting('min_players_per_court')
+    return value ? parseInt(value, 10) : 2
   }
 
   // Using 'any' because Notion property types vary and are not fully typed in @notionhq/client

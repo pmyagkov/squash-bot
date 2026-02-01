@@ -78,6 +78,18 @@ export function setupMockBotApi(bot: Bot): SentMessage[] {
       return Promise.resolve({ ok: true, result: true } as any)
     }
 
+    if (method === 'unpinChatMessage') {
+      return Promise.resolve({ ok: true, result: true } as any)
+    }
+
+    if (method === 'answerCallbackQuery') {
+      return Promise.resolve({ ok: true, result: true } as any)
+    }
+
+    if (method === 'editMessageReplyMarkup') {
+      return Promise.resolve({ ok: true, result: true } as any)
+    }
+
     // For other methods, call original transformer
     return prev(method, payload, signal)
   })

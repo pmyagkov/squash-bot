@@ -68,7 +68,7 @@ export async function handleCommand(
       )
 
       await ctx.reply(
-        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} court(s), reminder ${scaffold.announce_hours_before ?? 26} hours before`
+        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} court(s), announcement ${scaffold.announcement_deadline ?? 'default'}`
       )
 
       await logToTelegram(
