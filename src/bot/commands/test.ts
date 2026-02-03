@@ -3,7 +3,7 @@ import { config } from '~/config'
 import { logToTelegram } from '~/utils/logger'
 import { scaffoldService } from '~/services/scaffoldService'
 import { isAdmin, isTestChat, getDatabases } from '~/utils/environment'
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 import type { CommandModule } from './index'
 
 export const commandName = 'test'

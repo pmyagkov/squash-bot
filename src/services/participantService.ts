@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 import { Participant, EventParticipant } from '~/types'
 import { getDatabases } from '~/utils/environment'
 import {

@@ -36,7 +36,7 @@ coverage/
 # Docker
 .dockerignore
 
-docs/
+docs/plans/
 test-results/
 playwright-report/
 .auth/

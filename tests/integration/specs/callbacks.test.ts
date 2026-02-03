@@ -6,7 +6,7 @@ import { participantService } from '~/services/participantService'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { setBotInstance } from '~/utils/logger'
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 import { createMockNotionClient, clearMockNotionStore } from '@integration/mocks/notionMock'
 import { setupMockBotApi } from '@integration/mocks/botMock'
 

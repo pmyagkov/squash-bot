@@ -1,4 +1,4 @@
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 import { getDatabases } from '~/utils/environment'
 
 export class SettingsService {

@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid'
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 import { Scaffold, DayOfWeek } from '~/types'
 
 const DAYS_OF_WEEK: Record<string, DayOfWeek> = {

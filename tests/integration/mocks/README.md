@@ -357,7 +357,7 @@ Create test file `tests/integration/specs/yourEntity.test.ts`:
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createMockNotionClient, clearMockNotionStore } from '@integration/mocks/notionMock'
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 
 describe('YourEntity tests', () => {
   beforeEach(() => {
@@ -433,7 +433,7 @@ expect(scaffolds[0].day_of_week).toBe('Tue')
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createMockNotionClient, clearMockNotionStore } from '@integration/mocks/notionMock'
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 
 describe('My tests', () => {
   beforeEach(() => {

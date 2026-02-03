@@ -2,7 +2,7 @@ import { test, expect } from '@e2e/fixtures/fixtures'
 import { hasAuth } from '@e2e/config/config'
 
 // Import notionClient for verification
-import { notionClient } from '~/notion/client'
+import { notionClient } from '~/storage/client'
 
 test.describe('Scaffold Commands', () => {
   // Skip tests when authentication state is not prepared
