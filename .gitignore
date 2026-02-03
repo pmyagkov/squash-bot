@@ -42,3 +42,5 @@ playwright-report/
 .auth/
 
 .claude/settings.local.json.worktrees/
+
+.worktrees/
