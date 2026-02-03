@@ -11,12 +11,14 @@ import { createScaffoldEntityConfig } from './entities/scaffoldEntity'
 import { createEventEntityConfig } from './entities/eventEntity'
 import { createParticipantEntityConfig } from './entities/participantEntity'
 import { createEventParticipantEntityConfig } from './entities/eventParticipantEntity'
+import { createSettingsEntityConfig } from './entities/settingsEntity'
 
 // Database IDs from the actual configuration
 const SCAFFOLD_DB_ID = '1c6408e91d3a4d308b0736e79ff5b937'
 const EVENT_DB_ID = '4e6dc64564e042c9991daf38f6b0ec85'
 const PARTICIPANT_DB_ID = '734443ccc46d4c668ab2f34b34998e8f'
 const EVENT_PARTICIPANT_DB_ID = 'd14061191885481fa5cfbb3978cf0473'
+const SETTINGS_DB_ID = '2eb696a0ab0280f79a88000c171f5d3a'
 
 /**
  * Mock Notion Client using Entity Registry pattern
@@ -38,12 +40,14 @@ class MockNotionClient {
     const eventConfig = createEventEntityConfig()
     const participantConfig = createParticipantEntityConfig()
     const eventParticipantConfig = createEventParticipantEntityConfig()
+    const settingsConfig = createSettingsEntityConfig()
 
     this.entityRegistry = {
       [SCAFFOLD_DB_ID]: scaffoldConfig as EntityConfig<unknown>,
       [EVENT_DB_ID]: eventConfig as EntityConfig<unknown>,
       [PARTICIPANT_DB_ID]: participantConfig as EntityConfig<unknown>,
       [EVENT_PARTICIPANT_DB_ID]: eventParticipantConfig as EntityConfig<unknown>,
+      [SETTINGS_DB_ID]: settingsConfig as EntityConfig<unknown>,
     }
   }
 

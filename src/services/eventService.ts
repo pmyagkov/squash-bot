@@ -10,6 +10,8 @@ import { getDatabases } from '~/utils/environment'
 import { config } from '~/config'
 import { logToTelegram } from '~/utils/logger'
 import { scaffoldService } from '~/services/scaffoldService'
+import { settingsService } from '~/services/settingsService'
+import { shouldTrigger } from '~/utils/timeOffset'
 import {
   NotionDateProperty,
   NotionNumberProperty,
@@ -485,22 +487,14 @@ Participants:
   }
 
   /**
-   * Check if event should be created based on announce_hours_before rule
+   * Check if event should be created based on announcement_deadline
    */
-  private shouldCreateEvent(scaffold: Scaffold, nextOccurrence: Date): boolean {
-    const now = dayjs.tz(config.timezone)
-    const occurrenceTime = dayjs.tz(nextOccurrence, config.timezone)
-    const hoursBefore = scaffold.announce_hours_before ?? 26
+  private async shouldCreateEvent(scaffold: Scaffold, nextOccurrence: Date): Promise<boolean> {
+    const timezone = await settingsService.getTimezone()
+    const deadline =
+      scaffold.announcement_deadline ?? (await settingsService.getAnnouncementDeadline())
 
-    const hoursUntil = occurrenceTime.diff(now, 'hour', true)
-
-    // If less than 24 hours before, create immediately
-    if (hoursUntil < 24) {
-      return true
-    }
-
-    // Otherwise, check if it's time to create (hoursBefore hours before)
-    return hoursUntil <= hoursBefore
+    return shouldTrigger(deadline, nextOccurrence, timezone)
   }
 
   /**
@@ -535,7 +529,7 @@ Participants:
         }
 
         // Check if it's time to create
-        if (!this.shouldCreateEvent(scaffold, nextOccurrence)) {
+        if (!(await this.shouldCreateEvent(scaffold, nextOccurrence))) {
           continue
         }
 

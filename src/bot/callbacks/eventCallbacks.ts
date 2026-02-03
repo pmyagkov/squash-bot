@@ -1,6 +1,7 @@
 import { Context } from 'grammy'
 import { eventService } from '~/services/eventService'
 import { participantService } from '~/services/participantService'
+import { settingsService } from '~/services/settingsService'
 import { logToTelegram } from '~/utils/logger'
 import { config } from '~/config'
 import { Event } from '~/types'
@@ -436,9 +437,8 @@ async function sendPaymentMessage(ctx: Context, eventId: string, chatId: number)
     return
   }
 
-  // Get court price from settings (TODO: implement settings service)
-  // For now, use hardcoded value
-  const courtPrice = 1500
+  // Get court price from settings
+  const courtPrice = await settingsService.getCourtPrice()
 
   // Get participants
   const participants = await participantService.getEventParticipants(chatId, eventId)
