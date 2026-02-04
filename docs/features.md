@@ -316,42 +316,51 @@ Change court count for event.
 
 ---
 
-### session-finalize ✅
+### session-finalize
 
-Finalize session and send payment message.
+Finalize session, create payment records, and send personal notifications.
 
 **Actor:** Any user
 **Chat:** Main (under announcement message)
 
 **Precondition:** Event has participants
 
+**Related:** `payment-personal-notifications`, `fallback-notification`
+
 **Flow:**
 1. User clicks [✅ Finalize] button
-2. Bot checks if there are participants
-3. Bot updates event status → finalized
-4. Bot updates announcement message (adds "✅ Finalized", removes action buttons)
-5. Bot calculates payment per participant:
-   - total = courts × court_price
-   - per_participation = total / sum(participations)
-6. Bot sends payment message to Main chat
-7. Bot saves payment_message_id in event
+2. Button immediately changes to [⏳ In progress] (UI protection)
+3. Bot acquires event lock (concurrency protection)
+4. Bot checks if there are participants
+5. Bot creates Payment record for each participant:
+   - `amount = court_price × courts × participations / total_participations`
+   - `is_paid = false`, `paid_at = null`, `reminder_count = 0`
+6. Bot updates event status → finalized
+7. Bot sends personal payment notification to each participant (see payment-personal-notifications)
+   - Collects list of failed deliveries
+8. If any deliveries failed → send fallback message (see fallback-notification)
+9. Bot updates announcement message:
+   - Removes buttons: [I'm in], [I'm out], [+court], [-court], [❌ Cancel]
+   - Changes button: [✅ Finalize] → [↩️ Unfinalize]
+   - Adds status: "✅ Finalized"
+10. Bot releases event lock
 
-**Payment message format:**
+**Announcement after finalize:**
 ```
-💰 Payment for Squash 21.01 21:00
+🎾 Squash: Tuesday, 21 January, 21:00
+Courts: 2
 
-Courts: 3 × 2000 din = 6000 din
-Participants: 6
+Participants (4):
+@pasha (×2), @vasya, @petya
 
-Each pays: 1000 din
+✅ Finalized
 
-@pasha — 2000 din (×2)
-@vasya — 1000 din
-@petya — 1000 din
+[↩️ Unfinalize]
 ```
 
 **Errors:**
 - No participants → callback answer: "No participants to finalize"
+- Event already locked → callback answer: "⏳ Operation already in progress"
 
 ---
 
@@ -388,46 +397,167 @@ Restore cancelled event.
 
 ---
 
+### session-unfinalize
+
+Unfinalize session and clean up payment records.
+
+**Actor:** Any user
+**Chat:** Main (under announcement message)
+
+**Flow:**
+1. User clicks [↩️ Unfinalize] button
+2. Button immediately changes to [⏳ In progress...] (UI protection)
+3. Bot acquires event lock
+4. Bot deletes all Payment records for this event
+5. Bot tries to delete personal payment messages (best effort, ignores errors)
+6. Bot updates event status → announced
+7. Bot restores announcement message:
+   - Removes "✅ Finalized" status
+   - Removes payment checkmarks from participants
+   - Restores full button set: [I'm in], [I'm out], [+court], [-court], [✅ Finalize], [❌ Cancel]
+8. Bot releases event lock
+
+**Result:** Event returns to pre-finalized state
+
+**Errors:**
+- Event already locked → callback answer: "⏳ Operation already in progress"
+
+---
+
 ## Payments
+
+### payment-personal-notifications
+
+Send personal payment notification to each participant after finalization.
+
+**Actor:** System (triggered by session-finalize)
+**Chat:** Private DM to each participant
+
+**Flow:**
+1. For each participant in event:
+   - Try to send personal DM with payment details
+   - If success: save message_id to Payment.personal_message_id
+   - If fail (can't initiate conversation): add to failedParticipants[]
+2. Return list of failed participants
+
+**Personal message format:**
+```
+💰 Payment for Squash 21.01 21:00
+
+Courts: 2 × 2000 din = 4000 din
+Participants: 4
+Full details: [link to announcement]
+
+Your amount: 1000 din
+
+[✅ I paid]
+```
+
+**Link format:** `https://t.me/c/{chat_id}/{message_id}` (link to announcement)
+
+**Button:** `[✅ I paid]` with callback `payment:mark:{event_id}`
+
+**Typical failure:** "Forbidden: bot can't initiate conversation with a user"
+
+---
+
+### fallback-notification
+
+Notify users in group chat who couldn't receive personal messages (general purpose).
+
+**Actor:** System (triggered by session-finalize if deliveries failed)
+**Chat:** Main
+
+**Condition:** `failedParticipants.length > 0`
+
+**Flow:**
+1. Send single message to Main chat
+2. Mention all failed participants with @username (or display_name if no username)
+3. Include deep link to bot chat
+
+**Message format:**
+```
+⚠️ I can't reach you personally, guys
+
+@pasha, @vasya, @petya
+
+Please start a chat with me: [Bot Name]
+
+(Click the link and send /start)
+```
+
+**Link:** `https://t.me/{bot_username}?start` (deep link to bot with /start)
+
+**Related:** `start-onboarding` - users need to send /start to enable DMs
+
+---
 
 ### payment-mark-paid
 
-Mark payment as paid.
+Mark payment as paid via personal message.
 
 **Actor:** Any user (marks own payment)
-**Chat:** Main (under payment message)
+**Chat:** Private (personal payment message)
 
 **Flow:**
-1. User clicks [Paid ✓] button under payment message
-2. Bot identifies user
-3. Bot finds user's Payment record for this event
-4. Bot sets is_paid = true, paid_at = now
-5. Bot updates payment message (adds ✓ next to user's name)
-6. If all participants paid → event status changes to paid
+1. User clicks [✅ I paid] button in personal message
+2. Bot acquires event lock
+3. Bot finds user's Payment record by event_id + telegram_id
+4. Bot sets is_paid = true, paid_at = now()
+5. Bot updates personal message:
+   - Adds line: "✓ Paid on 04.02 at 12:00"
+   - Changes button: [✅ I paid] → [↩️ Undo] with callback payment:cancel:{event_id}
+6. Bot updates announcement message in Main chat:
+   - Adds checkmark to participant: "@pasha (×2) ✓"
+7. Bot releases event lock
 
-**Message update:**
+**Updated personal message:**
 ```
-@pasha (×2) — 2000 ₽ ✓
-@vasya — 1000 ₽
-@petya — 1000 ₽ ✓
+💰 Payment for Squash 21.01 21:00
+
+Courts: 2 × 2000 din = 4000 din
+Participants: 4
+Full details: [link]
+
+Your amount: 1000 din
+
+✓ Paid on 04.02 at 12:00
+
+[↩️ Undo]
 ```
+
+**Updated announcement:**
+```
+Participants (4):
+@pasha (×2) ✓, @vasya, @petya ✓
+```
+
+**Errors:**
+- Event locked → callback answer: "⏳ In Progress"
 
 ---
 
 ### payment-cancel
 
-Cancel payment mark.
+Cancel payment mark via personal message.
 
 **Actor:** Any user (cancels own payment)
-**Chat:** Main (under payment message)
+**Chat:** Private (personal payment message)
 
 **Flow:**
-1. User clicks [Cancel payment ✗] button
-2. Bot identifies user
+1. User clicks [↩️ Undo] button in personal message
+2. Bot acquires event lock
 3. Bot finds user's Payment record
 4. Bot sets is_paid = false, paid_at = null
-5. Bot updates payment message (removes ✓)
-6. If event status was paid → reverts to finalized
+5. Bot updates personal message:
+   - Removes line: "✓ Paid on..."
+   - Changes button: [↩️ Undo] → [✅ I paid]
+6. Bot updates announcement message in Main chat:
+   - Removes checkmark: "@pasha (×2) ✓" → "@pasha (×2)"
+7. Bot releases event lock
+
+**Errors:**
+- Event locked → callback answer: "⏳ Operation already in progress"
 
 ---
 
@@ -443,10 +573,10 @@ Remind to finalize completed event.
 
 **Flow:**
 1. n8n calls POST /check-events
-2. Bot finds events where: 1.5h passed since start AND status ≠ finalized
+2. Bot finds events where: 2h passed since start AND status ≠ finalized
 3. For each such event:
-   - Bot updates status → finished (if not already)
-   - Bot sends reminder to Main chat
+   <!-- - Bot updates status → finished (if not already) -->
+   - Bot sends reminder to admin's chat with a link to an announcement message. `fallback-notification` if unsuccesfull.
 4. Repeats every 2 hours until finalized
 
 **Message:** "⚠️ Squash January 21 completed but not finalized. Press ✅ Finalize."
@@ -769,3 +899,50 @@ Read settings from Notion.
 - min_players_per_court: 2
 
 **Note:** Settings are edited directly in Notion, no bot commands.
+
+---
+
+## User Onboarding
+
+### start-onboarding
+
+Initialize conversation with bot to enable personal messages.
+
+**Actor:** Any user
+**Chat:** Private (DM with bot)
+
+**Trigger:**
+- User clicks deep link from fallback-notification
+- User manually sends /start to bot
+- First-time interaction with bot
+
+**Related:** `fallback-notification`, `payment-personal-notifications`
+
+**Flow:**
+1. User sends `/start` command to bot (in private chat)
+2. Bot sends welcome message
+3. Conversation initialized → bot can now send personal notifications to this user
+4. Future payment notifications will be delivered successfully
+
+**Welcome message:**
+```
+👋 Welcome to Squash Payment Bot!
+
+I can help you feel more comfortable in a question of managing squash sessions.
+
+Currently unfinished businesses:
+* Unfinalized sessions (one, two, three, etc.)    // `one`, etc. should be links to announcement messages of corresponding events.
+* Unpaid sessions: cumulitively 10000 din. Type /my debt for details.
+
+To see your history: /my history
+```
+
+**Purpose:**
+- Telegram bots can't initiate conversations with users
+- User must send first message to bot
+- After /start, bot can send personal payment notifications
+- Critical for payment-personal-notifications delivery
+
+**Link to this feature:** Used in fallback-notification as deep link `https://t.me/{bot_username}?start`
+
+---

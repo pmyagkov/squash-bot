@@ -12,7 +12,8 @@
       "Bash(npm run *)",
       "Bash(git -C /Users/puelle/Projects/squash-bot log --oneline -15)",
       "Bash(wc:*)",
-      "Bash(mv *)"
+      "Bash(mv *)",
+      "Bash(chmod:*)"
     ]
   }
 }

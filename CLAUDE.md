@@ -76,6 +76,20 @@ Example: `2025-01-17-participant-registration-design.md`
 6. **Write tests** — see Testing section for requirements
 7. **Review** — verify implementation against design doc
 
+### Working with Git Worktrees
+
+After creating a worktree, run the setup script to copy required files:
+
+```bash
+cd .worktrees/my-feature
+../../scripts/setup-worktree.sh
+```
+
+**What it does:**
+- Copies `.env.test` from main worktree (test database credentials)
+- Copies `.claude/settings.local.json` (Claude Code settings)
+- Runs `npm install` to set up dependencies
+
 ### Adding New Command
 
 1. Create `src/bot/commands/<name>.ts`
