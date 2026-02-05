@@ -13,7 +13,8 @@
       "Bash(git -C /Users/puelle/Projects/squash-bot log --oneline -15)",
       "Bash(wc:*)",
       "Bash(mv *)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
