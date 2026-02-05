@@ -75,7 +75,7 @@ Follow layer structure from [architecture.md](docs/architecture.md):
 
 | Layer | What to implement |
 |-------|-------------------|
-| `services/entities/` | Database operations, domain logic |
+| `storage/repo/` | Database operations, domain logic |
 | `services/formatters/` | Message formatting (text + buttons) |
 | `services/transport/telegram/` | Input parsing, output calls |
 | `business/` | Coordination logic |
@@ -86,7 +86,7 @@ Follow [testing.md](docs/testing.md):
 
 | Layer | Test type | What to mock |
 |-------|-----------|--------------|
-| services/entities | Unit + DB | — |
+| storage/repo | Unit + DB | — |
 | services/formatters | Unit | — |
 | services/transport | Unit | grammy API |
 | business | Unit | All services |

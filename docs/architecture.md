@@ -47,9 +47,6 @@ src/
 │   ├── event.ts                   # Event workflows (join, leave, finalize)
 │   └── scaffold.ts                # Scaffold management
 ├── services/
-│   ├── entities/                  # Database operations, domain logic
-│   │   ├── event.ts               # Event CRUD, calculations
-│   │   └── scaffold.ts            # Scaffold CRUD
 │   ├── formatters/                # Pure functions: objects → { text, reply_markup }
 │   │   └── event.ts               # Event announcements, payment messages
 │   ├── transport/
@@ -60,14 +57,19 @@ src/
 │   │       └── index.ts           # REST API for n8n
 │   └── logger/
 │       └── index.ts               # Logging with providers (file, telegram)
-└── storage/                       # Drizzle ORM, migrations
+└── storage/
+    ├── db/                        # Drizzle ORM schema, migrations
+    └── repo/                      # Repository layer (database operations)
+        ├── event.ts
+        ├── scaffold.ts
+        └── ...
 ```
 
 ### Data Flow
 
 ```
-transport/telegram/input → business → entities + logger + formatter → transport/telegram/output
-transport/api            → business → entities + logger + formatter
+transport/telegram/input → business → repo + logger + formatter → transport/telegram/output
+transport/api            → business → repo + logger + formatter
 ```
 
 ### Layer Responsibilities
@@ -75,11 +77,11 @@ transport/api            → business → entities + logger + formatter
 | Layer | Responsibility |
 |-------|----------------|
 | **business/** | Coordination — calls services in correct order, handles workflows |
-| **services/entities/** | Database operations, domain logic, returns domain objects |
+| **storage/repo/** | Database operations, domain logic, returns domain objects |
 | **services/formatters/** | Pure functions — transform domain objects to `{ text, reply_markup }` |
 | **services/transport/** | Input parsing and output abstraction (telegram, REST API) |
 | **services/logger/** | Logging with routing: critical → file + telegram, notice → file |
-| **storage/** | Drizzle ORM schema, migrations |
+| **storage/db/** | Drizzle ORM schema, migrations |
 
 For testing strategy, see [docs/testing.md](testing.md).
 
@@ -630,7 +632,6 @@ You can mark payment in corresponding messages in chat.
 *`overcapacity_notified` flag resets when participants or courts change, triggering immediate capacity check.
 
 ---
-
 
 ## Scenario 13: Court Capacity Overflow
 

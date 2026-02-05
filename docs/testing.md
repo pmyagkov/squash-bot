@@ -8,13 +8,14 @@ Testing strategy for the squash bot project.
 src/
 ├── business/              # Coordination, business logic
 ├── services/
-│   ├── entities/          # Database operations, domain logic
 │   ├── formatters/        # Pure functions: objects → { text, reply_markup }
 │   ├── transport/
 │   │   ├── telegram/      # input.ts, output.ts
 │   │   └── api/           # REST API for n8n
 │   └── logger/            # Logging with providers
-└── storage/               # Drizzle ORM
+└── storage/
+    ├── db/                # Drizzle ORM schema
+    └── repo/              # Repository layer (database operations)
 ```
 
 ## Test Types and Location
@@ -49,12 +50,12 @@ npm run typecheck && npm run lint && npm test
 
 Unit tests are colocated with source files.
 
-### services/entities
+### storage/repo
 
 Test database operations with in-memory SQLite. Also test pure logic (calculations, validation).
 
 ```
-src/services/entities/
+src/storage/repo/
 ├── event.ts
 └── event.test.ts      # Unit + DB tests
 ```
@@ -283,10 +284,10 @@ npm run test:e2e:ui        # Headed mode (visible browser)
 
 | When testing | Mock these |
 |--------------|------------|
-| services/entities | — (use real DB) |
+| storage/repo | — (use real DB) |
 | services/formatters | — (pure functions) |
 | services/transport/input | — |
 | services/transport/output | grammy API |
 | services/logger | providers |
-| business | all services |
+| business | all services (repo, formatters, transport, logger) |
 | integration tests | — (full path) |
