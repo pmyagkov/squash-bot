@@ -1,12 +1,13 @@
+import type { TelegramOutput } from '~/services/transport/telegram/output'
 import { config } from '~/config'
-import type { LogProvider, LogLevel, ServiceMessenger } from '../types'
+import type { LogProvider, LogLevel } from '../types'
 
 export class TelegramProvider implements LogProvider {
-  private messenger: ServiceMessenger
+  private telegramOutput: TelegramOutput
   private levels: Set<LogLevel>
 
-  constructor(messenger: ServiceMessenger, levels: LogLevel[] = ['warn', 'error']) {
-    this.messenger = messenger
+  constructor(telegramOutput: TelegramOutput, levels: LogLevel[] = ['warn', 'error']) {
+    this.telegramOutput = telegramOutput
     this.levels = new Set(levels)
   }
 
@@ -19,7 +20,6 @@ export class TelegramProvider implements LogProvider {
       return
     }
 
-    // Skip in test environment
     if (process.env.NODE_ENV === 'test') {
       return
     }
@@ -30,16 +30,11 @@ export class TelegramProvider implements LogProvider {
       timeStyle: 'medium',
     })
 
-    const emoji = {
-      info: 'ℹ️',
-      warn: '⚠️',
-      error: '❌',
-    }
-
+    const emoji = { info: 'ℹ️', warn: '⚠️', error: '❌' }
     const logMessage = `[${emoji[level]} ${level.toUpperCase()}] ${timestamp}\n${message}`
 
     try {
-      await this.messenger.sendServiceMessage(logMessage)
+      await this.telegramOutput.sendLogMessage(logMessage)
     } catch (error) {
       console.error('Failed to send log to Telegram:', error)
     }
