@@ -1,17 +1,13 @@
 import { Bot } from 'grammy'
-import { config } from '../config'
-import { logToTelegram, setBotInstance } from '../services/logger'
+import type { AppContainer } from '../container'
 import { isAdmin } from '../utils/environment'
 import { loadCommands, type CommandModule } from './commands'
 import { handleCallbackQuery } from './callbacks'
 
 // Command handlers are now in separate files in ./commands directory
 
-export async function createBot(): Promise<Bot> {
-  const bot = new Bot(config.telegram.botToken)
-
-  // Set bot instance for logger
-  setBotInstance(bot)
+export async function createBot(bot: Bot, container: AppContainer): Promise<void> {
+  const logger = container.resolve('logger')
 
   // Register callback query handler
   bot.on('callback_query:data', handleCallbackQuery)
@@ -21,7 +17,7 @@ export async function createBot(): Promise<Bot> {
     console.log(ctx.update.message)
     await ctx.reply('Hello! I am a bot for managing squash court payments.')
     if (ctx.from) {
-      await logToTelegram(`User ${ctx.from.id} started the bot`, 'info')
+      await logger.log(`User ${ctx.from.id} started the bot`, 'info')
     }
   })
 
@@ -38,11 +34,6 @@ export async function createBot(): Promise<Bot> {
       // Remove command name prefix, keep only subcommand and arguments
       await command.handleCommand(ctx, args.slice(1))
     })
-
-    // Set bot instance for commands that need it (e.g., event)
-    if (command.setBotInstance) {
-      command.setBotInstance(bot)
-    }
 
     // Set command map for commands that need it (e.g., test)
     if (command.setCommandMap) {
@@ -62,7 +53,7 @@ export async function createBot(): Promise<Bot> {
 
     await ctx.reply(helpText)
     if (ctx.from) {
-      await logToTelegram(`User ${ctx.from.id} requested help`, 'info')
+      await logger.log(`User ${ctx.from.id} requested help`, 'info')
     }
   })
 
@@ -138,11 +129,9 @@ ${envVar}=${chatId}
     const error = err.error
     const errorMessage =
       error instanceof Error ? `${error.message}\n${error.stack || ''}` : String(error)
-    logToTelegram(`Bot error: ${errorMessage}`, 'error')
+    logger.log(`Bot error: ${errorMessage}`, 'error')
     console.error('Bot error:', error)
   })
 
-  await logToTelegram('Bot started successfully', 'info')
-
-  return bot
+  await logger.log('Bot started successfully', 'info')
 }
