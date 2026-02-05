@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { clearTestDb } from '../setup'
-import { scaffoldService } from '~/services/scaffoldService'
+import { scaffoldRepo } from '~/storage/repo/scaffold'
 
 describe('Scaffold Integration Tests', () => {
   beforeEach(async () => {
@@ -8,7 +8,7 @@ describe('Scaffold Integration Tests', () => {
   })
 
   it('should create scaffold', async () => {
-    const scaffold = await scaffoldService.createScaffold('Tue', '21:00', 2)
+    const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2)
 
     expect(scaffold.id).toMatch(/^sc_/)
     expect(scaffold.dayOfWeek).toBe('Tue')
@@ -18,10 +18,10 @@ describe('Scaffold Integration Tests', () => {
   })
 
   it('should get all scaffolds', async () => {
-    await scaffoldService.createScaffold('Tue', '21:00', 2)
-    await scaffoldService.createScaffold('Sat', '18:00', 3)
+    await scaffoldRepo.createScaffold('Tue', '21:00', 2)
+    await scaffoldRepo.createScaffold('Sat', '18:00', 3)
 
-    const scaffolds = await scaffoldService.getScaffolds()
+    const scaffolds = await scaffoldRepo.getScaffolds()
     expect(scaffolds).toHaveLength(2)
     expect(scaffolds[0].dayOfWeek).toBe('Tue')
     expect(scaffolds[0].defaultCourts).toBe(2)
@@ -32,33 +32,33 @@ describe('Scaffold Integration Tests', () => {
   })
 
   it('should find scaffold by id', async () => {
-    const created = await scaffoldService.createScaffold('Wed', '19:00', 2)
-    const found = await scaffoldService.findById(created.id)
+    const created = await scaffoldRepo.createScaffold('Wed', '19:00', 2)
+    const found = await scaffoldRepo.findById(created.id)
 
     expect(found).toBeDefined()
     expect(found?.id).toBe(created.id)
   })
 
   it('should toggle scaffold active status', async () => {
-    const scaffold = await scaffoldService.createScaffold('Thu', '20:00', 1)
+    const scaffold = await scaffoldRepo.createScaffold('Thu', '20:00', 1)
 
-    await scaffoldService.setActive(scaffold.id, false)
-    const updated = await scaffoldService.findById(scaffold.id)
+    await scaffoldRepo.setActive(scaffold.id, false)
+    const updated = await scaffoldRepo.findById(scaffold.id)
 
     expect(updated?.isActive).toBe(false)
 
-    let instance = await scaffoldService.setActive(scaffold.id, true)
+    let instance = await scaffoldRepo.setActive(scaffold.id, true)
     expect(instance.isActive).toBe(true)
 
-    instance = await scaffoldService.setActive(scaffold.id, false)
+    instance = await scaffoldRepo.setActive(scaffold.id, false)
     expect(instance.isActive).toBe(false)
   })
 
   it('should remove scaffold', async () => {
-    const scaffold = await scaffoldService.createScaffold('Fri', '21:00', 2)
+    const scaffold = await scaffoldRepo.createScaffold('Fri', '21:00', 2)
 
-    await scaffoldService.remove(scaffold.id)
-    const found = await scaffoldService.findById(scaffold.id)
+    await scaffoldRepo.remove(scaffold.id)
+    const found = await scaffoldRepo.findById(scaffold.id)
 
     expect(found).toBeUndefined()
   })

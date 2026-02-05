@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createBot } from '~/bot'
-import { eventService } from '~/services/eventService'
-import { scaffoldService } from '~/services/scaffoldService'
+import { eventRepo } from '~/storage/repo/event'
+import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { setBotInstance } from '~/utils/logger'
@@ -83,7 +83,7 @@ describe('event commands', () => {
 
       // Helper function to check if event was created successfully
       const checkEventCreated = async (expectedDayOfWeek?: number) => {
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events.length).toBeGreaterThan(0)
         const event = events[0]
         expect(event.courts).toBe(2)
@@ -103,7 +103,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created with correct date
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         expect(event.datetime.getFullYear()).toBe(2024)
@@ -133,7 +133,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created for tomorrow
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
 
@@ -161,7 +161,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created for today
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         const today = new Date(FIXED_DATE)
@@ -249,7 +249,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
@@ -274,7 +274,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Saturday (6 = Saturday)
@@ -299,7 +299,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Friday (5 = Friday)
@@ -328,7 +328,7 @@ describe('event commands', () => {
         expect(errorMessage).toBeDefined()
 
         // Check that event is NOT created
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(0)
       })
 
@@ -345,7 +345,7 @@ describe('event commands', () => {
         expect(errorMessage).toBeDefined()
 
         // Check that event is NOT created
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(0)
       })
 
@@ -362,7 +362,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created (should work with uppercase)
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events.length).toBeGreaterThan(0)
         const event = events[0]
         expect(event.datetime.getDay()).toBe(6) // Saturday = 6
@@ -387,7 +387,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created (should work with uppercase)
-        const events = await eventService.getEvents()
+        const events = await eventRepo.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
@@ -414,7 +414,7 @@ describe('event commands', () => {
       expect(errorMessage).toBeDefined()
 
       // Check that event is NOT created
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -431,7 +431,7 @@ describe('event commands', () => {
       expect(errorMessage).toBeDefined()
 
       // Check that event is NOT created
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -448,7 +448,7 @@ describe('event commands', () => {
       expect(usageMessage).toBeDefined()
 
       // Check that event is NOT created
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -462,7 +462,7 @@ describe('event commands', () => {
       await bot.handleUpdate(update)
 
       // Check that event is created in Notion (via service)
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
       expect(events.length).toBeGreaterThan(0)
       const createdEvent = events[0]
       expect(createdEvent.courts).toBe(2)
@@ -490,7 +490,7 @@ describe('event commands', () => {
 
   it('should list events via /event list', async () => {
     // First create an event
-    const event = await eventService.createEvent({
+    const event = await eventRepo.createEvent({
       datetime: new Date('2024-01-20T19:00:00'),
       courts: 2,
       status: 'created',
@@ -514,7 +514,7 @@ describe('event commands', () => {
   describe('/event announce', () => {
     it('should announce event successfully', async () => {
       // Create event in 'created' status
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
@@ -534,7 +534,7 @@ describe('event commands', () => {
       expect(successMessage).toBeDefined()
 
       // Check that event status is updated to 'announced'
-      const updatedEvent = await eventService.findById(event.id)
+      const updatedEvent = await eventRepo.findById(event.id)
       expect(updatedEvent?.status).toBe('announced')
 
       // Check that telegramMessageId is set
@@ -588,14 +588,14 @@ describe('event commands', () => {
 
     it('should handle announce for already announced event', async () => {
       // Create event in 'announced' status
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
       })
 
       // Announce it first time
-      await eventService.announceEvent(event.id, bot)
+      await eventRepo.announceEvent(event.id, bot)
 
       // Clear sent messages from first announce
       sentMessages.length = 0
@@ -622,7 +622,7 @@ describe('event commands', () => {
     it('should format announcement message correctly', async () => {
       // Create event with specific date/time
       const eventDateTime = new Date('2024-01-20T19:00:00Z')
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         datetime: eventDateTime,
         courts: 3,
         status: 'created',
@@ -654,7 +654,7 @@ describe('event commands', () => {
   describe('/event add-by-scaffold', () => {
     it('should create event from scaffold without auto-announce', async () => {
       // Create a scaffold first
-      const scaffold = await scaffoldService.createScaffold('Tue', '21:00', 3)
+      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 3)
 
       const update = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
         userId: ADMIN_ID,
@@ -664,7 +664,7 @@ describe('event commands', () => {
       await bot.handleUpdate(update)
 
       // Check that event was created
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
       expect(events.length).toBeGreaterThan(0)
       const createdEvent = events.find((e) => e.scaffoldId === scaffold.id)
       expect(createdEvent).toBeDefined()
@@ -702,7 +702,7 @@ describe('event commands', () => {
       expect(usageMessage).toBeDefined()
 
       // Check that no event was created
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -721,13 +721,13 @@ describe('event commands', () => {
       expect(errorMessage).toBeDefined()
 
       // Check that no event was created
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
       expect(events).toHaveLength(0)
     })
 
     it('should reject duplicate event creation', async () => {
       // Create a scaffold
-      const scaffold = await scaffoldService.createScaffold('Wed', '19:00', 2)
+      const scaffold = await scaffoldRepo.createScaffold('Wed', '19:00', 2)
 
       // Create event first time
       const update1 = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
@@ -738,7 +738,7 @@ describe('event commands', () => {
       await bot.handleUpdate(update1)
 
       // Verify first event was created
-      const events1 = await eventService.getEvents()
+      const events1 = await eventRepo.getEvents()
       expect(events1).toHaveLength(1)
 
       // Clear sent messages
@@ -760,7 +760,7 @@ describe('event commands', () => {
       expect(errorMessage?.text).toContain(scaffold.id)
 
       // Check that no additional event was created
-      const events2 = await eventService.getEvents()
+      const events2 = await eventRepo.getEvents()
       expect(events2).toHaveLength(1)
     })
   })
@@ -768,7 +768,7 @@ describe('event commands', () => {
   describe('/event cancel', () => {
     it('should cancel event successfully', async () => {
       // Create event
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
@@ -788,7 +788,7 @@ describe('event commands', () => {
       expect(successMessage).toBeDefined()
 
       // Check that event status is updated to 'cancelled'
-      const updatedEvent = await eventService.findById(event.id)
+      const updatedEvent = await eventRepo.findById(event.id)
       expect(updatedEvent?.status).toBe('cancelled')
     })
 
@@ -807,13 +807,13 @@ describe('event commands', () => {
 
     it('should send cancellation notification for announced event', async () => {
       // Create and announce event
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
       })
 
-      await eventService.announceEvent(event.id, bot)
+      await eventRepo.announceEvent(event.id, bot)
 
       // Clear sent messages from announce
       sentMessages.length = 0
@@ -839,13 +839,13 @@ describe('event commands', () => {
       expect(notificationMessage).toBeDefined()
 
       // Verify event is cancelled
-      const updatedEvent = await eventService.findById(event.id)
+      const updatedEvent = await eventRepo.findById(event.id)
       expect(updatedEvent?.status).toBe('cancelled')
     })
 
     it('should not send notification for non-announced event', async () => {
       // Create event without announcing
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
@@ -869,7 +869,7 @@ describe('event commands', () => {
       expect(cancelMessages).toHaveLength(0)
 
       // Verify event is cancelled
-      const updatedEvent = await eventService.findById(event.id)
+      const updatedEvent = await eventRepo.findById(event.id)
       expect(updatedEvent?.status).toBe('cancelled')
     })
   })

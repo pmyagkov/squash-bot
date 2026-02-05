@@ -1,7 +1,7 @@
 import { Context } from 'grammy'
 import { config } from '~/config'
 import { logToTelegram } from '~/utils/logger'
-import { scaffoldService } from '~/services/scaffoldService'
+import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { isAdmin, isTestChat, getDatabases } from '~/utils/environment'
 import type { CommandModule } from './index'
 
@@ -181,11 +181,11 @@ Settings: ${databases.settings ? '✅' : '❌'}
           return
         }
 
-        const scaffolds = await scaffoldService.getScaffolds()
+        const scaffolds = await scaffoldRepo.getScaffolds()
         let deleted = 0
 
         for (const scaffold of scaffolds) {
-          await scaffoldService.remove(scaffold.id)
+          await scaffoldRepo.remove(scaffold.id)
           deleted++
         }
 

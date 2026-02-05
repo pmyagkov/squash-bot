@@ -1,8 +1,9 @@
 import { Context } from 'grammy'
 import { logToTelegram } from '~/utils/logger'
-import { scaffoldService } from '~/services/scaffoldService'
+import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { isAdmin } from '~/utils/environment'
 import { Scaffold } from '~/types'
+import { parseDayOfWeek } from '~/helpers/dateTime'
 
 export const commandName = 'scaffold'
 
@@ -41,7 +42,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const dayOfWeek = scaffoldService.parseDayOfWeek(dayStr)
+      const dayOfWeek = parseDayOfWeek(dayStr)
       if (!dayOfWeek) {
         await ctx.reply(
           `Invalid day of week: ${dayStr}\n\n` + 'Valid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun'
@@ -55,7 +56,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const scaffold = await scaffoldService.createScaffold(dayOfWeek, time, courts)
+      const scaffold = await scaffoldRepo.createScaffold(dayOfWeek, time, courts)
 
       await ctx.reply(
         `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} court(s), announcement ${scaffold.announcementDeadline ?? 'default'}`
@@ -67,7 +68,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       )
     } else if (subcommand === 'list') {
       // /scaffold list
-      const scaffolds = await scaffoldService.getScaffolds()
+      const scaffolds = await scaffoldRepo.getScaffolds()
 
       if (scaffolds.length === 0) {
         await ctx.reply('📋 No scaffolds found')
@@ -93,13 +94,13 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const scaffold = await scaffoldService.findById(id)
+      const scaffold = await scaffoldRepo.findById(id)
       if (!scaffold) {
         await ctx.reply(`❌ Scaffold ${id} not found`)
         return
       }
 
-      const updatedScaffold = await scaffoldService.setActive(id, !scaffold.isActive)
+      const updatedScaffold = await scaffoldRepo.setActive(id, !scaffold.isActive)
 
       await ctx.reply(
         `✅ ${updatedScaffold.id} is now ${updatedScaffold.isActive ? 'active' : 'inactive'}`
@@ -117,7 +118,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      await scaffoldService.remove(id)
+      await scaffoldRepo.remove(id)
 
       await ctx.reply(`✅ Scaffold ${id} removed`)
       await logToTelegram(`Admin ${ctx.from.id} removed scaffold ${id}`, 'info')

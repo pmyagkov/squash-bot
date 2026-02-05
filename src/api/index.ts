@@ -2,7 +2,7 @@ import { Bot } from 'grammy'
 import Fastify, { FastifyInstance } from 'fastify'
 import { config } from '../config'
 import { logToTelegram } from '../utils/logger'
-import { eventService } from '../services/eventService'
+import { eventRepo } from '~/storage/repo/event'
 
 export async function createApiServer(bot: Bot): Promise<FastifyInstance> {
   const server = Fastify({
@@ -30,7 +30,7 @@ export async function createApiServer(bot: Bot): Promise<FastifyInstance> {
   server.post('/check-events', async () => {
     await logToTelegram('POST /check-events called', 'info')
     try {
-      const eventsCreated = await eventService.checkAndCreateEventsFromScaffolds(bot)
+      const eventsCreated = await eventRepo.checkAndCreateEventsFromScaffolds(bot)
       await logToTelegram(`POST /check-events completed: ${eventsCreated} events created`, 'info')
       return { message: 'Events checked', eventsCreated }
     } catch (error) {
