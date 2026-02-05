@@ -10,7 +10,9 @@ export async function createBot(bot: Bot, container: AppContainer): Promise<void
   const logger = container.resolve('logger')
 
   // Register callback query handler
-  bot.on('callback_query:data', handleCallbackQuery)
+  bot.on('callback_query:data', async (ctx) => {
+    await handleCallbackQuery(ctx, container)
+  })
 
   // Basic commands
   bot.command('start', async (ctx) => {

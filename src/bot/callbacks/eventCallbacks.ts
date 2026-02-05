@@ -1,8 +1,5 @@
 import { Context } from 'grammy'
-import { eventRepo } from '~/storage/repo/event'
-import { participantRepo } from '~/storage/repo/participant'
-import { settingsRepo } from '~/storage/repo/settings'
-import { logToTelegram } from '~/services/logger'
+import type { AppContainer } from '../../container'
 import { config } from '~/config'
 import { Event } from '~/types'
 import dayjs from 'dayjs'
@@ -18,11 +15,14 @@ dayjs.extend(timezone)
  */
 async function handleEventCallback(
   ctx: Context,
+  container: AppContainer,
   actionName: string,
   handler: (
     event: Event
   ) => Promise<{ success: boolean; errorMessage?: string; logMessage?: string }>
 ): Promise<void> {
+  const logger = container.resolve('logger')
+  const eventRepository = container.resolve('eventRepository')
   if (!ctx.callbackQuery) {
     return
   }
@@ -41,7 +41,7 @@ async function handleEventCallback(
 
   try {
     // Find event by telegram_message_id
-    const event = await eventRepo.findByMessageId(String(messageId))
+    const event = await eventRepository.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
@@ -56,17 +56,17 @@ async function handleEventCallback(
     }
 
     // Update announcement message
-    await updateAnnouncementMessage(ctx, event.id, chatId)
+    await updateAnnouncementMessage(ctx, container, event.id, chatId)
 
     // Answer callback query
     await ctx.answerCallbackQuery()
 
     // Log
     if (result.logMessage) {
-      await logToTelegram(result.logMessage, 'info')
+      await logger.log(result.logMessage, 'info')
     }
   } catch (error) {
-    await logToTelegram(
+    await logger.log(
       `Error handling ${actionName}: ${error instanceof Error ? error.message : String(error)}`,
       'error'
     )
@@ -77,12 +77,14 @@ async function handleEventCallback(
 /**
  * Handle "I'm in" button callback
  */
-export async function handleJoin(ctx: Context): Promise<void> {
+export async function handleJoin(ctx: Context, container: AppContainer): Promise<void> {
   if (!ctx.from) {
     return
   }
 
-  await handleEventCallback(ctx, 'join', async (event) => {
+  const participantRepository = container.resolve('participantRepository')
+
+  await handleEventCallback(ctx, container, 'join', async (event) => {
     // Get user info
     const telegramId = String(ctx.from!.id)
     const username = ctx.from!.username
@@ -91,14 +93,14 @@ export async function handleJoin(ctx: Context): Promise<void> {
     const displayName = `${firstName} ${lastName}`.trim() || username || `User ${telegramId}`
 
     // Find or create participant
-    const participant = await participantRepo.findOrCreateParticipant(
+    const participant = await participantRepository.findOrCreateParticipant(
       telegramId,
       username,
       displayName
     )
 
     // Add to event (or increment count)
-    await participantRepo.addToEvent(event.id, participant.id)
+    await participantRepository.addToEvent(event.id, participant.id)
 
     return {
       success: true,
@@ -110,15 +112,17 @@ export async function handleJoin(ctx: Context): Promise<void> {
 /**
  * Handle "I'm out" button callback
  */
-export async function handleLeave(ctx: Context): Promise<void> {
+export async function handleLeave(ctx: Context, container: AppContainer): Promise<void> {
   if (!ctx.from) {
     return
   }
 
-  await handleEventCallback(ctx, 'leave', async (event) => {
+  const participantRepository = container.resolve('participantRepository')
+
+  await handleEventCallback(ctx, container, 'leave', async (event) => {
     // Find participant
     const telegramId = String(ctx.from!.id)
-    const participant = await participantRepo.findByTelegramId(telegramId)
+    const participant = await participantRepository.findByTelegramId(telegramId)
 
     if (!participant) {
       return {
@@ -128,7 +132,7 @@ export async function handleLeave(ctx: Context): Promise<void> {
     }
 
     // Remove from event (or decrement count)
-    await participantRepo.removeFromEvent(event.id, participant.id)
+    await participantRepository.removeFromEvent(event.id, participant.id)
 
     const username = ctx.from!.username || telegramId
     return {
@@ -141,11 +145,13 @@ export async function handleLeave(ctx: Context): Promise<void> {
 /**
  * Handle "+court" button callback
  */
-export async function handleAddCourt(ctx: Context): Promise<void> {
-  await handleEventCallback(ctx, 'add court', async (event) => {
+export async function handleAddCourt(ctx: Context, container: AppContainer): Promise<void> {
+  const eventRepository = container.resolve('eventRepository')
+
+  await handleEventCallback(ctx, container, 'add court', async (event) => {
     // Increment courts
     const newCourts = event.courts + 1
-    await eventRepo.updateEvent(event.id, { courts: newCourts })
+    await eventRepository.updateEvent(event.id, { courts: newCourts })
 
     const username = ctx.from?.username || ctx.from?.id || 'unknown'
     return {
@@ -158,8 +164,10 @@ export async function handleAddCourt(ctx: Context): Promise<void> {
 /**
  * Handle "-court" button callback
  */
-export async function handleRemoveCourt(ctx: Context): Promise<void> {
-  await handleEventCallback(ctx, 'remove court', async (event) => {
+export async function handleRemoveCourt(ctx: Context, container: AppContainer): Promise<void> {
+  const eventRepository = container.resolve('eventRepository')
+
+  await handleEventCallback(ctx, container, 'remove court', async (event) => {
     // Decrement courts (minimum 1)
     if (event.courts <= 1) {
       return {
@@ -169,7 +177,7 @@ export async function handleRemoveCourt(ctx: Context): Promise<void> {
     }
 
     const newCourts = event.courts - 1
-    await eventRepo.updateEvent(event.id, { courts: newCourts })
+    await eventRepository.updateEvent(event.id, { courts: newCourts })
 
     const username = ctx.from?.username || ctx.from?.id || 'unknown'
     return {
@@ -182,10 +190,14 @@ export async function handleRemoveCourt(ctx: Context): Promise<void> {
 /**
  * Handle "Finalize" button callback
  */
-export async function handleFinalize(ctx: Context): Promise<void> {
+export async function handleFinalize(ctx: Context, container: AppContainer): Promise<void> {
   if (!ctx.callbackQuery) {
     return
   }
+
+  const logger = container.resolve('logger')
+  const eventRepository = container.resolve('eventRepository')
+  const participantRepository = container.resolve('participantRepository')
 
   const messageId = ctx.callbackQuery.message?.message_id
   if (!messageId) {
@@ -201,36 +213,36 @@ export async function handleFinalize(ctx: Context): Promise<void> {
 
   try {
     // Find event by telegram_message_id
-    const event = await eventRepo.findByMessageId(String(messageId))
+    const event = await eventRepository.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
     }
 
     // Check if there are participants
-    const participants = await participantRepo.getEventParticipants(event.id)
+    const participants = await participantRepository.getEventParticipants(event.id)
     if (participants.length === 0) {
       await ctx.answerCallbackQuery({ text: 'No participants to finalize' })
       return
     }
 
     // Update event status to finalized
-    await eventRepo.updateEvent(event.id, { status: 'finalized' })
+    await eventRepository.updateEvent(event.id, { status: 'finalized' })
 
     // Update announcement message (remove buttons, add "✅ Finalized")
-    await updateAnnouncementMessage(ctx, event.id, chatId, true)
+    await updateAnnouncementMessage(ctx, container, event.id, chatId, true)
 
     // Send payment message
-    await sendPaymentMessage(ctx, event.id, chatId)
+    await sendPaymentMessage(ctx, container, event.id, chatId)
 
     // Answer callback query
     await ctx.answerCallbackQuery()
 
     // Log
     const username = ctx.from?.username || ctx.from?.id || 'unknown'
-    await logToTelegram(`@${username} finalized event ${event.id}`, 'info')
+    await logger.log(`@${username} finalized event ${event.id}`, 'info')
   } catch (error) {
-    await logToTelegram(
+    await logger.log(
       `Error handling finalize: ${error instanceof Error ? error.message : String(error)}`,
       'error'
     )
@@ -241,10 +253,13 @@ export async function handleFinalize(ctx: Context): Promise<void> {
 /**
  * Handle "Cancel" button callback
  */
-export async function handleCancel(ctx: Context): Promise<void> {
+export async function handleCancel(ctx: Context, container: AppContainer): Promise<void> {
   if (!ctx.callbackQuery) {
     return
   }
+
+  const logger = container.resolve('logger')
+  const eventRepository = container.resolve('eventRepository')
 
   const messageId = ctx.callbackQuery.message?.message_id
   if (!messageId) {
@@ -260,17 +275,17 @@ export async function handleCancel(ctx: Context): Promise<void> {
 
   try {
     // Find event by telegram_message_id
-    const event = await eventRepo.findByMessageId(String(messageId))
+    const event = await eventRepository.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
     }
 
     // Update event status to cancelled
-    await eventRepo.updateEvent(event.id, { status: 'cancelled' })
+    await eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
     // Update announcement message (add "❌ Event cancelled", show restore button)
-    await updateAnnouncementMessage(ctx, event.id, chatId, false, true)
+    await updateAnnouncementMessage(ctx, container, event.id, chatId, false, true)
 
     // Unpin message
     if (ctx.api && messageId) {
@@ -286,9 +301,9 @@ export async function handleCancel(ctx: Context): Promise<void> {
 
     // Log
     const username = ctx.from?.username || ctx.from?.id || 'unknown'
-    await logToTelegram(`@${username} cancelled event ${event.id}`, 'info')
+    await logger.log(`@${username} cancelled event ${event.id}`, 'info')
   } catch (error) {
-    await logToTelegram(
+    await logger.log(
       `Error handling cancel: ${error instanceof Error ? error.message : String(error)}`,
       'error'
     )
@@ -299,10 +314,13 @@ export async function handleCancel(ctx: Context): Promise<void> {
 /**
  * Handle "Restore" button callback
  */
-export async function handleRestore(ctx: Context): Promise<void> {
+export async function handleRestore(ctx: Context, container: AppContainer): Promise<void> {
   if (!ctx.callbackQuery) {
     return
   }
+
+  const logger = container.resolve('logger')
+  const eventRepository = container.resolve('eventRepository')
 
   const messageId = ctx.callbackQuery.message?.message_id
   if (!messageId) {
@@ -318,17 +336,17 @@ export async function handleRestore(ctx: Context): Promise<void> {
 
   try {
     // Find event by telegram_message_id
-    const event = await eventRepo.findByMessageId(String(messageId))
+    const event = await eventRepository.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
     }
 
     // Update event status to announced
-    await eventRepo.updateEvent(event.id, { status: 'announced' })
+    await eventRepository.updateEvent(event.id, { status: 'announced' })
 
     // Restore full announcement
-    await updateAnnouncementMessage(ctx, event.id, chatId)
+    await updateAnnouncementMessage(ctx, container, event.id, chatId)
 
     // Pin message
     if (ctx.api && messageId) {
@@ -344,9 +362,9 @@ export async function handleRestore(ctx: Context): Promise<void> {
 
     // Log
     const username = ctx.from?.username || ctx.from?.id || 'unknown'
-    await logToTelegram(`@${username} restored event ${event.id}`, 'info')
+    await logger.log(`@${username} restored event ${event.id}`, 'info')
   } catch (error) {
-    await logToTelegram(
+    await logger.log(
       `Error handling restore: ${error instanceof Error ? error.message : String(error)}`,
       'error'
     )
@@ -359,12 +377,17 @@ export async function handleRestore(ctx: Context): Promise<void> {
  */
 async function updateAnnouncementMessage(
   ctx: Context,
+  container: AppContainer,
   eventId: string,
   chatId: number,
   finalized: boolean = false,
   cancelled: boolean = false
 ): Promise<void> {
-  const event = await eventRepo.findById(eventId)
+  const logger = container.resolve('logger')
+  const eventRepository = container.resolve('eventRepository')
+  const participantRepository = container.resolve('participantRepository')
+
+  const event = await eventRepository.findById(eventId)
   if (!event || !event.telegramMessageId) {
     return
   }
@@ -380,7 +403,7 @@ async function updateAnnouncementMessage(
   let messageText = `🎾 Squash: ${dayName}, ${dateStr}, ${timeStr}\nCourts: ${event.courts}\n\n`
 
   // Add participants
-  const participants = await participantRepo.getEventParticipants(eventId)
+  const participants = await participantRepository.getEventParticipants(eventId)
   if (participants.length === 0) {
     messageText += 'Participants:\n(nobody yet)'
   } else {
@@ -420,7 +443,7 @@ async function updateAnnouncementMessage(
       reply_markup: keyboard,
     })
   } catch (error) {
-    await logToTelegram(
+    await logger.log(
       `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`,
       'error'
     )
@@ -430,17 +453,26 @@ async function updateAnnouncementMessage(
 /**
  * Send payment message
  */
-async function sendPaymentMessage(ctx: Context, eventId: string, chatId: number): Promise<void> {
-  const event = await eventRepo.findById(eventId)
+async function sendPaymentMessage(
+  ctx: Context,
+  container: AppContainer,
+  eventId: string,
+  chatId: number
+): Promise<void> {
+  const eventRepository = container.resolve('eventRepository')
+  const settingsRepository = container.resolve('settingsRepository')
+  const participantRepository = container.resolve('participantRepository')
+
+  const event = await eventRepository.findById(eventId)
   if (!event) {
     return
   }
 
   // Get court price from settings
-  const courtPrice = await settingsRepo.getCourtPrice()
+  const courtPrice = await settingsRepository.getCourtPrice()
 
   // Get participants
-  const participants = await participantRepo.getEventParticipants(eventId)
+  const participants = await participantRepository.getEventParticipants(eventId)
   const totalParticipants = participants.reduce((sum, ep) => sum + ep.participations, 0)
 
   if (totalParticipants === 0) {
@@ -475,7 +507,7 @@ async function sendPaymentMessage(ctx: Context, eventId: string, chatId: number)
   const sentMessage = await ctx.api.sendMessage(chatId, messageText)
 
   // Save payment_message_id
-  await eventRepo.updateEvent(eventId, {
+  await eventRepository.updateEvent(eventId, {
     paymentMessageId: String(sentMessage.message_id),
   })
 }

@@ -1,4 +1,5 @@
 import { Context } from 'grammy'
+import type { AppContainer } from '../../container'
 import {
   handleJoin,
   handleLeave,
@@ -8,13 +9,13 @@ import {
   handleCancel,
   handleRestore,
 } from './eventCallbacks'
-import { logToTelegram } from '~/services/logger'
 
 /**
  * Main callback query router
  * Routes callback data to appropriate handlers
  */
-export async function handleCallbackQuery(ctx: Context): Promise<void> {
+export async function handleCallbackQuery(ctx: Context, container: AppContainer): Promise<void> {
+  const logger = container.resolve('logger')
   if (!ctx.callbackQuery || !('data' in ctx.callbackQuery)) {
     return
   }
@@ -25,33 +26,33 @@ export async function handleCallbackQuery(ctx: Context): Promise<void> {
     // Route based on callback data
     switch (data) {
       case 'event:join':
-        await handleJoin(ctx)
+        await handleJoin(ctx, container)
         break
       case 'event:leave':
-        await handleLeave(ctx)
+        await handleLeave(ctx, container)
         break
       case 'event:add_court':
-        await handleAddCourt(ctx)
+        await handleAddCourt(ctx, container)
         break
       case 'event:rm_court':
-        await handleRemoveCourt(ctx)
+        await handleRemoveCourt(ctx, container)
         break
       case 'event:finalize':
-        await handleFinalize(ctx)
+        await handleFinalize(ctx, container)
         break
       case 'event:cancel':
-        await handleCancel(ctx)
+        await handleCancel(ctx, container)
         break
       case 'event:restore':
-        await handleRestore(ctx)
+        await handleRestore(ctx, container)
         break
       default:
         // Unknown callback data
-        await logToTelegram(`Unknown callback data: ${data}`, 'info')
+        await logger.log(`Unknown callback data: ${data}`, 'info')
         await ctx.answerCallbackQuery({ text: 'Unknown action' })
     }
   } catch (error) {
-    await logToTelegram(
+    await logger.log(
       `Error in callback router: ${error instanceof Error ? error.message : String(error)}`,
       'error'
     )
