@@ -8,6 +8,8 @@ import type { Logger } from './services/logger'
 import { Logger as LoggerImpl } from './services/logger/logger'
 import type { EventBusiness } from './business/event'
 import { EventBusiness as EventBusinessImpl } from './business/event'
+import type { EventRepo } from './storage/repo/event'
+import { EventRepo as EventRepoImpl } from './storage/repo/event'
 
 // Placeholder - will be populated in later tasks
 export interface Container {
@@ -16,6 +18,7 @@ export interface Container {
   container: AppContainer
   telegramOutput: TelegramOutput
   logger: Logger
+  eventRepository: EventRepo
   eventBusiness: EventBusiness
 }
 
@@ -32,6 +35,7 @@ export function createAppContainer(bot: Bot): AppContainer {
     container: asValue(container),
     telegramOutput: asClass(TelegramOutputImpl).singleton(),
     logger: asClass(LoggerImpl).singleton(),
+    eventRepository: asClass(EventRepoImpl).singleton(),
     eventBusiness: asClass(EventBusinessImpl).singleton(),
   })
 

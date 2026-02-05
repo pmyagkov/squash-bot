@@ -3,6 +3,8 @@ import { db } from '~/storage/db'
 import { events } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Event, EventStatus } from '~/types'
+import type { AppContainer } from '../../container'
+import type { Logger } from '~/services/logger'
 
 const EVENT_STATUSES: EventStatus[] = [
   'created',
@@ -14,6 +16,11 @@ const EVENT_STATUSES: EventStatus[] = [
 ]
 
 export class EventRepo {
+  private logger: Logger
+
+  constructor(container: AppContainer) {
+    this.logger = container.resolve('logger')
+  }
   async getEvents(): Promise<Event[]> {
     const results = await db.select().from(events)
     return results.map(this.toDomain)
@@ -96,7 +103,6 @@ export class EventRepo {
 
     return this.toDomain(event)
   }
-
 
   private toDomain(row: typeof events.$inferSelect): Event {
     return {
