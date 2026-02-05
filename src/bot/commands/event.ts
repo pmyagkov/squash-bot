@@ -1,13 +1,14 @@
 import { Context, Bot } from 'grammy'
 import { logToTelegram } from '~/utils/logger'
-import { eventService } from '~/services/eventService'
-import { scaffoldService } from '~/services/scaffoldService'
+import { eventRepo } from '~/storage/repo/event'
+import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { parseDate } from '~/utils/dateParser'
 import { config } from '~/config'
 import type { Event } from '~/types'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
+import * as eventBusiness from '~/business/event'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
@@ -92,7 +93,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         datetime: eventDateTime,
         courts,
         status: 'created',
@@ -118,24 +119,25 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const scaffold = await scaffoldService.findById(scaffoldId)
+      const scaffold = await scaffoldRepo.findById(scaffoldId)
       if (!scaffold) {
         await ctx.reply(`❌ Scaffold ${scaffoldId} not found`)
         return
       }
 
       // Calculate next occurrence
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = eventBusiness.calculateNextOccurrence(scaffold)
 
       // Check if event already exists
-      const exists = await eventService.eventExists(scaffold.id, nextOccurrence)
+      const allEvents = await eventRepo.getEvents()
+      const exists = eventBusiness.eventExists(allEvents, scaffold.id, nextOccurrence)
       if (exists) {
         await ctx.reply(`❌ Event already exists for scaffold ${scaffoldId} at this time`)
         return
       }
 
       // Create event
-      const event = await eventService.createEvent({
+      const event = await eventRepo.createEvent({
         scaffoldId: scaffold.id,
         datetime: nextOccurrence,
         courts: scaffold.defaultCourts,
@@ -153,7 +155,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       )
     } else if (subcommand === 'list') {
       // /event list
-      const events = await eventService.getEvents()
+      const events = await eventRepo.getEvents()
 
       if (events.length === 0) {
         await ctx.reply('📋 No events found')
@@ -177,7 +179,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const event = await eventService.findById(id)
+      const event = await eventRepo.findById(id)
       if (!event) {
         await ctx.reply(`❌ Event ${id} not found`)
         return
@@ -192,7 +194,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       if (!globalBotInstance) {
         throw new Error('Bot instance not available')
       }
-      await eventService.announceEvent(id, globalBotInstance)
+      await eventRepo.announceEvent(id, globalBotInstance)
 
       await ctx.reply(`✅ Event ${id} announced`)
       await logToTelegram(`User ${ctx.from.id} announced event ${id}`, 'info')
@@ -209,7 +211,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       if (!globalBotInstance) {
         throw new Error('Bot instance not available')
       }
-      await eventService.cancelEvent(id, globalBotInstance)
+      await eventRepo.cancelEvent(id, globalBotInstance)
 
       await ctx.reply(`✅ Event ${id} cancelled`)
       await logToTelegram(`User ${ctx.from.id} cancelled event ${id}`, 'info')

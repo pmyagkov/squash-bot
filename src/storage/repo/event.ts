@@ -7,26 +7,15 @@ import timezone from 'dayjs/plugin/timezone'
 import { db } from '~/storage/db'
 import { events } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
-import type { Event, EventStatus, Scaffold, DayOfWeek } from '~/types'
+import type { Event, EventStatus } from '~/types'
 import { config } from '~/config'
 import { logToTelegram } from '~/utils/logger'
-import { scaffoldService } from '~/services/scaffoldService'
-import { settingsService } from '~/services/settingsService'
-import { shouldTrigger } from '~/utils/timeOffset'
+import { scaffoldRepo } from '~/storage/repo/scaffold'
+import * as eventBusiness from '~/business/event'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
 dayjs.extend(timezone)
-
-const DAY_OF_WEEK_TO_NUMBER: Record<DayOfWeek, number> = {
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-  Sun: 0,
-}
 
 const EVENT_STATUSES: EventStatus[] = [
   'created',
@@ -37,7 +26,7 @@ const EVENT_STATUSES: EventStatus[] = [
   'paid',
 ]
 
-export class EventService {
+export class EventRepo {
   async getEvents(): Promise<Event[]> {
     const results = await db.select().from(events)
     return results.map(this.toDomain)
@@ -229,105 +218,26 @@ Participants:
     }
   }
 
-  calculateNextOccurrence(scaffold: Scaffold): Date {
-    // Validate scaffold data
-    if (!scaffold.dayOfWeek) {
-      throw new Error(`Invalid scaffold: missing dayOfWeek`)
-    }
-
-    const targetDayOfWeek = DAY_OF_WEEK_TO_NUMBER[scaffold.dayOfWeek]
-    if (targetDayOfWeek === undefined) {
-      throw new Error(`Invalid scaffold: unknown dayOfWeek "${scaffold.dayOfWeek}"`)
-    }
-
-    if (!scaffold.time) {
-      throw new Error(`Invalid scaffold: missing time`)
-    }
-
-    // Validate time format
-    if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(scaffold.time)) {
-      throw new Error(
-        `Invalid scaffold: invalid time format "${scaffold.time}". Expected HH:MM format`
-      )
-    }
-
-    const [hours, minutes] = scaffold.time.split(':').map(Number)
-
-    // Validate parsed hours and minutes
-    if (isNaN(hours) || isNaN(minutes)) {
-      throw new Error(`Invalid scaffold: failed to parse time "${scaffold.time}"`)
-    }
-
-    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-      throw new Error(`Invalid scaffold: invalid time values (${hours}:${minutes})`)
-    }
-
-    const now = dayjs().tz(config.timezone)
-
-    // Find next occurrence of this day
-    let daysUntil = targetDayOfWeek - now.day()
-    if (daysUntil < 0) {
-      daysUntil += 7
-    } else if (daysUntil === 0) {
-      // Same day - check if time has passed
-      const targetTime = now.hour(hours).minute(minutes).second(0).millisecond(0)
-      if (now.isAfter(targetTime)) {
-        daysUntil = 7 // Next week
-      }
-    }
-
-    const nextDate = now.add(daysUntil, 'day').hour(hours).minute(minutes).second(0).millisecond(0)
-
-    // Validate resulting date
-    if (!nextDate.isValid()) {
-      throw new Error(`Invalid scaffold: failed to calculate next occurrence date`)
-    }
-
-    const result = nextDate.toDate()
-
-    // Validate Date object
-    if (isNaN(result.getTime())) {
-      throw new Error(`Invalid scaffold: resulting date is invalid`)
-    }
-
-    return result
-  }
-
-  private async shouldCreateEvent(scaffold: Scaffold, nextOccurrence: Date): Promise<boolean> {
-    const timezone = await settingsService.getTimezone()
-    const deadline =
-      scaffold.announcementDeadline ?? (await settingsService.getAnnouncementDeadline())
-
-    return shouldTrigger(deadline, nextOccurrence, timezone)
-  }
-
-  async eventExists(scaffoldId: string, datetime: Date): Promise<boolean> {
-    const allEvents = await this.getEvents()
-    return allEvents.some(
-      (e) =>
-        e.scaffoldId === scaffoldId &&
-        Math.abs(e.datetime.getTime() - datetime.getTime()) < 1000 * 60 * 60 // Within 1 hour
-    )
-  }
 
   async checkAndCreateEventsFromScaffolds(bot: Bot): Promise<number> {
-    const scaffolds = await scaffoldService.getScaffolds()
+    const scaffolds = await scaffoldRepo.getScaffolds()
     const activeScaffolds = scaffolds.filter((s) => s.isActive)
 
     let createdCount = 0
 
     for (const scaffold of activeScaffolds) {
       try {
-        const nextOccurrence = this.calculateNextOccurrence(scaffold)
+        const nextOccurrence = eventBusiness.calculateNextOccurrence(scaffold)
 
         // Check if event already exists
-        const exists = await this.eventExists(scaffold.id, nextOccurrence)
+        const allEvents = await this.getEvents()
+        const exists = eventBusiness.eventExists(allEvents, scaffold.id, nextOccurrence)
         if (exists) {
           continue
         }
 
         // Check if it's time to create
-        if (!(await this.shouldCreateEvent(scaffold, nextOccurrence))) {
+        if (!(await eventBusiness.shouldCreateEvent(scaffold, nextOccurrence))) {
           continue
         }
 
@@ -371,4 +281,4 @@ Participants:
   }
 }
 
-export const eventService = new EventService()
+export const eventRepo = new EventRepo()

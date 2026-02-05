@@ -2,7 +2,7 @@ import { db } from '~/storage/db'
 import { settings } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 
-export class SettingsService {
+export class SettingsRepo {
   async getSettings(): Promise<Record<string, string>> {
     const results = await db.select().from(settings)
     const settingsMap: Record<string, string> = {}
@@ -81,4 +81,4 @@ export class SettingsService {
   }
 }
 
-export const settingsService = new SettingsService()
+export const settingsRepo = new SettingsRepo()
