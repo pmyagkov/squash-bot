@@ -1,15 +1,17 @@
 import { Bot } from 'grammy'
 import { config } from '~/config'
-import { logToTelegram } from '~/services/logger'
 import type { Event } from '~/types'
 import { buildInlineKeyboard, formatEventMessage } from '~/services/formatters/event'
-import type { AppContainer } from '../../../container'
+import type { AppContainer } from '~/container'
+import type { Logger } from '~/services/logger'
 
 export class TelegramOutput {
   private bot: Bot
+  private logger: Logger
 
   constructor(container: AppContainer) {
     this.bot = container.resolve('bot')
+    this.logger = container.resolve('logger')
   }
 
   /**
@@ -35,7 +37,7 @@ export class TelegramOutput {
         await this.bot.api.unpinAllChatMessages(chatIdToUse)
       } catch (error) {
         // Ignore errors if there are no pinned messages
-        await logToTelegram(
+        await this.logger.log(
           `Note: Could not unpin messages (may be none): ${error instanceof Error ? error.message : String(error)}`,
           'info'
         )
@@ -53,11 +55,11 @@ export class TelegramOutput {
       // 4. Pin message
       await this.bot.api.pinChatMessage(chatIdToUse, sentMessage.message_id)
 
-      await logToTelegram(`Event ${event.id} announced in chat ${chatIdToUse}`, 'info')
+      await this.logger.log(`Event ${event.id} announced in chat ${chatIdToUse}`, 'info')
 
       return sentMessage.message_id
     } catch (error) {
-      await logToTelegram(
+      await this.logger.log(
         `Failed to announce event ${event.id}: ${error instanceof Error ? error.message : String(error)}`,
         'error'
       )
@@ -73,7 +75,7 @@ export class TelegramOutput {
     try {
       await this.bot.api.sendMessage(chatIdToUse, `❌ Event ${eventId} has been cancelled.`)
     } catch (error) {
-      await logToTelegram(
+      await this.logger.log(
         `Failed to send cancellation notification: ${error instanceof Error ? error.message : String(error)}`,
         'error'
       )

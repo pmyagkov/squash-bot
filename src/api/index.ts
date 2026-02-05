@@ -3,9 +3,11 @@ import Fastify, { FastifyInstance } from 'fastify'
 import { config } from '../config'
 import type { AppContainer } from '../container'
 
-export async function createApiServer(bot: Bot, container: AppContainer): Promise<FastifyInstance> {
+export async function createApiServer(
+  _bot: Bot,
+  container: AppContainer
+): Promise<FastifyInstance> {
   const logger = container.resolve('logger')
-  const telegramOutput = container.resolve('telegramOutput')
   const eventBusiness = container.resolve('eventBusiness')
   const server = Fastify({
     logger: true,
