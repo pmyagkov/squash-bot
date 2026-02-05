@@ -3,8 +3,15 @@ import { scaffolds } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Scaffold, DayOfWeek } from '~/types'
 import { nanoid } from 'nanoid'
+import type { AppContainer } from '../../container'
+import type { Logger } from '~/services/logger'
 
 export class ScaffoldRepo {
+  private logger: Logger
+
+  constructor(container: AppContainer) {
+    this.logger = container.resolve('logger')
+  }
   async getScaffolds(): Promise<Scaffold[]> {
     const results = await db.select().from(scaffolds)
     return results.map(this.toDomain)
@@ -65,5 +72,3 @@ export class ScaffoldRepo {
     }
   }
 }
-
-export const scaffoldRepo = new ScaffoldRepo()

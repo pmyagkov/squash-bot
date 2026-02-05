@@ -10,6 +10,8 @@ import type { EventBusiness } from './business/event'
 import { EventBusiness as EventBusinessImpl } from './business/event'
 import type { EventRepo } from './storage/repo/event'
 import { EventRepo as EventRepoImpl } from './storage/repo/event'
+import type { ScaffoldRepo } from './storage/repo/scaffold'
+import { ScaffoldRepo as ScaffoldRepoImpl } from './storage/repo/scaffold'
 
 // Placeholder - will be populated in later tasks
 export interface Container {
@@ -19,6 +21,7 @@ export interface Container {
   telegramOutput: TelegramOutput
   logger: Logger
   eventRepository: EventRepo
+  scaffoldRepository: ScaffoldRepo
   eventBusiness: EventBusiness
 }
 
@@ -36,6 +39,7 @@ export function createAppContainer(bot: Bot): AppContainer {
     telegramOutput: asClass(TelegramOutputImpl).singleton(),
     logger: asClass(LoggerImpl).singleton(),
     eventRepository: asClass(EventRepoImpl).singleton(),
+    scaffoldRepository: asClass(ScaffoldRepoImpl).singleton(),
     eventBusiness: asClass(EventBusinessImpl).singleton(),
   })
 
