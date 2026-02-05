@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./tests/integration/config/setup.ts'],
+    setupFiles: ['./tests/integration/config/setup.ts', './tests/integration/vitest.setup.ts'],
     include: ['tests/integration/**/*.{test,spec}.{js,ts}', 'src/**/*.test.{js,ts}'],
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
   },
