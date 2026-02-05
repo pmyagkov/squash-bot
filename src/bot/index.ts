@@ -32,7 +32,7 @@ export async function createBot(bot: Bot, container: AppContainer): Promise<void
     bot.command(command.commandName, async (ctx) => {
       const args = ctx.message?.text?.split(/\s+/) || []
       // Remove command name prefix, keep only subcommand and arguments
-      await command.handleCommand(ctx, args.slice(1))
+      await command.handleCommand(ctx, args.slice(1), container)
     })
 
     // Set command map for commands that need it (e.g., test)

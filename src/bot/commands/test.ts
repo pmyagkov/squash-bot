@@ -1,7 +1,6 @@
 import { Context } from 'grammy'
 import { config } from '~/config'
-import { logToTelegram } from '~/services/logger'
-import { scaffoldRepo } from '~/storage/repo/scaffold'
+import type { AppContainer } from '../../container'
 import { isAdmin, isTestChat, getDatabases } from '~/utils/environment'
 import type { CommandModule } from './index'
 
@@ -17,8 +16,11 @@ export function setCommandMap(commandMap: Map<string, CommandModule>): void {
 export async function handleCommand(
   ctx: Context,
   args: string[],
+  container: AppContainer,
   chatId?: number | string
 ): Promise<void> {
+  const logger = container.resolve('logger')
+  const scaffoldRepositorysitory = container.resolve('scaffoldRepositorysitory')
   if (!ctx.chat) {
     await ctx.reply('Error: failed to identify chat')
     return
@@ -159,7 +161,7 @@ Settings: ${databases.settings ? '✅' : '❌'}
 
       // TODO: Implement database cleanup for PostgreSQL
       await ctx.reply('❌ This command is not yet implemented for the new database system.')
-      await logToTelegram(
+      await logger.log(
         `Admin ${ctx.from.id} attempted to use /test reset (not yet implemented for PostgreSQL)`,
         'info'
       )
@@ -181,22 +183,22 @@ Settings: ${databases.settings ? '✅' : '❌'}
           return
         }
 
-        const scaffolds = await scaffoldRepo.getScaffolds()
+        const scaffolds = await scaffoldRepository.getScaffolds()
         let deleted = 0
 
         for (const scaffold of scaffolds) {
-          await scaffoldRepo.remove(scaffold.id)
+          await scaffoldRepository.remove(scaffold.id)
           deleted++
         }
 
         await ctx.reply(`✅ Deleted scaffolds: ${deleted}`)
-        await logToTelegram(
+        await logger.log(
           `Admin ${ctx.from.id} cleared all scaffolds in test chat: ${deleted} deleted`,
           'info'
         )
       } else {
         // Delegate to scaffold handler, but force test chat ID
-        await scaffoldCommand.handleCommand(ctx, scaffoldArgs, effectiveChatId)
+        await scaffoldCommand.handleCommand(ctx, scaffoldArgs, container, effectiveChatId)
       }
     } else if (subcommand === 'event') {
       // /test event <action> - delegate to event handler in test mode
@@ -210,7 +212,7 @@ Settings: ${databases.settings ? '✅' : '❌'}
       }
 
       // Delegate to event handler, but force test chat ID
-      await eventCommand.handleCommand(ctx, eventArgs, effectiveChatId)
+      await eventCommand.handleCommand(ctx, eventArgs, container, effectiveChatId)
     } else {
       await ctx.reply(
         'Available test commands:\n\n' +
@@ -233,6 +235,6 @@ Settings: ${databases.settings ? '✅' : '❌'}
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     await ctx.reply(`❌ Error: ${errorMessage}`)
-    await logToTelegram(`Error in test command from user ${ctx.from.id}: ${errorMessage}`, 'error')
+    await logger.log(`Error in test command from user ${ctx.from.id}: ${errorMessage}`, 'error')
   }
 }

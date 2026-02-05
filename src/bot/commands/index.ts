@@ -2,13 +2,19 @@ import { Context, Bot } from 'grammy'
 import { readdir } from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
+import type { AppContainer } from '../../container'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export interface CommandModule {
   commandName: string
-  handleCommand: (ctx: Context, args: string[], chatId?: number | string) => Promise<void>
+  handleCommand: (
+    ctx: Context,
+    args: string[],
+    container: AppContainer,
+    chatId?: number | string
+  ) => Promise<void>
   setBotInstance?: (bot: Bot | null) => void
   setCommandMap?: (commandMap: Map<string, CommandModule>) => void
 }

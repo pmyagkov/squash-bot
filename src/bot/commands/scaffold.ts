@@ -1,13 +1,18 @@
 import { Context } from 'grammy'
-import { logToTelegram } from '~/services/logger'
-import { scaffoldRepo } from '~/storage/repo/scaffold'
+import type { AppContainer } from '../../container'
 import { isAdmin } from '~/utils/environment'
 import { Scaffold } from '~/types'
 import { parseDayOfWeek } from '~/helpers/dateTime'
 
 export const commandName = 'scaffold'
 
-export async function handleCommand(ctx: Context, args: string[]): Promise<void> {
+export async function handleCommand(
+  ctx: Context,
+  args: string[],
+  container: AppContainer
+): Promise<void> {
+  const logger = container.resolve('logger')
+  const scaffoldRepository = container.resolve('scaffoldRepository')
   if (!ctx.from) {
     await ctx.reply('Error: failed to identify user')
     return
@@ -56,19 +61,19 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const scaffold = await scaffoldRepo.createScaffold(dayOfWeek, time, courts)
+      const scaffold = await scaffoldRepository.createScaffold(dayOfWeek, time, courts)
 
       await ctx.reply(
         `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} court(s), announcement ${scaffold.announcementDeadline ?? 'default'}`
       )
 
-      await logToTelegram(
+      await logger.log(
         `Admin ${ctx.from.id} created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} courts`,
         'info'
       )
     } else if (subcommand === 'list') {
       // /scaffold list
-      const scaffolds = await scaffoldRepo.getScaffolds()
+      const scaffolds = await scaffoldRepository.getScaffolds()
 
       if (scaffolds.length === 0) {
         await ctx.reply('📋 No scaffolds found')
@@ -94,18 +99,18 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const scaffold = await scaffoldRepo.findById(id)
+      const scaffold = await scaffoldRepository.findById(id)
       if (!scaffold) {
         await ctx.reply(`❌ Scaffold ${id} not found`)
         return
       }
 
-      const updatedScaffold = await scaffoldRepo.setActive(id, !scaffold.isActive)
+      const updatedScaffold = await scaffoldRepository.setActive(id, !scaffold.isActive)
 
       await ctx.reply(
         `✅ ${updatedScaffold.id} is now ${updatedScaffold.isActive ? 'active' : 'inactive'}`
       )
-      await logToTelegram(
+      await logger.log(
         `Admin ${ctx.from.id} toggled scaffold ${id} to ${updatedScaffold.isActive ? 'active' : 'inactive'}`,
         'info'
       )
@@ -118,10 +123,10 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      await scaffoldRepo.remove(id)
+      await scaffoldRepository.remove(id)
 
       await ctx.reply(`✅ Scaffold ${id} removed`)
-      await logToTelegram(`Admin ${ctx.from.id} removed scaffold ${id}`, 'info')
+      await logger.log(`Admin ${ctx.from.id} removed scaffold ${id}`, 'info')
     } else {
       await ctx.reply(
         'Usage:\n' +
@@ -134,7 +139,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     await ctx.reply(`❌ Error: ${errorMessage}`)
-    await logToTelegram(
+    await logger.log(
       `Error in scaffold command from user ${ctx.from.id}: ${errorMessage}`,
       'error'
     )

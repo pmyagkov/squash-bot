@@ -1,7 +1,5 @@
-import { Context, Bot } from 'grammy'
-import { logToTelegram } from '~/services/logger'
-import { eventRepo } from '~/storage/repo/event'
-import { scaffoldRepo } from '~/storage/repo/scaffold'
+import { Context } from 'grammy'
+import type { AppContainer } from '../../container'
 import { parseDate } from '~/utils/dateParser'
 import { config } from '~/config'
 import type { Event } from '~/types'
@@ -9,23 +7,22 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import * as eventBusiness from '~/business/event'
-import { EventBusiness } from '~/business/event'
-import { TelegramOutput } from '~/services/transport/telegram/output'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-// Store bot instance reference for event commands
-let globalBotInstance: Bot | null = null
-
-export function setBotInstance(bot: Bot | null): void {
-  globalBotInstance = bot
-}
-
 export const commandName = 'event'
 
-export async function handleCommand(ctx: Context, args: string[]): Promise<void> {
+export async function handleCommand(
+  ctx: Context,
+  args: string[],
+  container: AppContainer
+): Promise<void> {
+  const logger = container.resolve('logger')
+  const eventRepository = container.resolve('eventRepository')
+  const scaffoldRepository = container.resolve('scaffoldRepository')
+  const eventBusinessService = container.resolve('eventBusiness')
   if (!ctx.from) {
     await ctx.reply('Error: failed to identify user')
     return
@@ -95,7 +92,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const event = await eventRepo.createEvent({
+      const event = await eventRepository.createEvent({
         datetime: eventDateTime,
         courts,
         status: 'created',
@@ -106,7 +103,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         `✅ Created event ${event.id} (${formattedDate}, ${courts} courts). To announce: /event announce ${event.id}`
       )
 
-      await logToTelegram(
+      await logger.log(
         `User ${ctx.from.id} created event ${event.id}: ${formattedDate}, ${courts} courts`,
         'info'
       )
@@ -121,7 +118,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const scaffold = await scaffoldRepo.findById(scaffoldId)
+      const scaffold = await scaffoldRepository.findById(scaffoldId)
       if (!scaffold) {
         await ctx.reply(`❌ Scaffold ${scaffoldId} not found`)
         return
@@ -131,7 +128,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       const nextOccurrence = eventBusiness.calculateNextOccurrence(scaffold)
 
       // Check if event already exists
-      const allEvents = await eventRepo.getEvents()
+      const allEvents = await eventRepository.getEvents()
       const exists = eventBusiness.eventExists(allEvents, scaffold.id, nextOccurrence)
       if (exists) {
         await ctx.reply(`❌ Event already exists for scaffold ${scaffoldId} at this time`)
@@ -139,7 +136,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       }
 
       // Create event
-      const event = await eventRepo.createEvent({
+      const event = await eventRepository.createEvent({
         scaffoldId: scaffold.id,
         datetime: nextOccurrence,
         courts: scaffold.defaultCourts,
@@ -151,13 +148,13 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         `✅ Created event ${event.id} from scaffold ${scaffoldId} (${formattedDate}, ${scaffold.defaultCourts} courts). To announce: /event announce ${event.id}`
       )
 
-      await logToTelegram(
+      await logger.log(
         `User ${ctx.from.id} created event ${event.id} from scaffold ${scaffoldId}`,
         'info'
       )
     } else if (subcommand === 'list') {
       // /event list
-      const events = await eventRepo.getEvents()
+      const events = await eventRepository.getEvents()
 
       if (events.length === 0) {
         await ctx.reply('📋 No events found')
@@ -181,7 +178,7 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      const event = await eventRepo.findById(id)
+      const event = await eventRepository.findById(id)
       if (!event) {
         await ctx.reply(`❌ Event ${id} not found`)
         return
@@ -192,16 +189,10 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      // Get bot instance from global
-      if (!globalBotInstance) {
-        throw new Error('Bot instance not available')
-      }
-      const telegramOutput = new TelegramOutput(globalBotInstance)
-      const eventBusiness = new EventBusiness(telegramOutput)
-      await eventBusiness.announceEvent(id)
+      await eventBusinessService.announceEvent(id)
 
       await ctx.reply(`✅ Event ${id} announced`)
-      await logToTelegram(`User ${ctx.from.id} announced event ${id}`, 'info')
+      await logger.log(`User ${ctx.from.id} announced event ${id}`, 'info')
     } else if (subcommand === 'cancel') {
       // /event cancel <id>
       const id = args[1]
@@ -211,16 +202,10 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
         return
       }
 
-      // Get bot instance from global
-      if (!globalBotInstance) {
-        throw new Error('Bot instance not available')
-      }
-      const telegramOutput = new TelegramOutput(globalBotInstance)
-      const eventBusiness = new EventBusiness(telegramOutput)
-      await eventBusiness.cancelEvent(id)
+      await eventBusinessService.cancelEvent(id)
 
       await ctx.reply(`✅ Event ${id} cancelled`)
-      await logToTelegram(`User ${ctx.from.id} cancelled event ${id}`, 'info')
+      await logger.log(`User ${ctx.from.id} cancelled event ${id}`, 'info')
     } else {
       await ctx.reply(
         'Usage:\n' +
@@ -234,6 +219,6 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     await ctx.reply(`❌ Error: ${errorMessage}`)
-    await logToTelegram(`Error in event command from user ${ctx.from.id}: ${errorMessage}`, 'error')
+    await logger.log(`Error in event command from user ${ctx.from.id}: ${errorMessage}`, 'error')
   }
 }
