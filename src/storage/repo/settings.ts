@@ -1,8 +1,15 @@
 import { db } from '~/storage/db'
 import { settings } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
+import type { AppContainer } from '../../container'
+import type { Logger } from '~/services/logger'
 
 export class SettingsRepo {
+  private logger: Logger
+
+  constructor(container: AppContainer) {
+    this.logger = container.resolve('logger')
+  }
   async getSettings(): Promise<Record<string, string>> {
     const results = await db.select().from(settings)
     const settingsMap: Record<string, string> = {}
@@ -80,5 +87,3 @@ export class SettingsRepo {
     return value ? parseInt(value, 10) : 2
   }
 }
-
-export const settingsRepo = new SettingsRepo()

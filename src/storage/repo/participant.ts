@@ -3,9 +3,18 @@ import { db } from '~/storage/db'
 import { participants } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Participant, EventParticipant } from '~/types'
-import { eventParticipantRepo } from './eventParticipant'
+import type { AppContainer } from '../../container'
+import type { Logger } from '~/services/logger'
+import type { EventParticipantRepo } from './eventParticipant'
 
 export class ParticipantRepo {
+  private logger: Logger
+  private eventParticipantRepository: EventParticipantRepo
+
+  constructor(container: AppContainer) {
+    this.logger = container.resolve('logger')
+    this.eventParticipantRepository = container.resolve('eventParticipantRepository')
+  }
   async getParticipants(): Promise<Participant[]> {
     const results = await db.select().from(participants)
     return results.map(this.toDomain)
@@ -65,16 +74,14 @@ export class ParticipantRepo {
   // Legacy methods - these delegate to EventParticipantService
   // These will be removed once all code is migrated
   async addToEvent(eventId: string, participantId: string, participations = 1): Promise<void> {
-    return eventParticipantRepo.addToEvent(eventId, participantId, participations)
+    return this.eventParticipantRepository.addToEvent(eventId, participantId, participations)
   }
 
   async removeFromEvent(eventId: string, participantId: string): Promise<void> {
-    return eventParticipantRepo.removeFromEvent(eventId, participantId)
+    return this.eventParticipantRepository.removeFromEvent(eventId, participantId)
   }
 
   async getEventParticipants(eventId: string): Promise<EventParticipant[]> {
-    return eventParticipantRepo.getEventParticipants(eventId)
+    return this.eventParticipantRepository.getEventParticipants(eventId)
   }
 }
-
-export const participantRepo = new ParticipantRepo()

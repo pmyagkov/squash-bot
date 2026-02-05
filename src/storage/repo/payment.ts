@@ -2,8 +2,15 @@ import { db } from '~/storage/db'
 import { payments } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Payment } from '~/types'
+import type { AppContainer } from '../../container'
+import type { Logger } from '~/services/logger'
 
 export class PaymentRepo {
+  private logger: Logger
+
+  constructor(container: AppContainer) {
+    this.logger = container.resolve('logger')
+  }
   async createPayment(eventId: string, participantId: string, amount: number): Promise<Payment> {
     const [payment] = await db
       .insert(payments)
@@ -70,5 +77,3 @@ export class PaymentRepo {
     }
   }
 }
-
-export const paymentRepo = new PaymentRepo()

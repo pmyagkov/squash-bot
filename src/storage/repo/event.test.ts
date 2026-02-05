@@ -266,9 +266,7 @@ describe('calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => calculateNextOccurrence(scaffold)).toThrow(
-        'Invalid scaffold: missing dayOfWeek'
-      )
+      expect(() => calculateNextOccurrence(scaffold)).toThrow('Invalid scaffold: missing dayOfWeek')
     })
   })
 
@@ -282,9 +280,7 @@ describe('calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => calculateNextOccurrence(scaffold)).toThrow(
-        'Invalid scaffold: missing time'
-      )
+      expect(() => calculateNextOccurrence(scaffold)).toThrow('Invalid scaffold: missing time')
     })
   })
 })

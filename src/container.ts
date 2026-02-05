@@ -12,6 +12,14 @@ import type { EventRepo } from './storage/repo/event'
 import { EventRepo as EventRepoImpl } from './storage/repo/event'
 import type { ScaffoldRepo } from './storage/repo/scaffold'
 import { ScaffoldRepo as ScaffoldRepoImpl } from './storage/repo/scaffold'
+import type { EventParticipantRepo } from './storage/repo/eventParticipant'
+import { EventParticipantRepo as EventParticipantRepoImpl } from './storage/repo/eventParticipant'
+import type { PaymentRepo } from './storage/repo/payment'
+import { PaymentRepo as PaymentRepoImpl } from './storage/repo/payment'
+import type { SettingsRepo } from './storage/repo/settings'
+import { SettingsRepo as SettingsRepoImpl } from './storage/repo/settings'
+import type { ParticipantRepo } from './storage/repo/participant'
+import { ParticipantRepo as ParticipantRepoImpl } from './storage/repo/participant'
 
 // Placeholder - will be populated in later tasks
 export interface Container {
@@ -22,6 +30,10 @@ export interface Container {
   logger: Logger
   eventRepository: EventRepo
   scaffoldRepository: ScaffoldRepo
+  eventParticipantRepository: EventParticipantRepo
+  paymentRepository: PaymentRepo
+  settingsRepository: SettingsRepo
+  participantRepository: ParticipantRepo
   eventBusiness: EventBusiness
 }
 
@@ -40,6 +52,10 @@ export function createAppContainer(bot: Bot): AppContainer {
     logger: asClass(LoggerImpl).singleton(),
     eventRepository: asClass(EventRepoImpl).singleton(),
     scaffoldRepository: asClass(ScaffoldRepoImpl).singleton(),
+    eventParticipantRepository: asClass(EventParticipantRepoImpl).singleton(),
+    paymentRepository: asClass(PaymentRepoImpl).singleton(),
+    settingsRepository: asClass(SettingsRepoImpl).singleton(),
+    participantRepository: asClass(ParticipantRepoImpl).singleton(),
     eventBusiness: asClass(EventBusinessImpl).singleton(),
   })
 

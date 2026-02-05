@@ -157,7 +157,11 @@ describe('EventParticipantRepo', () => {
   describe('getEventParticipants', () => {
     it('should return all participants for event', async () => {
       const participant2 = await participantRepo.findOrCreateParticipant('456', 'user2', 'User Two')
-      const participant3 = await participantRepo.findOrCreateParticipant('789', 'user3', 'User Three')
+      const participant3 = await participantRepo.findOrCreateParticipant(
+        '789',
+        'user3',
+        'User Three'
+      )
 
       // Add participants
       await eventParticipantRepo.addToEvent(testEventId, testParticipantId, 1)
