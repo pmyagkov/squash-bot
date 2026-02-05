@@ -54,6 +54,9 @@ function getConfig() {
         settings: process.env.NOTION_DATABASE_SETTINGS!,
       },
     },
+    database: {
+      url: process.env.DATABASE_URL || '',
+    },
     server: {
       port: parseInt(process.env.PORT || '3010', 10),
       apiKey: process.env.API_KEY!,
