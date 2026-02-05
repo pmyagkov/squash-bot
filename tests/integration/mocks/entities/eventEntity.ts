@@ -114,7 +114,7 @@ class EventConverters implements EntityConverters<Event> {
           select: { id: entity.status, name: entity.status, color: 'default' },
         },
         // Optional fields
-        ...(entity.scaffold_id !== undefined && context?.scaffoldPageId
+        ...(entity.scaffoldId !== undefined && context?.scaffoldPageId
           ? {
               scaffold_id: {
                 id: 'scaffold_id',
@@ -123,7 +123,7 @@ class EventConverters implements EntityConverters<Event> {
               },
             }
           : {}),
-        ...(entity.telegram_message_id !== undefined
+        ...(entity.telegramMessageId !== undefined
           ? {
               telegram_message_id: {
                 id: 'telegram_message_id',
@@ -131,7 +131,7 @@ class EventConverters implements EntityConverters<Event> {
                 rich_text: [
                   {
                     type: 'text',
-                    text: { content: entity.telegram_message_id, link: null },
+                    text: { content: entity.telegramMessageId, link: null },
                     annotations: {
                       bold: false,
                       italic: false,
@@ -140,14 +140,14 @@ class EventConverters implements EntityConverters<Event> {
                       code: false,
                       color: 'default',
                     },
-                    plain_text: entity.telegram_message_id,
+                    plain_text: entity.telegramMessageId,
                     href: null,
                   },
                 ],
               },
             }
           : {}),
-        ...(entity.payment_message_id !== undefined
+        ...(entity.paymentMessageId !== undefined
           ? {
               payment_message_id: {
                 id: 'payment_message_id',
@@ -155,7 +155,7 @@ class EventConverters implements EntityConverters<Event> {
                 rich_text: [
                   {
                     type: 'text',
-                    text: { content: entity.payment_message_id, link: null },
+                    text: { content: entity.paymentMessageId, link: null },
                     annotations: {
                       bold: false,
                       italic: false,
@@ -164,14 +164,14 @@ class EventConverters implements EntityConverters<Event> {
                       code: false,
                       color: 'default',
                     },
-                    plain_text: entity.payment_message_id,
+                    plain_text: entity.paymentMessageId,
                     href: null,
                   },
                 ],
               },
             }
           : {}),
-        ...(entity.announcement_deadline !== undefined
+        ...(entity.announcementDeadline !== undefined
           ? {
               announcement_deadline: {
                 id: 'announcement_deadline',
@@ -179,7 +179,7 @@ class EventConverters implements EntityConverters<Event> {
                 rich_text: [
                   {
                     type: 'text',
-                    text: { content: entity.announcement_deadline, link: null },
+                    text: { content: entity.announcementDeadline, link: null },
                     annotations: {
                       bold: false,
                       italic: false,
@@ -188,7 +188,7 @@ class EventConverters implements EntityConverters<Event> {
                       code: false,
                       color: 'default',
                     },
-                    plain_text: entity.announcement_deadline,
+                    plain_text: entity.announcementDeadline,
                     href: null,
                   },
                 ],
@@ -289,10 +289,12 @@ class EventConverters implements EntityConverters<Event> {
       datetime,
       courts,
       status,
-      ...(scaffold_id !== undefined ? { scaffold_id } : {}),
-      ...(telegram_message_id !== undefined ? { telegram_message_id } : {}),
-      ...(payment_message_id !== undefined ? { payment_message_id } : {}),
-      ...(announcement_deadline !== undefined ? { announcement_deadline } : {}),
+      ...(scaffold_id !== undefined ? { scaffoldId: scaffold_id } : {}),
+      ...(telegram_message_id !== undefined ? { telegramMessageId: telegram_message_id } : {}),
+      ...(payment_message_id !== undefined ? { paymentMessageId: payment_message_id } : {}),
+      ...(announcement_deadline !== undefined
+        ? { announcementDeadline: announcement_deadline }
+        : {}),
     }
   }
 

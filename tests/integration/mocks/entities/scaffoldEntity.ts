@@ -47,7 +47,11 @@ class ScaffoldStore implements EntityStore<Scaffold> {
  * Converters for transforming between Scaffold and Notion API formats
  */
 class ScaffoldConverters implements EntityConverters<Scaffold> {
-  toNotionPage(entity: Scaffold, pageId: string, context?: Record<string, unknown>): PageObjectResponse {
+  toNotionPage(
+    entity: Scaffold,
+    pageId: string,
+    context?: Record<string, unknown>
+  ): PageObjectResponse {
     return {
       object: 'page',
       id: pageId,
@@ -59,7 +63,7 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
       icon: null,
       parent: {
         type: 'database_id',
-        database_id: context?.databaseId as string || 'mock-database-id',
+        database_id: (context?.databaseId as string) || 'mock-database-id',
       },
       archived: false,
       in_trash: false,
@@ -87,7 +91,7 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
         day_of_week: {
           id: 'day_of_week',
           type: 'select',
-          select: { id: entity.day_of_week, name: entity.day_of_week, color: 'default' },
+          select: { id: entity.dayOfWeek, name: entity.dayOfWeek, color: 'default' },
         },
         time: {
           id: 'time',
@@ -112,14 +116,14 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
         default_courts: {
           id: 'default_courts',
           type: 'number',
-          number: entity.default_courts,
+          number: entity.defaultCourts,
         },
         is_active: {
           id: 'is_active',
           type: 'checkbox',
-          checkbox: entity.is_active,
+          checkbox: entity.isActive,
         },
-        ...(entity.announcement_deadline !== undefined
+        ...(entity.announcementDeadline !== undefined
           ? {
               announcement_deadline: {
                 id: 'announcement_deadline',
@@ -127,7 +131,7 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
                 rich_text: [
                   {
                     type: 'text',
-                    text: { content: entity.announcement_deadline, link: null },
+                    text: { content: entity.announcementDeadline, link: null },
                     annotations: {
                       bold: false,
                       italic: false,
@@ -136,7 +140,7 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
                       code: false,
                       color: 'default',
                     },
-                    plain_text: entity.announcement_deadline,
+                    plain_text: entity.announcementDeadline,
                     href: null,
                   },
                 ],
@@ -149,14 +153,19 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
     } as PageObjectResponse
   }
 
-  fromNotionProperties(properties: CreatePageParameters['properties'], _context?: Record<string, unknown>): Scaffold {
+  fromNotionProperties(
+    properties: CreatePageParameters['properties'],
+    _context?: Record<string, unknown>
+  ): Scaffold {
     const id = this.extractEntityId(properties)
 
     // Extract day_of_week
     const dayOfWeekProp = properties.day_of_week
-    const day_of_week = (dayOfWeekProp && typeof dayOfWeekProp === 'object' && 'select' in dayOfWeekProp
-      ? dayOfWeekProp.select?.name
-      : undefined) as DayOfWeek
+    const day_of_week = (
+      dayOfWeekProp && typeof dayOfWeekProp === 'object' && 'select' in dayOfWeekProp
+        ? dayOfWeekProp.select?.name
+        : undefined
+    ) as DayOfWeek
 
     // Extract time
     const timeProp = properties.time
@@ -170,20 +179,26 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
 
     // Extract default_courts
     const defaultCourtsProp = properties.default_courts
-    const default_courts = defaultCourtsProp && typeof defaultCourtsProp === 'object' && 'number' in defaultCourtsProp
-      ? defaultCourtsProp.number ?? 0
-      : 0
+    const default_courts =
+      defaultCourtsProp && typeof defaultCourtsProp === 'object' && 'number' in defaultCourtsProp
+        ? (defaultCourtsProp.number ?? 0)
+        : 0
 
     // Extract is_active
     const isActiveProp = properties.is_active
-    const is_active = isActiveProp && typeof isActiveProp === 'object' && 'checkbox' in isActiveProp
-      ? isActiveProp.checkbox ?? false
-      : false
+    const is_active =
+      isActiveProp && typeof isActiveProp === 'object' && 'checkbox' in isActiveProp
+        ? (isActiveProp.checkbox ?? false)
+        : false
 
     // Extract optional announcement_deadline
     const announcementDeadlineProp = properties.announcement_deadline
     let announcement_deadline: string | undefined
-    if (announcementDeadlineProp && typeof announcementDeadlineProp === 'object' && 'rich_text' in announcementDeadlineProp) {
+    if (
+      announcementDeadlineProp &&
+      typeof announcementDeadlineProp === 'object' &&
+      'rich_text' in announcementDeadlineProp
+    ) {
       const firstItem = announcementDeadlineProp.rich_text?.[0]
       if (firstItem && typeof firstItem === 'object' && 'text' in firstItem) {
         announcement_deadline = firstItem.text.content
@@ -192,12 +207,12 @@ class ScaffoldConverters implements EntityConverters<Scaffold> {
 
     return {
       id,
-      day_of_week,
+      dayOfWeek: day_of_week,
       time,
-      default_courts,
-      is_active,
+      defaultCourts: default_courts,
+      isActive: is_active,
       ...(announcement_deadline !== undefined
-        ? { announcement_deadline }
+        ? { announcementDeadline: announcement_deadline }
         : {}),
     }
   }

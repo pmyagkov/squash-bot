@@ -320,7 +320,7 @@ export class ParticipantService {
 
       // Fetch participant details
       const participants = await this.getParticipants(chatId)
-      const participant = participants.find((p) => p.id === ep.participant_id)
+      const participant = participants.find((p) => p.id === ep.participantId)
 
       if (participant) {
         results.push({
@@ -501,11 +501,11 @@ export class ParticipantService {
 
     return {
       id: this.getTitleProperty(props.id),
-      telegram_id: props.telegram_id ? this.getRichTextProperty(props.telegram_id) : undefined,
-      telegram_username: props.telegram_username
+      telegramId: props.telegram_id ? this.getRichTextProperty(props.telegram_id) : undefined,
+      telegramUsername: props.telegram_username
         ? this.getRichTextProperty(props.telegram_username)
         : undefined,
-      display_name: this.getRichTextProperty(props.display_name),
+      displayName: this.getRichTextProperty(props.display_name),
     }
   }
 
@@ -521,8 +521,8 @@ export class ParticipantService {
     const [eventId, participantId] = name.split(':')
 
     return {
-      event_id: eventId || '',
-      participant_id: participantId || '',
+      eventId: eventId || '',
+      participantId: participantId || '',
       participations: props.participations?.number ?? 1,
     }
   }

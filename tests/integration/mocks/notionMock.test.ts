@@ -19,10 +19,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_test123' } }] },
-          day_of_week: { select: { name: 'Mon' } },
+          dayOfWeek: { select: { name: 'Mon' } },
           time: { rich_text: [{ text: { content: '19:00' } }] },
-          default_courts: { number: 2 },
-          is_active: { checkbox: true },
+          defaultCourts: { number: 2 },
+          isActive: { checkbox: true },
         },
       })
 
@@ -38,10 +38,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_query_test' } }] },
-          day_of_week: { select: { name: 'Tue' } },
+          dayOfWeek: { select: { name: 'Tue' } },
           time: { rich_text: [{ text: { content: '20:00' } }] },
-          default_courts: { number: 3 },
-          is_active: { checkbox: true },
+          defaultCourts: { number: 3 },
+          isActive: { checkbox: true },
         },
       })
 
@@ -60,10 +60,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_first' } }] },
-          day_of_week: { select: { name: 'Mon' } },
+          dayOfWeek: { select: { name: 'Mon' } },
           time: { rich_text: [{ text: { content: '19:00' } }] },
-          default_courts: { number: 2 },
-          is_active: { checkbox: true },
+          defaultCourts: { number: 2 },
+          isActive: { checkbox: true },
         },
       })
 
@@ -71,10 +71,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_second' } }] },
-          day_of_week: { select: { name: 'Wed' } },
+          dayOfWeek: { select: { name: 'Wed' } },
           time: { rich_text: [{ text: { content: '18:00' } }] },
-          default_courts: { number: 1 },
-          is_active: { checkbox: false },
+          defaultCourts: { number: 1 },
+          isActive: { checkbox: false },
         },
       })
 
@@ -141,10 +141,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_isolation' } }] },
-          day_of_week: { select: { name: 'Thu' } },
+          dayOfWeek: { select: { name: 'Thu' } },
           time: { rich_text: [{ text: { content: '21:00' } }] },
-          default_courts: { number: 2 },
-          is_active: { checkbox: true },
+          defaultCourts: { number: 2 },
+          isActive: { checkbox: true },
         },
       })
 
@@ -184,10 +184,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_update' } }] },
-          day_of_week: { select: { name: 'Fri' } },
+          dayOfWeek: { select: { name: 'Fri' } },
           time: { rich_text: [{ text: { content: '22:00' } }] },
-          default_courts: { number: 2 },
-          is_active: { checkbox: true },
+          defaultCourts: { number: 2 },
+          isActive: { checkbox: true },
         },
       })
 
@@ -195,11 +195,11 @@ describe('notionMock with entity registry', () => {
       const updateResponse = await mockClient.pages.update({
         page_id: createResponse.id,
         properties: {
-          is_active: { checkbox: false },
+          isActive: { checkbox: false },
         },
       })
 
-      expect((updateResponse as any).properties.is_active.checkbox).toBe(false)
+      expect((updateResponse as any).properties.isActive.checkbox).toBe(false)
     })
 
     it('should retrieve scaffold by page ID', async () => {
@@ -208,10 +208,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_retrieve' } }] },
-          day_of_week: { select: { name: 'Sat' } },
+          dayOfWeek: { select: { name: 'Sat' } },
           time: { rich_text: [{ text: { content: '10:00' } }] },
-          default_courts: { number: 4 },
-          is_active: { checkbox: true },
+          defaultCourts: { number: 4 },
+          isActive: { checkbox: true },
         },
       })
 
@@ -229,10 +229,10 @@ describe('notionMock with entity registry', () => {
         parent: { database_id: SCAFFOLD_DB_ID },
         properties: {
           id: { title: [{ text: { content: 'sc_archive' } }] },
-          day_of_week: { select: { name: 'Sun' } },
+          dayOfWeek: { select: { name: 'Sun' } },
           time: { rich_text: [{ text: { content: '11:00' } }] },
-          default_courts: { number: 1 },
-          is_active: { checkbox: true },
+          defaultCourts: { number: 1 },
+          isActive: { checkbox: true },
         },
       })
 

@@ -19,10 +19,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should calculate next Tuesday from Monday', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Tue',
+        dayOfWeek: 'Tue',
         time: '21:00',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -38,10 +38,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should calculate next Saturday from Monday', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Sat',
+        dayOfWeek: 'Sat',
         time: '18:00',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -57,10 +57,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should calculate next Monday from Monday (next week)', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Mon',
+        dayOfWeek: 'Mon',
         time: '11:00', // Earlier than current time (12:00)
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -76,10 +76,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should calculate next Sunday from Monday', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Sun',
+        dayOfWeek: 'Sun',
         time: '10:00',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -98,10 +98,10 @@ describe('eventService.calculateNextOccurrence', () => {
       // Current time: Monday 12:00
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Mon',
+        dayOfWeek: 'Mon',
         time: '11:00', // Earlier than current time
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -116,10 +116,10 @@ describe('eventService.calculateNextOccurrence', () => {
       // Current time: Monday 12:00
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Mon',
+        dayOfWeek: 'Mon',
         time: '20:00', // Later than current time
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -135,10 +135,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should accept valid time format HH:MM', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Tue',
+        dayOfWeek: 'Tue',
         time: '09:30',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -149,10 +149,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should accept midnight 00:00', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Wed',
+        dayOfWeek: 'Wed',
         time: '00:00',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -163,10 +163,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should accept 23:59', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Thu',
+        dayOfWeek: 'Thu',
         time: '23:59',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -177,10 +177,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should reject invalid time format (no colon)', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Fri',
+        dayOfWeek: 'Fri',
         time: '2100',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
@@ -191,10 +191,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should reject invalid hour (24:00)', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Fri',
+        dayOfWeek: 'Fri',
         time: '24:00',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
@@ -205,10 +205,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should reject invalid minutes (60)', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Fri',
+        dayOfWeek: 'Fri',
         time: '12:60',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
@@ -232,10 +232,10 @@ describe('eventService.calculateNextOccurrence', () => {
       days.forEach(({ day, dayNum }) => {
         const scaffold: Scaffold = {
           id: 'sc_test',
-          day_of_week: day as unknown as DayOfWeek,
+          dayOfWeek: day as unknown as DayOfWeek,
           time: '19:00',
-          default_courts: 2,
-          is_active: true,
+          defaultCourts: 2,
+          isActive: true,
         }
 
         const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
@@ -246,28 +246,28 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should reject invalid day of week', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Invalid' as unknown as DayOfWeek,
+        dayOfWeek: 'Invalid' as unknown as DayOfWeek,
         time: '19:00',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
-        'Invalid scaffold: unknown day_of_week "Invalid"'
+        'Invalid scaffold: unknown dayOfWeek "Invalid"'
       )
     })
 
     it('should reject missing day of week', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: undefined as unknown as DayOfWeek,
+        dayOfWeek: undefined as unknown as DayOfWeek,
         time: '19:00',
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
-        'Invalid scaffold: missing day_of_week'
+        'Invalid scaffold: missing dayOfWeek'
       )
     })
   })
@@ -276,10 +276,10 @@ describe('eventService.calculateNextOccurrence', () => {
     it('should reject missing time', () => {
       const scaffold: Scaffold = {
         id: 'sc_test',
-        day_of_week: 'Tue',
+        dayOfWeek: 'Tue',
         time: undefined as unknown as string,
-        default_courts: 2,
-        is_active: true,
+        defaultCourts: 2,
+        isActive: true,
       }
 
       expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(

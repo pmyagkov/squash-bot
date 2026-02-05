@@ -21,7 +21,7 @@ class EventParticipantStore implements EntityStore<EventParticipant> {
   }
 
   create(entity: EventParticipant): EventParticipant {
-    const key = this.getKey(entity.event_id, entity.participant_id)
+    const key = this.getKey(entity.eventId, entity.participantId)
     this.eventParticipants.set(key, entity)
     return entity
   }
@@ -80,7 +80,7 @@ class EventParticipantConverters implements EntityConverters<EventParticipant> {
           title: [
             {
               type: 'text',
-              text: { content: `${entity.event_id}:${entity.participant_id}`, link: null },
+              text: { content: `${entity.eventId}:${entity.participantId}`, link: null },
               annotations: {
                 bold: false,
                 italic: false,
@@ -89,7 +89,7 @@ class EventParticipantConverters implements EntityConverters<EventParticipant> {
                 code: false,
                 color: 'default',
               },
-              plain_text: `${entity.event_id}:${entity.participant_id}`,
+              plain_text: `${entity.eventId}:${entity.participantId}`,
               href: null,
             },
           ],
@@ -145,8 +145,8 @@ class EventParticipantConverters implements EntityConverters<EventParticipant> {
       : 1
 
     return {
-      event_id,
-      participant_id,
+      eventId: event_id,
+      participantId: participant_id,
       participations,
     }
   }

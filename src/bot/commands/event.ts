@@ -143,13 +143,13 @@ export async function handleCommand(
       const event = await eventService.createEvent(effectiveChatId, {
         scaffold_id: scaffold.id,
         datetime: nextOccurrence,
-        courts: scaffold.default_courts,
+        courts: scaffold.defaultCourts,
         status: 'created',
       })
 
       const formattedDate = dayjs.tz(nextOccurrence, config.timezone).format('ddd D MMM HH:mm')
       await ctx.reply(
-        `✅ Created event ${event.id} from scaffold ${scaffoldId} (${formattedDate}, ${scaffold.default_courts} courts). To announce: /event announce ${event.id}`
+        `✅ Created event ${event.id} from scaffold ${scaffoldId} (${formattedDate}, ${scaffold.defaultCourts} courts). To announce: /event announce ${event.id}`
       )
 
       await logToTelegram(

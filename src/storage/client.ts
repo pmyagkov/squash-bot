@@ -165,11 +165,11 @@ export class NotionClient {
 
     return {
       id: this.getTitleProperty(props.id as NotionTitleProperty),
-      day_of_week: (props.day_of_week as NotionSelectProperty)?.select?.name as DayOfWeek,
+      dayOfWeek: (props.day_of_week as NotionSelectProperty)?.select?.name as DayOfWeek,
       time: this.getRichTextProperty(props.time as NotionRichTextProperty),
-      default_courts: (props.default_courts as NotionNumberProperty)?.number || 0,
-      is_active: (props.is_active as NotionCheckboxProperty)?.checkbox || false,
-      announcement_deadline:
+      defaultCourts: (props.default_courts as NotionNumberProperty)?.number || 0,
+      isActive: (props.is_active as NotionCheckboxProperty)?.checkbox || false,
+      announcementDeadline:
         this.getRichTextProperty(props.announcement_deadline as NotionRichTextProperty) ||
         undefined,
     }

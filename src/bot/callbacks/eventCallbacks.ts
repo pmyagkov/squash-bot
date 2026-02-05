@@ -366,11 +366,11 @@ async function updateAnnouncementMessage(
   cancelled: boolean = false
 ): Promise<void> {
   const event = await eventService.getEventById(chatId, eventId)
-  if (!event || !event.telegram_message_id) {
+  if (!event || !event.telegramMessageId) {
     return
   }
 
-  const messageId = parseInt(event.telegram_message_id, 10)
+  const messageId = parseInt(event.telegramMessageId, 10)
 
   // Format message
   const eventDate = dayjs.tz(event.datetime, config.timezone)
@@ -390,9 +390,9 @@ async function updateAnnouncementMessage(
 
     const participantNames = participants
       .map((ep) => {
-        const username = ep.participant.telegram_username
-          ? `@${ep.participant.telegram_username}`
-          : ep.participant.display_name
+        const username = ep.participant.telegramUsername
+          ? `@${ep.participant.telegramUsername}`
+          : ep.participant.displayName
         return ep.participations > 1 ? `${username} (×${ep.participations})` : username
       })
       .join(', ')
@@ -464,9 +464,9 @@ async function sendPaymentMessage(ctx: Context, eventId: string, chatId: number)
 
   // List participants with their amounts
   for (const ep of participants) {
-    const username = ep.participant.telegram_username
-      ? `@${ep.participant.telegram_username}`
-      : ep.participant.display_name
+    const username = ep.participant.telegramUsername
+      ? `@${ep.participant.telegramUsername}`
+      : ep.participant.displayName
     const amount = perPerson * ep.participations
     const suffix = ep.participations > 1 ? ` (×${ep.participations})` : ''
     messageText += `${username} — ${amount} din${suffix}\n`

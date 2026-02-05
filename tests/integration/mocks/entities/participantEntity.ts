@@ -91,11 +91,11 @@ class ParticipantConverters implements EntityConverters<Participant> {
         telegram_id: {
           id: 'telegram_id',
           type: 'rich_text',
-          rich_text: entity.telegram_id
+          rich_text: entity.telegramId
             ? [
                 {
                   type: 'text',
-                  text: { content: entity.telegram_id, link: null },
+                  text: { content: entity.telegramId, link: null },
                   annotations: {
                     bold: false,
                     italic: false,
@@ -104,7 +104,7 @@ class ParticipantConverters implements EntityConverters<Participant> {
                     code: false,
                     color: 'default',
                   },
-                  plain_text: entity.telegram_id,
+                  plain_text: entity.telegramId,
                   href: null,
                 },
               ]
@@ -113,11 +113,11 @@ class ParticipantConverters implements EntityConverters<Participant> {
         telegram_username: {
           id: 'telegram_username',
           type: 'rich_text',
-          rich_text: entity.telegram_username
+          rich_text: entity.telegramUsername
             ? [
                 {
                   type: 'text',
-                  text: { content: entity.telegram_username, link: null },
+                  text: { content: entity.telegramUsername, link: null },
                   annotations: {
                     bold: false,
                     italic: false,
@@ -126,7 +126,7 @@ class ParticipantConverters implements EntityConverters<Participant> {
                     code: false,
                     color: 'default',
                   },
-                  plain_text: entity.telegram_username,
+                  plain_text: entity.telegramUsername,
                   href: null,
                 },
               ]
@@ -138,7 +138,7 @@ class ParticipantConverters implements EntityConverters<Participant> {
           rich_text: [
             {
               type: 'text',
-              text: { content: entity.display_name, link: null },
+              text: { content: entity.displayName, link: null },
               annotations: {
                 bold: false,
                 italic: false,
@@ -147,7 +147,7 @@ class ParticipantConverters implements EntityConverters<Participant> {
                 code: false,
                 color: 'default',
               },
-              plain_text: entity.display_name,
+              plain_text: entity.displayName,
               href: null,
             },
           ],
@@ -197,9 +197,9 @@ class ParticipantConverters implements EntityConverters<Participant> {
 
     return {
       id,
-      telegram_id,
-      telegram_username,
-      display_name,
+      telegramId: telegram_id,
+      telegramUsername: telegram_username,
+      displayName: display_name,
     }
   }
 

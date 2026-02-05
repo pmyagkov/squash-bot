@@ -112,7 +112,7 @@ export class EventService {
    */
   async getByMessageId(chatId: number | string, messageId: string): Promise<Event | null> {
     const events = await this.getEvents(chatId)
-    return events.find((e) => e.telegram_message_id === messageId) || null
+    return events.find((e) => e.telegramMessageId === messageId) || null
   }
 
   /**
@@ -314,7 +314,7 @@ export class EventService {
     const updatedEvent = await this.updateEvent(chatId, id, { status: 'cancelled' })
 
     // Send notification if event was announced
-    if (event.status === 'announced' && event.telegram_message_id && bot) {
+    if (event.status === 'announced' && event.telegramMessageId && bot) {
       const chatIdToUse = config.telegram.mainChatId
       try {
         await bot.api.sendMessage(chatIdToUse, `❌ Event ${id} has been cancelled.`)
@@ -424,13 +424,13 @@ Participants:
    */
   calculateNextOccurrence(scaffold: Scaffold): Date {
     // Validate scaffold data
-    if (!scaffold.day_of_week) {
-      throw new Error(`Invalid scaffold: missing day_of_week`)
+    if (!scaffold.dayOfWeek) {
+      throw new Error(`Invalid scaffold: missing dayOfWeek`)
     }
 
-    const targetDayOfWeek = DAY_OF_WEEK_TO_NUMBER[scaffold.day_of_week]
+    const targetDayOfWeek = DAY_OF_WEEK_TO_NUMBER[scaffold.dayOfWeek]
     if (targetDayOfWeek === undefined) {
-      throw new Error(`Invalid scaffold: unknown day_of_week "${scaffold.day_of_week}"`)
+      throw new Error(`Invalid scaffold: unknown dayOfWeek "${scaffold.dayOfWeek}"`)
     }
 
     if (!scaffold.time) {
@@ -492,7 +492,7 @@ Participants:
   private async shouldCreateEvent(scaffold: Scaffold, nextOccurrence: Date): Promise<boolean> {
     const timezone = await settingsService.getTimezone()
     const deadline =
-      scaffold.announcement_deadline ?? (await settingsService.getAnnouncementDeadline())
+      scaffold.announcementDeadline ?? (await settingsService.getAnnouncementDeadline())
 
     return shouldTrigger(deadline, nextOccurrence, timezone)
   }
@@ -504,7 +504,7 @@ Participants:
     const events = await this.getEvents(chatId)
     return events.some(
       (e) =>
-        e.scaffold_id === scaffoldId &&
+        e.scaffoldId === scaffoldId &&
         Math.abs(e.datetime.getTime() - datetime.getTime()) < 1000 * 60 * 60 // Within 1 hour
     )
   }
@@ -514,7 +514,7 @@ Participants:
    */
   async checkAndCreateEventsFromScaffolds(chatId: number | string, bot: Bot): Promise<number> {
     const scaffolds = await scaffoldService.getScaffolds(chatId)
-    const activeScaffolds = scaffolds.filter((s) => s.is_active)
+    const activeScaffolds = scaffolds.filter((s) => s.isActive)
 
     let createdCount = 0
 
@@ -537,7 +537,7 @@ Participants:
         const event = await this.createEvent(chatId, {
           scaffold_id: scaffold.id,
           datetime: nextOccurrence,
-          courts: scaffold.default_courts,
+          courts: scaffold.defaultCourts,
           status: 'created',
         })
 
@@ -580,14 +580,14 @@ Participants:
 
     return {
       id: this.getTitleProperty(props.id),
-      scaffold_id: scaffoldId,
+      scaffoldId: scaffoldId,
       datetime: props.datetime?.date?.start ? new Date(props.datetime.date.start) : new Date(),
       courts: props.courts?.number || 0,
       status: (props.status?.select?.name as EventStatus) || 'created',
-      telegram_message_id: props.telegram_message_id
+      telegramMessageId: props.telegram_message_id
         ? this.getRichTextProperty(props.telegram_message_id)
         : undefined,
-      payment_message_id: props.payment_message_id
+      paymentMessageId: props.payment_message_id
         ? this.getRichTextProperty(props.payment_message_id)
         : undefined,
     }

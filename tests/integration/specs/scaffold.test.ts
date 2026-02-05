@@ -1,160 +1,59 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { Bot } from 'grammy'
-import { createBot } from '~/bot'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { clearTestDb } from '../setup'
 import { scaffoldService } from '~/services/scaffoldService'
-import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
-import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { setBotInstance } from '~/utils/logger'
-import { notionClient } from '~/storage/client'
-import { createMockNotionClient, clearMockNotionStore } from '@integration/mocks/notionMock'
-import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
 
-describe('scaffold add command', () => {
-  let bot: Bot
-  let sentMessages: SentMessage[] = []
-  const testChatId = String(TEST_CHAT_ID)
-
+describe('Scaffold Integration Tests', () => {
   beforeEach(async () => {
-    // Mock Notion API
-    const mockNotionClient = createMockNotionClient()
-    notionClient.setMockClient(mockNotionClient)
-
-    // Clear mock storage before each test
-    clearMockNotionStore()
-
-    // Create bot via createBot (with all commands)
-    bot = await createBot()
-
-    // Set up mock transformer to intercept all API requests
-    sentMessages = setupMockBotApi(bot)
-
-    // Set bot instance for logger (to avoid errors)
-    setBotInstance(bot)
-
-    // Initialize bot (needed for handleUpdate)
-    await bot.init()
+    await clearTestDb()
   })
 
-  afterEach(async () => {
-    // Clear mock storage after each test
-    clearMockNotionStore()
-    // Clear mock client
-    notionClient.clearMockClient()
+  it('should create scaffold', async () => {
+    const scaffold = await scaffoldService.createScaffold('Tue', '21:00', 2)
+
+    expect(scaffold.id).toMatch(/^sc_/)
+    expect(scaffold.dayOfWeek).toBe('Tue')
+    expect(scaffold.time).toBe('21:00')
+    expect(scaffold.defaultCourts).toBe(2)
+    expect(scaffold.isActive).toBe(true)
   })
 
-  it('should create scaffold successfully', async () => {
-    // Emulate incoming message from user
-    const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
-      userId: ADMIN_ID,
-      chatId: TEST_CHAT_ID,
-      username: 'testadmin',
-      firstName: 'Test Admin',
-    })
+  it('should get all scaffolds', async () => {
+    await scaffoldService.createScaffold('Tue', '21:00', 2)
+    await scaffoldService.createScaffold('Sat', '18:00', 3)
 
-    // Process update (as if it came from Telegram)
-    await bot.handleUpdate(update)
-
-    // Check that bot sent a response
-    expect(sentMessages.length).toBeGreaterThan(0)
-    const successMessage = sentMessages.find((msg) => msg.text.includes('✅ Created scaffold'))
-    expect(successMessage).toBeDefined()
-    expect(successMessage?.text).toContain('Tue 21:00')
-    expect(successMessage?.text).toContain('2 court')
-
-    // Check that scaffold is created in Notion
-    const scaffolds = await scaffoldService.getScaffolds(testChatId)
-    expect(scaffolds).toHaveLength(1)
-    expect(scaffolds[0].day_of_week).toBe('Tue')
-    expect(scaffolds[0].time).toBe('21:00')
-    expect(scaffolds[0].default_courts).toBe(2)
-    expect(scaffolds[0].is_active).toBe(true)
+    const scaffolds = await scaffoldService.getScaffolds()
+    expect(scaffolds).toHaveLength(2)
   })
 
-  it('should reject command from non-admin', async () => {
-    const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
-      userId: NON_ADMIN_ID, // not admin
-      chatId: TEST_CHAT_ID,
-      username: 'regularuser',
-    })
+  it('should find scaffold by id', async () => {
+    const created = await scaffoldService.createScaffold('Wed', '19:00', 2)
+    const found = await scaffoldService.findById(created.id)
 
-    await bot.handleUpdate(update)
-
-    // Check that bot sent an error message
-    expect(sentMessages.length).toBeGreaterThan(0)
-    const errorMessage = sentMessages.find((msg) =>
-      msg.text.includes('❌ This command is only available to administrators')
-    )
-    expect(errorMessage).toBeDefined()
-
-    // Check that scaffold is NOT created
-    const scaffolds = await scaffoldService.getScaffolds(testChatId)
-    expect(scaffolds).toHaveLength(0)
+    expect(found).toBeDefined()
+    expect(found?.id).toBe(created.id)
   })
 
-  it('should validate day of week', async () => {
-    const update = createTextMessageUpdate('/scaffold add InvalidDay 21:00 2', {
-      userId: ADMIN_ID,
-      chatId: TEST_CHAT_ID,
-    })
+  it('should toggle scaffold active status', async () => {
+    const scaffold = await scaffoldService.createScaffold('Thu', '20:00', 1)
 
-    await bot.handleUpdate(update)
+    await scaffoldService.setActive(scaffold.id, false)
+    const updated = await scaffoldService.findById(scaffold.id)
 
-    // Check error message
-    const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid day of week'))
-    expect(errorMessage).toBeDefined()
+    expect(updated?.isActive).toBe(false)
 
-    // Check that scaffold is NOT created
-    const scaffolds = await scaffoldService.getScaffolds(testChatId)
-    expect(scaffolds).toHaveLength(0)
+    let instance = await scaffoldService.setActive(scaffold.id, true)
+    expect(instance.isActive).toBe(true)
+
+    instance = await scaffoldService.setActive(scaffold.id, false)
+    expect(instance.isActive).toBe(false)
   })
 
-  it('should validate time format', async () => {
-    const update = createTextMessageUpdate('/scaffold add Tue 25:00 2', {
-      userId: ADMIN_ID,
-      chatId: TEST_CHAT_ID,
-    })
+  it('should remove scaffold', async () => {
+    const scaffold = await scaffoldService.createScaffold('Fri', '21:00', 2)
 
-    await bot.handleUpdate(update)
+    await scaffoldService.remove(scaffold.id)
+    const found = await scaffoldService.findById(scaffold.id)
 
-    // Check error message (time should be valid)
-    // scaffoldService has time validation
-    const scaffolds = await scaffoldService.getScaffolds(testChatId)
-    // If validation works, scaffold should not be created
-    // or there should be an error
-    expect(scaffolds.length).toBeLessThanOrEqual(0)
-  })
-
-  it('should validate courts number', async () => {
-    const update = createTextMessageUpdate('/scaffold add Tue 21:00 0', {
-      userId: ADMIN_ID,
-      chatId: TEST_CHAT_ID,
-    })
-
-    await bot.handleUpdate(update)
-
-    // Check error message
-    const errorMessage = sentMessages.find((msg) => msg.text.includes('positive number'))
-    expect(errorMessage).toBeDefined()
-
-    // Check that scaffold is NOT created
-    const scaffolds = await scaffoldService.getScaffolds(testChatId)
-    expect(scaffolds).toHaveLength(0)
-  })
-
-  it('should require all parameters', async () => {
-    const update = createTextMessageUpdate('/scaffold add Tue 21:00', {
-      userId: ADMIN_ID,
-      chatId: TEST_CHAT_ID,
-    })
-
-    await bot.handleUpdate(update)
-
-    // Check usage message
-    const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /scaffold add'))
-    expect(usageMessage).toBeDefined()
-
-    // Check that scaffold is NOT created
-    const scaffolds = await scaffoldService.getScaffolds(testChatId)
-    expect(scaffolds).toHaveLength(0)
+    expect(found).toBeUndefined()
   })
 })

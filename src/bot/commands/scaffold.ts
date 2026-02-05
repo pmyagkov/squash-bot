@@ -68,7 +68,7 @@ export async function handleCommand(
       )
 
       await ctx.reply(
-        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} court(s), announcement ${scaffold.announcement_deadline ?? 'default'}`
+        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} court(s), announcement ${scaffold.announcementDeadline ?? 'default'}`
       )
 
       await logToTelegram(
@@ -87,8 +87,8 @@ export async function handleCommand(
       const list = scaffolds
         .map(
           (s: Scaffold) =>
-            `${s.id}: ${s.day_of_week} ${s.time}, ${s.default_courts} court(s), ${
-              s.is_active ? '✅ active' : '❌ inactive'
+            `${s.id}: ${s.dayOfWeek} ${s.time}, ${s.defaultCourts} court(s), ${
+              s.isActive ? '✅ active' : '❌ inactive'
             }`
         )
         .join('\n')
@@ -105,9 +105,9 @@ export async function handleCommand(
 
       const scaffold = await scaffoldService.toggleScaffold(effectiveChatId, id)
 
-      await ctx.reply(`✅ ${scaffold.id} is now ${scaffold.is_active ? 'active' : 'inactive'}`)
+      await ctx.reply(`✅ ${scaffold.id} is now ${scaffold.isActive ? 'active' : 'inactive'}`)
       await logToTelegram(
-        `Admin ${ctx.from.id} toggled scaffold ${id} to ${scaffold.is_active ? 'active' : 'inactive'}`,
+        `Admin ${ctx.from.id} toggled scaffold ${id} to ${scaffold.isActive ? 'active' : 'inactive'}`,
         'info'
       )
     } else if (subcommand === 'remove') {

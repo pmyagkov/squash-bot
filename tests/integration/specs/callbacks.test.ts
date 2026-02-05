@@ -53,11 +53,11 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
 
-      // Get telegram_message_id from announced event
+      // Get telegramMessageId from announced event
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      expect(announcedEvent?.telegram_message_id).toBeDefined()
+      expect(announcedEvent?.telegramMessageId).toBeDefined()
 
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       // Act: simulate user clicking "I'm in" button
       const callbackUpdate = createCallbackQueryUpdate({
@@ -75,8 +75,8 @@ describe('event callback handlers', () => {
       // Assert: participant should be created and added to event
       const participants = await participantService.getEventParticipants(testChatId, event.id)
       expect(participants).toHaveLength(1)
-      expect(participants[0].participant.telegram_username).toBe('testuser')
-      expect(participants[0].participant.display_name).toBe('Test User')
+      expect(participants[0].participant.telegramUsername).toBe('testuser')
+      expect(participants[0].participant.displayName).toBe('Test User')
       expect(participants[0].participations).toBe(1)
     })
 
@@ -90,7 +90,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       const callbackUpdate = createCallbackQueryUpdate({
         userId: 123456,
@@ -123,7 +123,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       const joinUpdate = createCallbackQueryUpdate({
         userId: 123456,
@@ -163,7 +163,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       const joinUpdate = createCallbackQueryUpdate({
         userId: 123456,
@@ -207,7 +207,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       // Act: add court
       const addCourtUpdate = createCallbackQueryUpdate({
@@ -237,7 +237,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       // Act: remove court
       const rmCourtUpdate = createCallbackQueryUpdate({
@@ -265,7 +265,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       // Act: try to remove court
       const rmCourtUpdate = createCallbackQueryUpdate({
@@ -295,7 +295,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       // Act: cancel event
       const cancelUpdate = createCallbackQueryUpdate({
@@ -325,7 +325,7 @@ describe('event callback handlers', () => {
 
       await eventService.announceEvent(testChatId, event.id, bot)
       const announcedEvent = await eventService.getEventById(testChatId, event.id)
-      const messageId = parseInt(announcedEvent!.telegram_message_id!, 10)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
       const cancelUpdate = createCallbackQueryUpdate({
         userId: ADMIN_ID,

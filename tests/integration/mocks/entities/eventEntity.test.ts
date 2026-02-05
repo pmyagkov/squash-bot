@@ -45,7 +45,7 @@ describe('Event Entity Config', () => {
   it('should convert event with scaffold relation to Notion page format', () => {
     const event: Event = {
       id: 'ev_with_scaffold',
-      scaffold_id: 'sc_123',
+      scaffoldId: 'sc_123',
       datetime: new Date('2024-01-21T20:00:00Z'),
       courts: 2,
       status: 'created',
@@ -58,7 +58,7 @@ describe('Event Entity Config', () => {
 
     const notionPage = config.converters.toNotionPage(event, 'page-456', context)
 
-    expect((notionPage.properties.scaffold_id as any).relation).toEqual([{ id: 'scaffold-page-456' }])
+    expect((notionPage.properties.scaffoldId as any).relation).toEqual([{ id: 'scaffold-page-456' }])
   })
 
   it('should parse Notion properties to event', () => {
@@ -99,7 +99,7 @@ describe('Event Entity Config', () => {
       status: {
         select: { name: 'announced' },
       },
-      scaffold_id: {
+      scaffoldId: {
         relation: [{ id: 'scaffold-page-789' }],
       },
     }
@@ -111,7 +111,7 @@ describe('Event Entity Config', () => {
 
     const event = config.converters.fromNotionProperties(properties, context)
 
-    expect(event.scaffold_id).toBe('sc_monday')
+    expect(event.scaffoldId).toBe('sc_monday')
   })
 
   it('should identify event properties correctly', () => {
@@ -121,8 +121,8 @@ describe('Event Entity Config', () => {
     }
 
     const scaffoldProps = {
-      day_of_week: { select: { name: 'Mon' } },
-      default_courts: { number: 2 },
+      dayOfWeek: { select: { name: 'Mon' } },
+      defaultCourts: { number: 2 },
     }
 
     expect(config.converters.matchesEntityType(eventProps)).toBe(true)
@@ -223,21 +223,21 @@ describe('Event Entity Config', () => {
     it('should handle event with all optional fields', () => {
       const event: Event = {
         id: 'ev_all_optional',
-        scaffold_id: 'sc_123',
+        scaffoldId: 'sc_123',
         datetime: new Date('2024-01-20T19:00:00Z'),
         courts: 2,
         status: 'announced',
-        telegram_message_id: 'msg_123',
-        payment_message_id: 'pay_msg_456',
+        telegramMessageId: 'msg_123',
+        paymentMessageId: 'pay_msg_456',
       }
 
       config.store.create(event)
       const retrieved = config.store.findById('ev_all_optional')
 
       expect(retrieved).toEqual(event)
-      expect(retrieved?.scaffold_id).toBe('sc_123')
-      expect(retrieved?.telegram_message_id).toBe('msg_123')
-      expect(retrieved?.payment_message_id).toBe('pay_msg_456')
+      expect(retrieved?.scaffoldId).toBe('sc_123')
+      expect(retrieved?.telegramMessageId).toBe('msg_123')
+      expect(retrieved?.paymentMessageId).toBe('pay_msg_456')
     })
 
     it('should handle event WITHOUT optional fields', () => {
@@ -252,20 +252,20 @@ describe('Event Entity Config', () => {
       const retrieved = config.store.findById('ev_no_optional')
 
       expect(retrieved).toEqual(event)
-      expect(retrieved?.scaffold_id).toBeUndefined()
-      expect(retrieved?.telegram_message_id).toBeUndefined()
-      expect(retrieved?.payment_message_id).toBeUndefined()
+      expect(retrieved?.scaffoldId).toBeUndefined()
+      expect(retrieved?.telegramMessageId).toBeUndefined()
+      expect(retrieved?.paymentMessageId).toBeUndefined()
     })
 
     it('should convert event with all optional fields to Notion page', () => {
       const event: Event = {
         id: 'ev_with_all',
-        scaffold_id: 'sc_456',
+        scaffoldId: 'sc_456',
         datetime: new Date('2024-01-20T19:00:00Z'),
         courts: 3,
         status: 'finalized',
-        telegram_message_id: 'tg_789',
-        payment_message_id: 'pay_012',
+        telegramMessageId: 'tg_789',
+        paymentMessageId: 'pay_012',
       }
 
       const context = {
@@ -274,12 +274,12 @@ describe('Event Entity Config', () => {
 
       const notionPage = config.converters.toNotionPage(event, 'page-555', context)
 
-      expect(notionPage.properties.scaffold_id).toBeDefined()
-      expect((notionPage.properties.scaffold_id as any).relation).toEqual([{ id: 'scaffold-page-999' }])
-      expect(notionPage.properties.telegram_message_id).toBeDefined()
-      expect((notionPage.properties.telegram_message_id as any).rich_text[0].plain_text).toBe('tg_789')
-      expect(notionPage.properties.payment_message_id).toBeDefined()
-      expect((notionPage.properties.payment_message_id as any).rich_text[0].plain_text).toBe('pay_012')
+      expect(notionPage.properties.scaffoldId).toBeDefined()
+      expect((notionPage.properties.scaffoldId as any).relation).toEqual([{ id: 'scaffold-page-999' }])
+      expect(notionPage.properties.telegramMessageId).toBeDefined()
+      expect((notionPage.properties.telegramMessageId as any).rich_text[0].plain_text).toBe('tg_789')
+      expect(notionPage.properties.paymentMessageId).toBeDefined()
+      expect((notionPage.properties.paymentMessageId as any).rich_text[0].plain_text).toBe('pay_012')
     })
 
     it('should convert event WITHOUT optional fields to Notion page', () => {
@@ -292,9 +292,9 @@ describe('Event Entity Config', () => {
 
       const notionPage = config.converters.toNotionPage(event, 'page-666')
 
-      expect(notionPage.properties.scaffold_id).toBeUndefined()
-      expect(notionPage.properties.telegram_message_id).toBeUndefined()
-      expect(notionPage.properties.payment_message_id).toBeUndefined()
+      expect(notionPage.properties.scaffoldId).toBeUndefined()
+      expect(notionPage.properties.telegramMessageId).toBeUndefined()
+      expect(notionPage.properties.paymentMessageId).toBeUndefined()
     })
 
     it('should parse Notion properties with all optional fields', () => {
@@ -311,13 +311,13 @@ describe('Event Entity Config', () => {
         status: {
           select: { name: 'paid' },
         },
-        scaffold_id: {
+        scaffoldId: {
           relation: [{ id: 'scaffold-page-111' }],
         },
-        telegram_message_id: {
+        telegramMessageId: {
           rich_text: [{ plain_text: 'tg_222', text: { content: 'tg_222' } }],
         },
-        payment_message_id: {
+        paymentMessageId: {
           rich_text: [{ plain_text: 'pay_333', text: { content: 'pay_333' } }],
         },
       }
@@ -328,9 +328,9 @@ describe('Event Entity Config', () => {
 
       const event = config.converters.fromNotionProperties(properties, context)
 
-      expect(event.scaffold_id).toBe('sc_tuesday')
-      expect(event.telegram_message_id).toBe('tg_222')
-      expect(event.payment_message_id).toBe('pay_333')
+      expect(event.scaffoldId).toBe('sc_tuesday')
+      expect(event.telegramMessageId).toBe('tg_222')
+      expect(event.paymentMessageId).toBe('pay_333')
     })
 
     it('should parse Notion properties WITHOUT optional fields', () => {
@@ -351,9 +351,9 @@ describe('Event Entity Config', () => {
 
       const event = config.converters.fromNotionProperties(properties)
 
-      expect(event.scaffold_id).toBeUndefined()
-      expect(event.telegram_message_id).toBeUndefined()
-      expect(event.payment_message_id).toBeUndefined()
+      expect(event.scaffoldId).toBeUndefined()
+      expect(event.telegramMessageId).toBeUndefined()
+      expect(event.paymentMessageId).toBeUndefined()
     })
   })
 
@@ -361,12 +361,12 @@ describe('Event Entity Config', () => {
     it('should preserve all data in round-trip conversion WITH all optional fields', () => {
       const originalEvent: Event = {
         id: 'ev_roundtrip_1',
-        scaffold_id: 'sc_wednesday',
+        scaffoldId: 'sc_wednesday',
         datetime: new Date('2024-01-22T19:30:00Z'),
         courts: 2,
         status: 'finalized',
-        telegram_message_id: 'tg_rt_1',
-        payment_message_id: 'pay_rt_1',
+        telegramMessageId: 'tg_rt_1',
+        paymentMessageId: 'pay_rt_1',
       }
 
       // Set up scaffold page ID mapping for round-trip
@@ -405,12 +405,12 @@ describe('Event Entity Config', () => {
     it('should preserve partial optional fields in round-trip conversion', () => {
       const originalEvent: Event = {
         id: 'ev_roundtrip_partial',
-        scaffold_id: 'sc_thursday',
+        scaffoldId: 'sc_thursday',
         datetime: new Date('2024-01-24T18:00:00Z'),
         courts: 1,
         status: 'announced',
-        telegram_message_id: 'tg_partial',
-        // payment_message_id intentionally omitted
+        telegramMessageId: 'tg_partial',
+        // paymentMessageId intentionally omitted
       }
 
       // Set up scaffold page ID mapping for round-trip
@@ -427,9 +427,9 @@ describe('Event Entity Config', () => {
       const reconstructedEvent = config.converters.fromNotionProperties(notionPage.properties, context)
 
       expect(reconstructedEvent).toEqual(originalEvent)
-      expect(reconstructedEvent.scaffold_id).toBe('sc_thursday')
-      expect(reconstructedEvent.telegram_message_id).toBe('tg_partial')
-      expect(reconstructedEvent.payment_message_id).toBeUndefined()
+      expect(reconstructedEvent.scaffoldId).toBe('sc_thursday')
+      expect(reconstructedEvent.telegramMessageId).toBe('tg_partial')
+      expect(reconstructedEvent.paymentMessageId).toBeUndefined()
     })
   })
 })

@@ -14,7 +14,11 @@
       "Bash(wc:*)",
       "Bash(mv *)",
       "Bash(chmod:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npm install:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx drizzle-kit generate:*)",
+      "Bash(find:*)"
     ]
   }
 }

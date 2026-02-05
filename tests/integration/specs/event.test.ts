@@ -477,7 +477,7 @@ describe('event commands', () => {
       const createdEvent = events[0]
       expect(createdEvent.courts).toBe(2)
       expect(createdEvent.status).toBe('created')
-      expect(createdEvent.scaffold_id).toBeUndefined() // Manual event has no scaffold_id
+      expect(createdEvent.scaffoldId).toBeUndefined() // Manual event has no scaffoldId
 
       // Check that bot sent a response with correct format
       expect(sentMessages.length).toBeGreaterThan(0)
@@ -547,9 +547,9 @@ describe('event commands', () => {
       const updatedEvent = await eventService.getEventById(testChatId, event.id)
       expect(updatedEvent?.status).toBe('announced')
 
-      // Check that telegram_message_id is set
-      expect(updatedEvent?.telegram_message_id).toBeDefined()
-      expect(updatedEvent?.telegram_message_id).not.toBe('')
+      // Check that telegramMessageId is set
+      expect(updatedEvent?.telegramMessageId).toBeDefined()
+      expect(updatedEvent?.telegramMessageId).not.toBe('')
 
       // Check that announcement message was sent to main chat
       const announcementMessage = sentMessages.find(
@@ -676,13 +676,13 @@ describe('event commands', () => {
       // Check that event was created
       const events = await eventService.getEvents(testChatId)
       expect(events.length).toBeGreaterThan(0)
-      const createdEvent = events.find((e) => e.scaffold_id === scaffold.id)
+      const createdEvent = events.find((e) => e.scaffoldId === scaffold.id)
       expect(createdEvent).toBeDefined()
 
       // Verify event properties from scaffold
-      expect(createdEvent?.courts).toBe(3) // from scaffold.default_courts
+      expect(createdEvent?.courts).toBe(3) // from scaffold.defaultCourts
       expect(createdEvent?.status).toBe('created') // should NOT be announced automatically
-      expect(createdEvent?.scaffold_id).toBe(scaffold.id)
+      expect(createdEvent?.scaffoldId).toBe(scaffold.id)
 
       // Check success message includes announce instruction
       const successMessage = sentMessages.find(
