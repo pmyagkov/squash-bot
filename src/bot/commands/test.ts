@@ -1,6 +1,6 @@
 import { Context } from 'grammy'
 import { config } from '~/config'
-import { logToTelegram } from '~/utils/logger'
+import { logToTelegram } from '~/services/logger'
 import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { isAdmin, isTestChat, getDatabases } from '~/utils/environment'
 import type { CommandModule } from './index'

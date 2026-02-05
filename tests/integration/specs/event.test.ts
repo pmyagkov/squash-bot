@@ -5,7 +5,7 @@ import { eventRepo } from '~/storage/repo/event'
 import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { setBotInstance } from '~/utils/logger'
+import { setBotInstance } from '~/services/logger'
 import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
 import { parseDate } from '~/utils/dateParser'
 import { setupFakeTime } from '@integration/helpers/timeHelpers'
@@ -13,6 +13,8 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import { config } from '~/config'
+import { EventBusiness } from '~/business/event'
+import { TelegramOutput } from '~/services/transport/telegram/output'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -595,7 +597,9 @@ describe('event commands', () => {
       })
 
       // Announce it first time
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
 
       // Clear sent messages from first announce
       sentMessages.length = 0
@@ -813,7 +817,9 @@ describe('event commands', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
 
       // Clear sent messages from announce
       sentMessages.length = 0

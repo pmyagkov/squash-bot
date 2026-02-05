@@ -2,12 +2,13 @@ import { Context } from 'grammy'
 import { eventRepo } from '~/storage/repo/event'
 import { participantRepo } from '~/storage/repo/participant'
 import { settingsRepo } from '~/storage/repo/settings'
-import { logToTelegram } from '~/utils/logger'
+import { logToTelegram } from '~/services/logger'
 import { config } from '~/config'
 import { Event } from '~/types'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
+import { buildInlineKeyboard } from '~/services/formatters/event'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -406,7 +407,7 @@ async function updateAnnouncementMessage(
   }
 
   // Update message and keyboard
-  const keyboard = eventRepo.buildInlineKeyboard(
+  const keyboard = buildInlineKeyboard(
     event.status === 'cancelled'
       ? 'cancelled'
       : event.status === 'finalized'

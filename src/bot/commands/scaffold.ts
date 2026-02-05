@@ -1,5 +1,5 @@
 import { Context } from 'grammy'
-import { logToTelegram } from '~/utils/logger'
+import { logToTelegram } from '~/services/logger'
 import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { isAdmin } from '~/utils/environment'
 import { Scaffold } from '~/types'

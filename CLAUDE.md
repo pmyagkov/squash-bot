@@ -26,7 +26,6 @@ docs/
 ├── architecture.md          # Architecture and use cases
 ├── features.md              # Feature list (for tests)
 ├── testing.md               # Testing strategy
-├── todo.md                  # Project roadmap
 └── plans/                   # Design documents (YYYY-MM-DD-<topic>-design.md)
 ```
 
@@ -51,7 +50,6 @@ Before starting work, check these documents for context:
 |----------|---------|
 | [docs/architecture.md](docs/architecture.md) | System architecture, entities, use cases |
 | [docs/features.md](docs/features.md) | Feature list (integration/e2e tests reference this) |
-| [docs/todo.md](docs/todo.md) | Project roadmap and planned features |
 | [docs/testing.md](docs/testing.md) | Testing strategy and requirements |
 | [docs/plans/](docs/plans/) | Design documents for features |
 
@@ -69,7 +67,6 @@ Example: `2025-01-17-participant-registration-design.md`
 2. **Design document** — write design doc in `docs/plans/YYYY-MM-DD-<topic>-design.md`
 3. **Update documentation** (mandatory):
    - `docs/architecture.md` — if architecture changes
-   - `docs/todo.md` — mark feature as in progress / completed
    - `docs/features.md` — add new feature to the list
 4. **Create worktree** — isolate work in a separate git worktree
 5. **Implement** — write code following project patterns

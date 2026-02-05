@@ -1,7 +1,7 @@
 import { createBot } from './bot'
 import { createApiServer } from './api'
 import { config } from './config'
-import { logToTelegram } from './utils/logger'
+import { logToTelegram } from './services/logger'
 
 async function main() {
   try {

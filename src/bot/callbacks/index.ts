@@ -8,7 +8,7 @@ import {
   handleCancel,
   handleRestore,
 } from './eventCallbacks'
-import { logToTelegram } from '~/utils/logger'
+import { logToTelegram } from '~/services/logger'
 
 /**
  * Main callback query router

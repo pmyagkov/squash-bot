@@ -1,6 +1,6 @@
 import { Bot } from 'grammy'
 import { config } from '../config'
-import { logToTelegram, setBotInstance } from '../utils/logger'
+import { logToTelegram, setBotInstance } from '../services/logger'
 import { isAdmin } from '../utils/environment'
 import { loadCommands, type CommandModule } from './commands'
 import { handleCallbackQuery } from './callbacks'

@@ -110,7 +110,6 @@ await ctx.reply(formatJoinSuccess())
 After all moves:
 1. Delete old `src/services/` folder (should be empty)
 2. Update `docs/architecture.md` with new layer structure
-3. Update `docs/todo.md` to mark migration complete
 4. Run full test suite to verify nothing broke
 5. Consider adding architecture diagram
 

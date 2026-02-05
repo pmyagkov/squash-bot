@@ -1,5 +1,5 @@
 import { Context, Bot } from 'grammy'
-import { logToTelegram } from '~/utils/logger'
+import { logToTelegram } from '~/services/logger'
 import { eventRepo } from '~/storage/repo/event'
 import { scaffoldRepo } from '~/storage/repo/scaffold'
 import { parseDate } from '~/utils/dateParser'
@@ -9,6 +9,8 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import * as eventBusiness from '~/business/event'
+import { EventBusiness } from '~/business/event'
+import { TelegramOutput } from '~/services/transport/telegram/output'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
@@ -194,7 +196,9 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       if (!globalBotInstance) {
         throw new Error('Bot instance not available')
       }
-      await eventRepo.announceEvent(id, globalBotInstance)
+      const telegramOutput = new TelegramOutput(globalBotInstance)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(id)
 
       await ctx.reply(`✅ Event ${id} announced`)
       await logToTelegram(`User ${ctx.from.id} announced event ${id}`, 'info')
@@ -211,7 +215,9 @@ export async function handleCommand(ctx: Context, args: string[]): Promise<void>
       if (!globalBotInstance) {
         throw new Error('Bot instance not available')
       }
-      await eventRepo.cancelEvent(id, globalBotInstance)
+      const telegramOutput = new TelegramOutput(globalBotInstance)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.cancelEvent(id)
 
       await ctx.reply(`✅ Event ${id} cancelled`)
       await logToTelegram(`User ${ctx.from.id} cancelled event ${id}`, 'info')

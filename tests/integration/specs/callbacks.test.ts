@@ -5,8 +5,10 @@ import { eventRepo } from '~/storage/repo/event'
 import { participantRepo } from '~/storage/repo/participant'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { setBotInstance } from '~/utils/logger'
+import { setBotInstance } from '~/services/logger'
 import { setupMockBotApi } from '@integration/mocks/botMock'
+import { EventBusiness } from '~/business/event'
+import { TelegramOutput } from '~/services/transport/telegram/output'
 
 describe('event callback handlers', () => {
   let bot: Bot
@@ -41,7 +43,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
 
       // Get telegramMessageId from announced event
       const announcedEvent = await eventRepo.findById(event.id)
@@ -78,7 +82,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
@@ -111,7 +117,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
@@ -151,7 +159,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
@@ -195,7 +205,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
@@ -225,7 +237,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
@@ -253,7 +267,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
@@ -283,7 +299,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
@@ -313,7 +331,9 @@ describe('event callback handlers', () => {
         status: 'created',
       })
 
-      await eventRepo.announceEvent(event.id, bot)
+      const telegramOutput = new TelegramOutput(bot)
+      const eventBusiness = new EventBusiness(telegramOutput)
+      await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepo.findById(event.id)
       const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
