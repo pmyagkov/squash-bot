@@ -949,6 +949,34 @@ To see your history: /my history
 
 ## Non-functional requirements
 
-### Logs
+### logging
 
-Log level, posting to telegram.
+Centralized logging system with multiple providers.
+
+**Providers:**
+- File — writes to log file
+- Telegram — posts to technical chat
+
+**Log Levels:**
+- `critical` — writes to both providers (file + telegram)
+- `notice` — writes only to file
+
+**Flow:**
+1. Any module calls `logger.critical(message)` or `logger.notice(message)`
+2. Logger routes message to appropriate providers based on level
+3. File provider appends to log file
+4. Telegram provider sends message to technical chat (for critical only)
+
+**Usage:**
+```typescript
+import { logger } from '~/services/logger'
+
+logger.critical('Event finalization failed', { eventId, error })
+logger.notice('User joined event', { userId, eventId })
+```
+
+**Technical chat:** Configured via `TECHNICAL_CHAT_ID` env variable
+
+**Testing:**
+- Unit tests mock providers, verify routing logic
+- Other layers mock entire logger, verify it was called

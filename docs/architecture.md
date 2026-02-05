@@ -18,6 +18,8 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 
 ## System Architecture
 
+### External Systems
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         n8n                                  │
@@ -29,10 +31,6 @@ Telegram bot for managing squash court payments in a community. Automates sessio
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Bot (TypeScript)                          │
-│  - Telegram API (all communication)                          │
-│  - PostgreSQL via Drizzle ORM (data storage)                 │
-│  - Business logic                                            │
-│  - REST endpoints for n8n                                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,6 +38,50 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 - **n8n:** Only scheduler — triggers bot on schedule, monitors health
 - **Bot:** All logic + only one who writes to Telegram
 - If bot is dead → n8n sends alert to admin
+
+### Internal Architecture
+
+```
+src/
+├── business/                      # Coordination, business logic
+│   ├── event.ts                   # Event workflows (join, leave, finalize)
+│   └── scaffold.ts                # Scaffold management
+├── services/
+│   ├── entities/                  # Database operations, domain logic
+│   │   ├── event.ts               # Event CRUD, calculations
+│   │   └── scaffold.ts            # Scaffold CRUD
+│   ├── formatters/                # Pure functions: objects → { text, reply_markup }
+│   │   └── event.ts               # Event announcements, payment messages
+│   ├── transport/
+│   │   ├── telegram/
+│   │   │   ├── input.ts           # Parse telegram update → context
+│   │   │   └── output.ts          # Abstraction over bot.api
+│   │   └── api/
+│   │       └── index.ts           # REST API for n8n
+│   └── logger/
+│       └── index.ts               # Logging with providers (file, telegram)
+└── storage/                       # Drizzle ORM, migrations
+```
+
+### Data Flow
+
+```
+transport/telegram/input → business → entities + logger + formatter → transport/telegram/output
+transport/api            → business → entities + logger + formatter
+```
+
+### Layer Responsibilities
+
+| Layer | Responsibility |
+|-------|----------------|
+| **business/** | Coordination — calls services in correct order, handles workflows |
+| **services/entities/** | Database operations, domain logic, returns domain objects |
+| **services/formatters/** | Pure functions — transform domain objects to `{ text, reply_markup }` |
+| **services/transport/** | Input parsing and output abstraction (telegram, REST API) |
+| **services/logger/** | Logging with routing: critical → file + telegram, notice → file |
+| **storage/** | Drizzle ORM schema, migrations |
+
+For testing strategy, see [docs/testing.md](testing.md).
 
 ---
 
@@ -589,55 +631,6 @@ You can mark payment in corresponding messages in chat.
 
 ---
 
-## Scenario 12: Test Commands
-
-**Actor:** Admin only
-
-**Where they work:** Only in test chat
-
-**Test environment:**
-- Separate test database (or separate schema with _test suffix tables)
-- Bot determines environment by chat_id (test chat → test tables)
-- Clear separation: prod and test never intersect
-
-**Commands:**
-
-```
-/test scaffold_create — create test scaffold
-/test scaffold_list — show scaffolds in test environment
-/test event_create — create event from scaffold or ad-hoc
-/test event_announce — announce event
-/test event_finish — move event to finished status
-/test event_finalize — simulate finalize
-/test payment_remind — send payment reminder
-/test weekly_remind — send weekly summary
-/test cleanup — delete all test data
-```
-
-**Example test scenario:**
-```
-/test scaffold_create
-→ Created test scaffold sc_test_1: Tue 21:00, 2 courts
-
-/test event_create sc_test_1
-→ Created event ev_test_1 from scaffold sc_test_1
-
-/test event_announce ev_test_1
-→ Announcement sent to test chat
-
-(press "I'm in" buttons in chat)
-
-/test event_finalize ev_test_1
-→ Event finalized, payment message sent
-
-/test payment_remind ev_test_1
-→ Reminder sent
-
-/test cleanup
-→ All test data deleted
-```
-
----
 
 ## Scenario 13: Court Capacity Overflow
 
@@ -795,39 +788,15 @@ amount_to_pay = court_cost × number_of_courts × your_participations / sum_of_a
 
 ### Testing
 
-**Manual testing:**
-- Separate test chat in Telegram
-- Test commands `/test *` (admin only)
-- Separate test database (or separate schema)
-
-**E2E testing:**
-- Playwright + Telegram Web (web.telegram.org)
-- Test Telegram account
-- Tests write commands to test chat and check result
-
-**Test account authorization:**
-- Save Playwright session between runs
-- Or manual authorization before first test run
+See [docs/testing.md](testing.md) for full testing strategy.
 
 ### Logging
-- Technical chat for logs of all actions
-- Logged: message posting, button clicks, reminders, errors
+
+See `logging` feature in [docs/features.md](features.md).
 
 ### Test Commands
 
 Full list — see Scenario 12.
-
-```
-/test scaffold_create
-/test scaffold_list
-/test event_create
-/test event_announce
-/test event_finish
-/test event_finalize
-/test payment_remind
-/test weekly_remind
-/test cleanup
-```
 
 ---
 
@@ -934,17 +903,6 @@ Bot selects table set by chat_id:
 | /check-payments | POST | Check debtors, send reminders | n8n (once a day) |
 
 ---
-
-## E2E Testing
-
-**Stack:**
-- Playwright
-- Telegram Web (web.telegram.org)
-- Test Telegram account
-- Test chat with bot
-
-**Test account authorization:**
-*TODO: think through approach — session saving, environment variables for authorization code*
 
 ---
 
