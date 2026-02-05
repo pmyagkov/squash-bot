@@ -4,15 +4,12 @@ import { participants } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Participant, EventParticipant } from '~/types'
 import type { AppContainer } from '../../container'
-import type { Logger } from '~/services/logger'
 import type { EventParticipantRepo } from './eventParticipant'
 
 export class ParticipantRepo {
-  private logger: Logger
   private eventParticipantRepository: EventParticipantRepo
 
   constructor(container: AppContainer) {
-    this.logger = container.resolve('logger')
     this.eventParticipantRepository = container.resolve('eventParticipantRepository')
   }
   async getParticipants(): Promise<Participant[]> {

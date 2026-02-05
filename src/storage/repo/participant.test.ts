@@ -1,13 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { Bot } from 'grammy'
 import { clearTestDb } from '@integration/setup'
-import { participantRepo } from './participant'
+import { createTestContainer, type TestContainer } from '@integration/helpers/container'
+import type { ParticipantRepo } from './participant'
 import { db } from '~/storage/db'
 import { participants } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 
 describe('ParticipantRepo', () => {
+  let container: TestContainer
+  let participantRepo: ParticipantRepo
+
   beforeEach(async () => {
     await clearTestDb()
+
+    const bot = new Bot('test-token')
+    container = createTestContainer(bot)
+    participantRepo = container.resolve('participantRepository')
   })
 
   describe('findOrCreateParticipant', () => {

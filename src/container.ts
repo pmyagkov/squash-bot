@@ -4,7 +4,7 @@ import type { Bot } from 'grammy'
 import { config } from './config'
 import type { TelegramOutput } from './services/transport/telegram/output'
 import { TelegramOutput as TelegramOutputImpl } from './services/transport/telegram/output'
-import type { Logger } from './services/logger'
+import { ConsoleProvider, FileProvider, TelegramProvider, type Logger } from './services/logger'
 import { Logger as LoggerImpl } from './services/logger/logger'
 import type { EventBusiness } from './business/event'
 import { EventBusiness as EventBusinessImpl } from './business/event'
@@ -44,12 +44,24 @@ export function createAppContainer(bot: Bot): AppContainer {
     injectionMode: InjectionMode.CLASSIC,
   })
 
+  // Register primitives first so TelegramProvider can resolve them
   container.register({
     bot: asValue(bot),
     config: asValue(config),
     container: asValue(container),
+  })
+
+  // Now create logger (TelegramProvider can resolve bot and config from container)
+  const logger = new LoggerImpl([
+    new ConsoleProvider(['info', 'warn', 'error']),
+    new FileProvider('logs', ['info', 'warn', 'error']),
+    new TelegramProvider(container, ['warn', 'error']),
+  ])
+
+  // Register services
+  container.register({
     telegramOutput: asClass(TelegramOutputImpl).singleton(),
-    logger: asClass(LoggerImpl).singleton(),
+    logger: asValue(logger),
     eventRepository: asClass(EventRepoImpl).singleton(),
     scaffoldRepository: asClass(ScaffoldRepoImpl).singleton(),
     eventParticipantRepository: asClass(EventParticipantRepoImpl).singleton(),

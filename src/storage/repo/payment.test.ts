@@ -1,19 +1,31 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { Bot } from 'grammy'
 import { clearTestDb } from '@integration/setup'
-import { paymentRepo } from './payment'
-import { eventRepo } from './event'
-import { participantRepo } from './participant'
+import { createTestContainer, type TestContainer } from '@integration/helpers/container'
+import type { PaymentRepo } from './payment'
+import type { EventRepo } from './event'
+import type { ParticipantRepo } from './participant'
 import { db } from '~/storage/db'
 import { payments } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 import assert from 'node:assert'
 
 describe('PaymentRepo', () => {
+  let container: TestContainer
+  let paymentRepo: PaymentRepo
+  let eventRepo: EventRepo
+  let participantRepo: ParticipantRepo
   let testEventId: string
   let testParticipantId: string
 
   beforeEach(async () => {
     await clearTestDb()
+
+    const bot = new Bot('test-token')
+    container = createTestContainer(bot)
+    paymentRepo = container.resolve('paymentRepository')
+    eventRepo = container.resolve('eventRepository')
+    participantRepo = container.resolve('participantRepository')
 
     // Create test event and participant for FK constraints
     const event = await eventRepo.createEvent({

@@ -2,15 +2,8 @@ import { db } from '~/storage/db'
 import { eventParticipants, participants } from '~/storage/db/schema'
 import { eq, and } from 'drizzle-orm'
 import type { EventParticipant } from '~/types'
-import type { AppContainer } from '../../container'
-import type { Logger } from '~/services/logger'
 
 export class EventParticipantRepo {
-  private logger: Logger
-
-  constructor(container: AppContainer) {
-    this.logger = container.resolve('logger')
-  }
   async addToEvent(eventId: string, participantId: string, participations = 1): Promise<void> {
     await db.insert(eventParticipants).values({
       eventId,

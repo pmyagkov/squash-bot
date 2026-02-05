@@ -139,9 +139,6 @@ export async function handleCommand(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     await ctx.reply(`❌ Error: ${errorMessage}`)
-    await logger.log(
-      `Error in scaffold command from user ${ctx.from.id}: ${errorMessage}`,
-      'error'
-    )
+    await logger.log(`Error in scaffold command from user ${ctx.from.id}: ${errorMessage}`, 'error')
   }
 }

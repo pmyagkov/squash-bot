@@ -1,14 +1,24 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { Bot } from 'grammy'
 import { clearTestDb } from '../setup'
-import { scaffoldRepo } from '~/storage/repo/scaffold'
+import { createTestContainer, type TestContainer } from '../helpers/container'
+import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
 describe('Scaffold Integration Tests', () => {
+  let container: TestContainer
+  let scaffoldRepository: ScaffoldRepo
+
   beforeEach(async () => {
     await clearTestDb()
+
+    // Create mock bot for testing
+    const bot = new Bot('test-token')
+    container = createTestContainer(bot)
+    scaffoldRepository = container.resolve('scaffoldRepository')
   })
 
   it('should create scaffold', async () => {
-    const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2)
+    const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2)
 
     expect(scaffold.id).toMatch(/^sc_/)
     expect(scaffold.dayOfWeek).toBe('Tue')
@@ -18,10 +28,10 @@ describe('Scaffold Integration Tests', () => {
   })
 
   it('should get all scaffolds', async () => {
-    await scaffoldRepo.createScaffold('Tue', '21:00', 2)
-    await scaffoldRepo.createScaffold('Sat', '18:00', 3)
+    await scaffoldRepository.createScaffold('Tue', '21:00', 2)
+    await scaffoldRepository.createScaffold('Sat', '18:00', 3)
 
-    const scaffolds = await scaffoldRepo.getScaffolds()
+    const scaffolds = await scaffoldRepository.getScaffolds()
     expect(scaffolds).toHaveLength(2)
     expect(scaffolds[0].dayOfWeek).toBe('Tue')
     expect(scaffolds[0].defaultCourts).toBe(2)
@@ -32,33 +42,33 @@ describe('Scaffold Integration Tests', () => {
   })
 
   it('should find scaffold by id', async () => {
-    const created = await scaffoldRepo.createScaffold('Wed', '19:00', 2)
-    const found = await scaffoldRepo.findById(created.id)
+    const created = await scaffoldRepository.createScaffold('Wed', '19:00', 2)
+    const found = await scaffoldRepository.findById(created.id)
 
     expect(found).toBeDefined()
     expect(found?.id).toBe(created.id)
   })
 
   it('should toggle scaffold active status', async () => {
-    const scaffold = await scaffoldRepo.createScaffold('Thu', '20:00', 1)
+    const scaffold = await scaffoldRepository.createScaffold('Thu', '20:00', 1)
 
-    await scaffoldRepo.setActive(scaffold.id, false)
-    const updated = await scaffoldRepo.findById(scaffold.id)
+    await scaffoldRepository.setActive(scaffold.id, false)
+    const updated = await scaffoldRepository.findById(scaffold.id)
 
     expect(updated?.isActive).toBe(false)
 
-    let instance = await scaffoldRepo.setActive(scaffold.id, true)
+    let instance = await scaffoldRepository.setActive(scaffold.id, true)
     expect(instance.isActive).toBe(true)
 
-    instance = await scaffoldRepo.setActive(scaffold.id, false)
+    instance = await scaffoldRepository.setActive(scaffold.id, false)
     expect(instance.isActive).toBe(false)
   })
 
   it('should remove scaffold', async () => {
-    const scaffold = await scaffoldRepo.createScaffold('Fri', '21:00', 2)
+    const scaffold = await scaffoldRepository.createScaffold('Fri', '21:00', 2)
 
-    await scaffoldRepo.remove(scaffold.id)
-    const found = await scaffoldRepo.findById(scaffold.id)
+    await scaffoldRepository.remove(scaffold.id)
+    const found = await scaffoldRepository.findById(scaffold.id)
 
     expect(found).toBeUndefined()
   })

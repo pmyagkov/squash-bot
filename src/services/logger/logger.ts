@@ -1,20 +1,10 @@
-import type { AppContainer } from '../../container'
-import { ConsoleProvider } from './providers/console'
-import { FileProvider } from './providers/file'
-import { TelegramProvider } from './providers/telegram'
 import type { LogLevel, LogProvider } from './types'
 
 export class Logger {
   private providers: LogProvider[]
 
-  constructor(container: AppContainer) {
-    const telegramOutput = container.resolve('telegramOutput')
-
-    this.providers = [
-      new ConsoleProvider(['info', 'warn', 'error']),
-      new FileProvider('logs', ['info', 'warn', 'error']),
-      new TelegramProvider(telegramOutput, ['warn', 'error']),
-    ]
+  constructor(providers: LogProvider[]) {
+    this.providers = providers
   }
 
   async log(message: string, level: LogLevel = 'info'): Promise<void> {

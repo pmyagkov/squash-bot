@@ -1,13 +1,15 @@
-import type { TelegramOutput } from '~/services/transport/telegram/output'
 import { config } from '~/config'
 import type { LogProvider, LogLevel } from '../types'
+import { AppContainer, Container } from '~/container'
 
 export class TelegramProvider implements LogProvider {
-  private telegramOutput: TelegramOutput
+  private bot: Container['bot']
+  private logChatId: string
   private levels: Set<LogLevel>
 
-  constructor(telegramOutput: TelegramOutput, levels: LogLevel[] = ['warn', 'error']) {
-    this.telegramOutput = telegramOutput
+  constructor(container: AppContainer, levels: LogLevel[] = ['warn', 'error']) {
+    this.bot = container.resolve('bot')
+    this.logChatId = container.resolve('config').telegram.logChatId
     this.levels = new Set(levels)
   }
 
@@ -34,7 +36,7 @@ export class TelegramProvider implements LogProvider {
     const logMessage = `[${emoji[level]} ${level.toUpperCase()}] ${timestamp}\n${message}`
 
     try {
-      await this.telegramOutput.sendLogMessage(logMessage)
+      await this.bot.api.sendMessage(this.logChatId, logMessage)
     } catch (error) {
       console.error('Failed to send log to Telegram:', error)
     }

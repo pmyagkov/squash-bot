@@ -20,7 +20,7 @@ export async function handleCommand(
   chatId?: number | string
 ): Promise<void> {
   const logger = container.resolve('logger')
-  const scaffoldRepositorysitory = container.resolve('scaffoldRepositorysitory')
+  const scaffoldRepository = container.resolve('scaffoldRepository')
   if (!ctx.chat) {
     await ctx.reply('Error: failed to identify chat')
     return

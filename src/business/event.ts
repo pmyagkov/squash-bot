@@ -3,12 +3,12 @@ import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import type { Scaffold, DayOfWeek, Event } from '~/types'
 import { config } from '~/config'
-import { settingsRepo } from '~/storage/repo/settings'
 import { shouldTrigger } from '~/utils/timeOffset'
 import type { TelegramOutput } from '~/services/transport/telegram/output'
 import type { AppContainer } from '../container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
+import type { SettingsRepo } from '~/storage/repo/settings'
 import type { Logger } from '~/services/logger'
 
 // Extend dayjs with plugins
@@ -97,10 +97,12 @@ export function calculateNextOccurrence(scaffold: Scaffold): Date {
  */
 export async function shouldCreateEvent(
   scaffold: Scaffold,
-  nextOccurrence: Date
+  nextOccurrence: Date,
+  settingsRepository: SettingsRepo
 ): Promise<boolean> {
-  const timezone = await settingsRepo.getTimezone()
-  const deadline = scaffold.announcementDeadline ?? (await settingsRepo.getAnnouncementDeadline())
+  const timezone = await settingsRepository.getTimezone()
+  const deadline =
+    scaffold.announcementDeadline ?? (await settingsRepository.getAnnouncementDeadline())
 
   return shouldTrigger(deadline, nextOccurrence, timezone)
 }
@@ -123,12 +125,14 @@ export function eventExists(events: Event[], scaffoldId: string, datetime: Date)
 export class EventBusiness {
   private eventRepository: EventRepo
   private scaffoldRepository: ScaffoldRepo
+  private settingsRepository: SettingsRepo
   private telegramOutput: TelegramOutput
   private logger: Logger
 
   constructor(container: AppContainer) {
     this.eventRepository = container.resolve('eventRepository')
     this.scaffoldRepository = container.resolve('scaffoldRepository')
+    this.settingsRepository = container.resolve('settingsRepository')
     this.telegramOutput = container.resolve('telegramOutput')
     this.logger = container.resolve('logger')
   }
@@ -195,7 +199,7 @@ export class EventBusiness {
         }
 
         // Check if it's time to create
-        if (!(await shouldCreateEvent(scaffold, nextOccurrence))) {
+        if (!(await shouldCreateEvent(scaffold, nextOccurrence, this.settingsRepository))) {
           continue
         }
 

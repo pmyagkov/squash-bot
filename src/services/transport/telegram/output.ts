@@ -3,15 +3,12 @@ import { config } from '~/config'
 import type { Event } from '~/types'
 import { buildInlineKeyboard, formatEventMessage } from '~/services/formatters/event'
 import type { AppContainer } from '~/container'
-import type { Logger } from '~/services/logger'
 
 export class TelegramOutput {
   private bot: Bot
-  private logger: Logger
 
   constructor(container: AppContainer) {
     this.bot = container.resolve('bot')
-    this.logger = container.resolve('logger')
   }
 
   /**
@@ -35,12 +32,8 @@ export class TelegramOutput {
       // 1. Unpin all previous pinned messages
       try {
         await this.bot.api.unpinAllChatMessages(chatIdToUse)
-      } catch (error) {
-        // Ignore errors if there are no pinned messages
-        await this.logger.log(
-          `Note: Could not unpin messages (may be none): ${error instanceof Error ? error.message : String(error)}`,
-          'info'
-        )
+      } catch {
+        // Ignore errors if there are no pinned messages (silently continue)
       }
 
       // 2. Format message and keyboard
@@ -55,13 +48,10 @@ export class TelegramOutput {
       // 4. Pin message
       await this.bot.api.pinChatMessage(chatIdToUse, sentMessage.message_id)
 
-      await this.logger.log(`Event ${event.id} announced in chat ${chatIdToUse}`, 'info')
-
       return sentMessage.message_id
     } catch (error) {
-      await this.logger.log(
-        `Failed to announce event ${event.id}: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      console.error(
+        `Failed to announce event ${event.id}: ${error instanceof Error ? error.message : String(error)}`
       )
       throw error
     }
@@ -75,9 +65,8 @@ export class TelegramOutput {
     try {
       await this.bot.api.sendMessage(chatIdToUse, `❌ Event ${eventId} has been cancelled.`)
     } catch (error) {
-      await this.logger.log(
-        `Failed to send cancellation notification: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      console.error(
+        `Failed to send cancellation notification: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }

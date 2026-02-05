@@ -83,6 +83,23 @@ transport/api            → business → repo + logger + formatter
 | **services/logger/** | Logging with routing: critical → file + telegram, notice → file |
 | **storage/db/** | Drizzle ORM schema, migrations |
 
+### Dependency Injection
+
+All classes use IoC container (awilix) for dependency management:
+
+- **Container initialization:** Application startup creates container with all services registered as singletons
+- **Service Locator pattern:** Classes receive `AppContainer` in constructor and resolve their own dependencies
+- **No global state:** All dependencies are explicitly resolved from container
+- **Logger architecture:** Logger accepts providers array via constructor injection (avoids circular dependencies)
+- **Test container:** Helper function `createTestContainer()` provides identical structure for tests
+
+**Container registration order:**
+1. Primitives (bot, config, container)
+2. Logger with providers (TelegramProvider resolves bot/config from container)
+3. Services (telegramOutput, repositories, business classes)
+
+See [src/container.ts](../src/container.ts) for dependency registration and [tests/integration/helpers/container.ts](../tests/integration/helpers/container.ts) for test container.
+
 For testing strategy, see [docs/testing.md](testing.md).
 
 ---
