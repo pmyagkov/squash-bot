@@ -1,19 +1,26 @@
 # Remaining Layer Architecture Migration Tasks
 
-## Status: In Progress
+## Status: ✅ Completed (2026-02-05)
 
-**Completed:**
+**All tasks completed:**
 - ✅ Folder structure created (business/, services/, storage/repo/)
 - ✅ Services migrated to storage/repo/ with renaming (*Service → *Repo)
 - ✅ Integration tests written for all repos (79 tests)
 - ✅ Business logic extracted to business/event.ts
 - ✅ Parsing logic moved to helpers/dateTime.ts
 - ✅ All imports updated
+- ✅ Telegram logic extracted from EventRepo
+- ✅ Logger moved to services/logger/ with provider pattern
+- ✅ API moved to services/transport/api/
+- ✅ Formatters extracted from callbacks
 
-**Current State:**
-- Repository layer is clean and tested
-- Business logic partially extracted (event scheduling/dates)
-- Telegram logic still mixed in EventRepo
+**Final State:**
+- Repository layer is clean and contains only DB operations
+- Business logic in business/ layer with dependency injection
+- Transport layer (Telegram, API) in services/transport/
+- Formatters in services/formatters/
+- Logger with provider pattern in services/logger/
+- All 145 tests passing (2 pre-existing failures in callbacks.test.ts)
 
 ---
 

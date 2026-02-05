@@ -10,6 +10,17 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 /**
+ * Participant with participation count
+ */
+export interface EventParticipantDisplay {
+  participant: {
+    telegramUsername?: string
+    displayName: string
+  }
+  participations: number
+}
+
+/**
  * Builds inline keyboard based on event status
  */
 export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
@@ -49,4 +60,83 @@ Courts: ${event.courts}
 
 Participants:
 (nobody yet)`
+}
+
+/**
+ * Formats announcement message with participants and status
+ */
+export function formatAnnouncementText(
+  event: Event,
+  participants: EventParticipantDisplay[],
+  finalized: boolean = false,
+  cancelled: boolean = false
+): string {
+  const eventDate = dayjs.tz(event.datetime, config.timezone)
+  const dayName = eventDate.format('dddd')
+  const dateStr = eventDate.format('D MMMM')
+  const timeStr = eventDate.format('HH:mm')
+
+  let messageText = `🎾 Squash: ${dayName}, ${dateStr}, ${timeStr}\nCourts: ${event.courts}\n\n`
+
+  // Add participants
+  if (participants.length === 0) {
+    messageText += 'Participants:\n(nobody yet)'
+  } else {
+    const totalCount = participants.reduce((sum, ep) => sum + ep.participations, 0)
+    messageText += `Participants (${totalCount}):\n`
+
+    const participantNames = participants
+      .map((ep) => {
+        const username = ep.participant.telegramUsername
+          ? `@${ep.participant.telegramUsername}`
+          : ep.participant.displayName
+        return ep.participations > 1 ? `${username} (×${ep.participations})` : username
+      })
+      .join(', ')
+
+    messageText += participantNames
+  }
+
+  // Add status indicators
+  if (finalized) {
+    messageText += '\n\n✅ Finalized'
+  } else if (cancelled) {
+    messageText += '\n\n❌ Event cancelled'
+  }
+
+  return messageText
+}
+
+/**
+ * Formats payment message with breakdown
+ */
+export function formatPaymentText(
+  event: Event,
+  participants: EventParticipantDisplay[],
+  courtPrice: number
+): string {
+  const eventDate = dayjs.tz(event.datetime, config.timezone)
+  const dateStr = eventDate.format('D.MM')
+  const timeStr = eventDate.format('HH:mm')
+
+  const totalParticipants = participants.reduce((sum, ep) => sum + ep.participations, 0)
+  const totalCost = event.courts * courtPrice
+  const perPerson = Math.round(totalCost / totalParticipants)
+
+  let messageText = `💰 Payment for Squash ${dateStr} ${timeStr}\n\n`
+  messageText += `Courts: ${event.courts} × ${courtPrice} din = ${totalCost} din\n`
+  messageText += `Participants: ${totalParticipants}\n\n`
+  messageText += `Each pays: ${perPerson} din\n\n`
+
+  // List participants with their amounts
+  for (const ep of participants) {
+    const username = ep.participant.telegramUsername
+      ? `@${ep.participant.telegramUsername}`
+      : ep.participant.displayName
+    const amount = perPerson * ep.participations
+    const suffix = ep.participations > 1 ? ` (×${ep.participations})` : ''
+    messageText += `${username} — ${amount} din${suffix}\n`
+  }
+
+  return messageText
 }

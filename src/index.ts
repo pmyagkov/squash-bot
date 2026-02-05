@@ -1,6 +1,6 @@
 import { Bot } from 'grammy'
 import { createBot } from './bot'
-import { createApiServer } from './api'
+import { createApiServer } from './services/transport/api'
 import { config } from './config'
 import { createAppContainer } from './container'
 

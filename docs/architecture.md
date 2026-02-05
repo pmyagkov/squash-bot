@@ -43,26 +43,37 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 
 ```
 src/
-├── business/                      # Coordination, business logic
-│   ├── event.ts                   # Event workflows (join, leave, finalize)
-│   └── scaffold.ts                # Scaffold management
+├── bot/                           # Telegram bot setup and handlers
+│   ├── commands/                  # Command handlers (/event, /scaffold, etc.)
+│   └── callbacks/                 # Callback query handlers (inline buttons)
+├── business/                      # Business logic and orchestration
+│   └── event.ts                   # EventBusiness: orchestrates event workflows
 ├── services/
-│   ├── formatters/                # Pure functions: objects → { text, reply_markup }
-│   │   └── event.ts               # Event announcements, payment messages
+│   ├── formatters/                # UI formatting (messages, keyboards)
+│   │   └── event.ts               # formatEventMessage, formatAnnouncementText, formatPaymentText
 │   ├── transport/
 │   │   ├── telegram/
-│   │   │   ├── input.ts           # Parse telegram update → context
-│   │   │   └── output.ts          # Abstraction over bot.api
+│   │   │   └── output.ts          # TelegramOutput: wraps bot.api for sending messages
 │   │   └── api/
-│   │       └── index.ts           # REST API for n8n
+│   │       └── index.ts           # REST API server (Fastify) for n8n webhooks
 │   └── logger/
-│       └── index.ts               # Logging with providers (file, telegram)
-└── storage/
-    ├── db/                        # Drizzle ORM schema, migrations
-    └── repo/                      # Repository layer (database operations)
-        ├── event.ts
-        ├── scaffold.ts
-        └── ...
+│       ├── logger.ts              # Logger class with provider pattern
+│       ├── providers/             # ConsoleProvider, FileProvider, TelegramProvider
+│       └── adapters/              # TelegramMessenger (adapter for logger)
+├── storage/
+│   ├── db/                        # Drizzle ORM schema, migrations
+│   └── repo/                      # Repository layer (database operations only)
+│       ├── event.ts               # EventRepo: CRUD operations for events
+│       ├── scaffold.ts            # ScaffoldRepo: CRUD operations for scaffolds
+│       ├── participant.ts         # ParticipantRepo: CRUD operations for participants
+│       └── ...
+├── helpers/                       # Pure utility functions
+│   └── dateTime.ts                # Date/time parsing and calculations
+├── utils/                         # Shared utilities
+│   ├── environment.ts             # Environment variable helpers
+│   └── timeOffset.ts              # Time offset calculations
+├── config/                        # Configuration from environment
+└── container.ts                   # IoC container (awilix) setup
 ```
 
 ### Data Flow
@@ -76,12 +87,15 @@ transport/api            → business → repo + logger + formatter
 
 | Layer | Responsibility |
 |-------|----------------|
-| **business/** | Coordination — calls services in correct order, handles workflows |
-| **storage/repo/** | Database operations, domain logic, returns domain objects |
-| **services/formatters/** | Pure functions — transform domain objects to `{ text, reply_markup }` |
-| **services/transport/** | Input parsing and output abstraction (telegram, REST API) |
-| **services/logger/** | Logging with routing: critical → file + telegram, notice → file |
+| **bot/** | Telegram bot setup, command handlers, callback handlers |
+| **business/** | Business logic and orchestration — coordinates repo, transport, and formatters |
+| **storage/repo/** | Database operations only — CRUD, queries, toDomain() transformations |
+| **services/formatters/** | UI formatting — transform domain objects to formatted strings and keyboards |
+| **services/transport/** | External communication — Telegram Bot API, REST API server |
+| **services/logger/** | Logging with provider pattern — routes logs to console, file, and Telegram |
 | **storage/db/** | Drizzle ORM schema, migrations |
+| **helpers/** | Pure utility functions — date/time parsing, calculations |
+| **utils/** | Shared utilities — environment helpers, time offsets |
 
 ### Dependency Injection
 

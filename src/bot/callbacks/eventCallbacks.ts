@@ -1,14 +1,11 @@
 import { Context } from 'grammy'
 import type { AppContainer } from '../../container'
-import { config } from '~/config'
 import { Event } from '~/types'
-import dayjs from 'dayjs'
-import utc from 'dayjs/plugin/utc'
-import timezone from 'dayjs/plugin/timezone'
-import { buildInlineKeyboard } from '~/services/formatters/event'
-
-dayjs.extend(utc)
-dayjs.extend(timezone)
+import {
+  buildInlineKeyboard,
+  formatAnnouncementText,
+  formatPaymentText,
+} from '~/services/formatters/event'
 
 /**
  * Common handler wrapper for event callback actions
@@ -394,40 +391,9 @@ async function updateAnnouncementMessage(
 
   const messageId = parseInt(event.telegramMessageId, 10)
 
-  // Format message
-  const eventDate = dayjs.tz(event.datetime, config.timezone)
-  const dayName = eventDate.format('dddd')
-  const dateStr = eventDate.format('D MMMM')
-  const timeStr = eventDate.format('HH:mm')
-
-  let messageText = `🎾 Squash: ${dayName}, ${dateStr}, ${timeStr}\nCourts: ${event.courts}\n\n`
-
-  // Add participants
+  // Get participants and format message
   const participants = await participantRepository.getEventParticipants(eventId)
-  if (participants.length === 0) {
-    messageText += 'Participants:\n(nobody yet)'
-  } else {
-    const totalCount = participants.reduce((sum, ep) => sum + ep.participations, 0)
-    messageText += `Participants (${totalCount}):\n`
-
-    const participantNames = participants
-      .map((ep) => {
-        const username = ep.participant.telegramUsername
-          ? `@${ep.participant.telegramUsername}`
-          : ep.participant.displayName
-        return ep.participations > 1 ? `${username} (×${ep.participations})` : username
-      })
-      .join(', ')
-
-    messageText += participantNames
-  }
-
-  // Add status indicators
-  if (finalized) {
-    messageText += '\n\n✅ Finalized'
-  } else if (cancelled) {
-    messageText += '\n\n❌ Event cancelled'
-  }
+  const messageText = formatAnnouncementText(event, participants, finalized, cancelled)
 
   // Update message and keyboard
   const keyboard = buildInlineKeyboard(
@@ -479,29 +445,8 @@ async function sendPaymentMessage(
     return
   }
 
-  // Calculate costs
-  const totalCost = event.courts * courtPrice
-  const perPerson = Math.round(totalCost / totalParticipants)
-
-  // Format message
-  const eventDate = dayjs.tz(event.datetime, config.timezone)
-  const dateStr = eventDate.format('D.MM')
-  const timeStr = eventDate.format('HH:mm')
-
-  let messageText = `💰 Payment for Squash ${dateStr} ${timeStr}\n\n`
-  messageText += `Courts: ${event.courts} × ${courtPrice} din = ${totalCost} din\n`
-  messageText += `Participants: ${totalParticipants}\n\n`
-  messageText += `Each pays: ${perPerson} din\n\n`
-
-  // List participants with their amounts
-  for (const ep of participants) {
-    const username = ep.participant.telegramUsername
-      ? `@${ep.participant.telegramUsername}`
-      : ep.participant.displayName
-    const amount = perPerson * ep.participations
-    const suffix = ep.participations > 1 ? ` (×${ep.participations})` : ''
-    messageText += `${username} — ${amount} din${suffix}\n`
-  }
+  // Format payment message
+  const messageText = formatPaymentText(event, participants, courtPrice)
 
   // Send message
   const sentMessage = await ctx.api.sendMessage(chatId, messageText)

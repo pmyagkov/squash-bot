@@ -1,7 +1,7 @@
 import { Bot } from 'grammy'
 import Fastify, { FastifyInstance } from 'fastify'
-import { config } from '../config'
-import type { AppContainer } from '../container'
+import { config } from '~/config'
+import type { AppContainer } from '~/container'
 
 export async function createApiServer(
   _bot: Bot,
