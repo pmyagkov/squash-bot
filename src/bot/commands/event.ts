@@ -22,11 +22,7 @@ export function setBotInstance(bot: Bot | null): void {
 
 export const commandName = 'event'
 
-export async function handleCommand(
-  ctx: Context,
-  args: string[],
-  chatId?: number | string
-): Promise<void> {
+export async function handleCommand(ctx: Context, args: string[]): Promise<void> {
   if (!ctx.from) {
     await ctx.reply('Error: failed to identify user')
     return
@@ -38,7 +34,6 @@ export async function handleCommand(
   }
 
   const subcommand = args[0]
-  const effectiveChatId = chatId ?? ctx.chat.id
 
   try {
     if (subcommand === 'add') {
@@ -97,7 +92,7 @@ export async function handleCommand(
         return
       }
 
-      const event = await eventService.createEvent(effectiveChatId, {
+      const event = await eventService.createEvent({
         datetime: eventDateTime,
         courts,
         status: 'created',
@@ -123,7 +118,7 @@ export async function handleCommand(
         return
       }
 
-      const scaffold = await scaffoldService.getScaffoldById(effectiveChatId, scaffoldId)
+      const scaffold = await scaffoldService.findById(scaffoldId)
       if (!scaffold) {
         await ctx.reply(`❌ Scaffold ${scaffoldId} not found`)
         return
@@ -133,15 +128,15 @@ export async function handleCommand(
       const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
 
       // Check if event already exists
-      const exists = await eventService.eventExists(effectiveChatId, scaffold.id, nextOccurrence)
+      const exists = await eventService.eventExists(scaffold.id, nextOccurrence)
       if (exists) {
         await ctx.reply(`❌ Event already exists for scaffold ${scaffoldId} at this time`)
         return
       }
 
       // Create event
-      const event = await eventService.createEvent(effectiveChatId, {
-        scaffold_id: scaffold.id,
+      const event = await eventService.createEvent({
+        scaffoldId: scaffold.id,
         datetime: nextOccurrence,
         courts: scaffold.defaultCourts,
         status: 'created',
@@ -158,7 +153,7 @@ export async function handleCommand(
       )
     } else if (subcommand === 'list') {
       // /event list
-      const events = await eventService.getEvents(effectiveChatId)
+      const events = await eventService.getEvents()
 
       if (events.length === 0) {
         await ctx.reply('📋 No events found')
@@ -182,7 +177,7 @@ export async function handleCommand(
         return
       }
 
-      const event = await eventService.getEventById(effectiveChatId, id)
+      const event = await eventService.findById(id)
       if (!event) {
         await ctx.reply(`❌ Event ${id} not found`)
         return
@@ -197,7 +192,7 @@ export async function handleCommand(
       if (!globalBotInstance) {
         throw new Error('Bot instance not available')
       }
-      await eventService.announceEvent(effectiveChatId, id, globalBotInstance)
+      await eventService.announceEvent(id, globalBotInstance)
 
       await ctx.reply(`✅ Event ${id} announced`)
       await logToTelegram(`User ${ctx.from.id} announced event ${id}`, 'info')
@@ -214,7 +209,7 @@ export async function handleCommand(
       if (!globalBotInstance) {
         throw new Error('Bot instance not available')
       }
-      await eventService.cancelEvent(effectiveChatId, id, globalBotInstance)
+      await eventService.cancelEvent(id, globalBotInstance)
 
       await ctx.reply(`✅ Event ${id} cancelled`)
       await logToTelegram(`User ${ctx.from.id} cancelled event ${id}`, 'info')

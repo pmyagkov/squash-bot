@@ -6,11 +6,7 @@ import { Scaffold } from '~/types'
 
 export const commandName = 'scaffold'
 
-export async function handleCommand(
-  ctx: Context,
-  args: string[],
-  chatId?: number | string
-): Promise<void> {
+export async function handleCommand(ctx: Context, args: string[]): Promise<void> {
   if (!ctx.from) {
     await ctx.reply('Error: failed to identify user')
     return
@@ -28,7 +24,6 @@ export async function handleCommand(
   }
 
   const subcommand = args[0]
-  const effectiveChatId = chatId ?? ctx.chat.id
 
   try {
     if (subcommand === 'add') {
@@ -60,12 +55,7 @@ export async function handleCommand(
         return
       }
 
-      const scaffold = await scaffoldService.createScaffold(
-        effectiveChatId,
-        dayOfWeek,
-        time,
-        courts
-      )
+      const scaffold = await scaffoldService.createScaffold(dayOfWeek, time, courts)
 
       await ctx.reply(
         `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${time}, ${courts} court(s), announcement ${scaffold.announcementDeadline ?? 'default'}`
@@ -77,7 +67,7 @@ export async function handleCommand(
       )
     } else if (subcommand === 'list') {
       // /scaffold list
-      const scaffolds = await scaffoldService.getScaffolds(effectiveChatId)
+      const scaffolds = await scaffoldService.getScaffolds()
 
       if (scaffolds.length === 0) {
         await ctx.reply('📋 No scaffolds found')
@@ -103,11 +93,19 @@ export async function handleCommand(
         return
       }
 
-      const scaffold = await scaffoldService.toggleScaffold(effectiveChatId, id)
+      const scaffold = await scaffoldService.findById(id)
+      if (!scaffold) {
+        await ctx.reply(`❌ Scaffold ${id} not found`)
+        return
+      }
 
-      await ctx.reply(`✅ ${scaffold.id} is now ${scaffold.isActive ? 'active' : 'inactive'}`)
+      const updatedScaffold = await scaffoldService.setActive(id, !scaffold.isActive)
+
+      await ctx.reply(
+        `✅ ${updatedScaffold.id} is now ${updatedScaffold.isActive ? 'active' : 'inactive'}`
+      )
       await logToTelegram(
-        `Admin ${ctx.from.id} toggled scaffold ${id} to ${scaffold.isActive ? 'active' : 'inactive'}`,
+        `Admin ${ctx.from.id} toggled scaffold ${id} to ${updatedScaffold.isActive ? 'active' : 'inactive'}`,
         'info'
       )
     } else if (subcommand === 'remove') {
@@ -119,7 +117,7 @@ export async function handleCommand(
         return
       }
 
-      await scaffoldService.removeScaffold(effectiveChatId, id)
+      await scaffoldService.remove(id)
 
       await ctx.reply(`✅ Scaffold ${id} removed`)
       await logToTelegram(`Admin ${ctx.from.id} removed scaffold ${id}`, 'info')

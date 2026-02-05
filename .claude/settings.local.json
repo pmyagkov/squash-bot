@@ -18,7 +18,10 @@
       "Bash(npm install:*)",
       "Bash(npm ls:*)",
       "Bash(npx drizzle-kit generate:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git restore:*)"
     ]
   }
 }

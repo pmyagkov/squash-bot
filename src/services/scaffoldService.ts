@@ -23,7 +23,7 @@ class ScaffoldService {
     courts: number,
     announcementDeadline?: string
   ): Promise<Scaffold> {
-    const id = `sc_${nanoid(10)}`
+    const id = `sc_${nanoid(8)}`
 
     const [scaffold] = await db
       .insert(scaffolds)
@@ -63,6 +63,28 @@ class ScaffoldService {
       isActive: row.isActive,
       announcementDeadline: row.announcementDeadline ?? undefined,
     }
+  }
+
+  // Helper method to parse day of week string
+  parseDayOfWeek(dayStr: string): DayOfWeek | null {
+    const normalized = dayStr.toLowerCase()
+    const dayMap: Record<string, DayOfWeek> = {
+      mon: 'Mon',
+      monday: 'Mon',
+      tue: 'Tue',
+      tuesday: 'Tue',
+      wed: 'Wed',
+      wednesday: 'Wed',
+      thu: 'Thu',
+      thursday: 'Thu',
+      fri: 'Fri',
+      friday: 'Fri',
+      sat: 'Sat',
+      saturday: 'Sat',
+      sun: 'Sun',
+      sunday: 'Sun',
+    }
+    return dayMap[normalized] ?? null
   }
 }
 

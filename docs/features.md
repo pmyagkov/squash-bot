@@ -946,3 +946,9 @@ To see your history: /my history
 **Link to this feature:** Used in fallback-notification as deep link `https://t.me/{bot_username}?start`
 
 ---
+
+## Non-functional requirements
+
+### Logs
+
+Log level, posting to telegram.

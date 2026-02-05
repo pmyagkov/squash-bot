@@ -12,9 +12,9 @@ src/
 │   └── callbacks/           # Inline button handlers
 ├── api/                     # REST API for n8n (health, check-events, check-payments)
 ├── services/                # Business logic (scaffoldService, eventService, etc.)
-├── storage/                 # Storage client (Notion) with mock support
+├── storage/                 # Storage (Drizzle ORM + PostgreSQL/SQLite)
 ├── config/                  # Configuration from env variables
-├── types/                   # TypeScript types (domain models, Notion types)
+├── types/                   # TypeScript types (domain models)
 └── utils/                   # Utilities (logger, dateParser, timeOffset)
 
 tests/
@@ -100,19 +100,7 @@ cd .worktrees/my-feature
 
 1. Create `src/services/<name>Service.ts`
 2. Export singleton instance: `export const nameService = new NameService()`
-3. If service uses Notion storage — add entity mock (see below)
-
-### Adding Entity Mock (for integration tests)
-
-Mocks use Entity Registry Pattern. See `tests/integration/mocks/README.md` for details.
-
-1. Create `tests/integration/mocks/entities/<name>Entity.ts`:
-   - Implement `EntityStore<T>` — in-memory storage
-   - Implement `EntityConverters<T>` — domain ↔ Notion conversion
-   - Export `create<Name>EntityConfig()` factory
-2. Register in `tests/integration/mocks/notionMock.ts`:
-   - Add database ID constant
-   - Add config to `entityRegistry` in constructor
+3. Use Drizzle ORM to interact with database tables from `~/storage/db/schema`
 
 ## Testing
 
@@ -121,7 +109,7 @@ Mocks use Entity Registry Pattern. See `tests/integration/mocks/README.md` for d
 | Type | Location | Named by | Description |
 |------|----------|----------|-------------|
 | Unit | `src/**/*.test.ts` | source file | Colocated with code |
-| Integration | `tests/integration/specs/*.test.ts` | feature | Tests feature with mocked Notion |
+| Integration | `tests/integration/specs/*.test.ts` | feature | Tests feature with in-memory SQLite |
 | E2E | `tests/e2e/specs/*.spec.ts` | feature | Full flow with real Telegram |
 
 Features are defined in `docs/features.md`. Integration and E2E tests should reference features from this list.

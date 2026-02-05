@@ -3,7 +3,6 @@ import { config } from '~/config'
 import { logToTelegram } from '~/utils/logger'
 import { scaffoldService } from '~/services/scaffoldService'
 import { isAdmin, isTestChat, getDatabases } from '~/utils/environment'
-import { notionClient } from '~/storage/client'
 import type { CommandModule } from './index'
 
 export const commandName = 'test'
@@ -158,132 +157,10 @@ Settings: ${databases.settings ? '✅' : '❌'}
         return
       }
 
-      await ctx.reply('🔄 Starting test data cleanup...')
-
-      const databases = getDatabases()
-      const client = notionClient.getClient()
-      let deleted = 0
-      let errors = 0
-
-      // Clear scaffolds
-      if (databases.scaffolds) {
-        try {
-          const scaffolds = await client.databases.query({
-            database_id: databases.scaffolds,
-          })
-          for (const page of scaffolds.results) {
-            await client.pages.update({
-              page_id: page.id,
-              archived: true,
-            })
-            deleted++
-          }
-        } catch (error) {
-          errors++
-          await logToTelegram(
-            `Error clearing scaffolds: ${error instanceof Error ? error.message : String(error)}`,
-            'error'
-          )
-        }
-      }
-
-      // Clear events
-      if (databases.events) {
-        try {
-          const events = await client.databases.query({
-            database_id: databases.events,
-          })
-          for (const page of events.results) {
-            await client.pages.update({
-              page_id: page.id,
-              archived: true,
-            })
-            deleted++
-          }
-        } catch (error) {
-          errors++
-          await logToTelegram(
-            `Error clearing events: ${error instanceof Error ? error.message : String(error)}`,
-            'error'
-          )
-        }
-      }
-
-      // Clear participants
-      if (databases.participants) {
-        try {
-          const participants = await client.databases.query({
-            database_id: databases.participants,
-          })
-          for (const page of participants.results) {
-            await client.pages.update({
-              page_id: page.id,
-              archived: true,
-            })
-            deleted++
-          }
-        } catch (error) {
-          errors++
-          await logToTelegram(
-            `Error clearing participants: ${error instanceof Error ? error.message : String(error)}`,
-            'error'
-          )
-        }
-      }
-
-      // Clear event participants
-      if (databases.eventParticipants) {
-        try {
-          const eventParticipants = await client.databases.query({
-            database_id: databases.eventParticipants,
-          })
-          for (const page of eventParticipants.results) {
-            await client.pages.update({
-              page_id: page.id,
-              archived: true,
-            })
-            deleted++
-          }
-        } catch (error) {
-          errors++
-          await logToTelegram(
-            `Error clearing event participants: ${error instanceof Error ? error.message : String(error)}`,
-            'error'
-          )
-        }
-      }
-
-      // Clear payments
-      if (databases.payments) {
-        try {
-          const payments = await client.databases.query({
-            database_id: databases.payments,
-          })
-          for (const page of payments.results) {
-            await client.pages.update({
-              page_id: page.id,
-              archived: true,
-            })
-            deleted++
-          }
-        } catch (error) {
-          errors++
-          await logToTelegram(
-            `Error clearing payments: ${error instanceof Error ? error.message : String(error)}`,
-            'error'
-          )
-        }
-      }
-
-      let resultMessage = `✅ Cleanup completed!\n\n`
-      resultMessage += `Records deleted: ${deleted}\n`
-      if (errors > 0) {
-        resultMessage += `Errors: ${errors}`
-      }
-
-      await ctx.reply(resultMessage)
+      // TODO: Implement database cleanup for PostgreSQL
+      await ctx.reply('❌ This command is not yet implemented for the new database system.')
       await logToTelegram(
-        `Admin ${ctx.from.id} cleared all test data: ${deleted} records deleted, ${errors} errors`,
+        `Admin ${ctx.from.id} attempted to use /test reset (not yet implemented for PostgreSQL)`,
         'info'
       )
     } else if (subcommand === 'scaffold') {
@@ -304,11 +181,11 @@ Settings: ${databases.settings ? '✅' : '❌'}
           return
         }
 
-        const scaffolds = await scaffoldService.getScaffolds(effectiveChatId)
+        const scaffolds = await scaffoldService.getScaffolds()
         let deleted = 0
 
         for (const scaffold of scaffolds) {
-          await scaffoldService.removeScaffold(effectiveChatId, scaffold.id)
+          await scaffoldService.remove(scaffold.id)
           deleted++
         }
 

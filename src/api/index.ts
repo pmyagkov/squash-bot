@@ -30,10 +30,7 @@ export async function createApiServer(bot: Bot): Promise<FastifyInstance> {
   server.post('/check-events', async () => {
     await logToTelegram('POST /check-events called', 'info')
     try {
-      const eventsCreated = await eventService.checkAndCreateEventsFromScaffolds(
-        config.telegram.mainChatId,
-        bot
-      )
+      const eventsCreated = await eventService.checkAndCreateEventsFromScaffolds(bot)
       await logToTelegram(`POST /check-events completed: ${eventsCreated} events created`, 'info')
       return { message: 'Events checked', eventsCreated }
     } catch (error) {

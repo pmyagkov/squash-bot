@@ -30,7 +30,7 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 ┌─────────────────────────────────────────────────────────────┐
 │                    Bot (TypeScript)                          │
 │  - Telegram API (all communication)                          │
-│  - Notion API (data)                                          │
+│  - PostgreSQL via Drizzle ORM (data storage)                 │
 │  - Business logic                                            │
 │  - REST endpoints for n8n                                    │
 └─────────────────────────────────────────────────────────────┘
@@ -83,7 +83,7 @@ Record of participant's payment for a specific session.
 9. Reminder to debtors (next day)
 
 ### Administrative
-10. Change settings (via Notion)
+10. Change settings (via database)
 11. View history / debts
 12. Test commands
 
@@ -138,7 +138,7 @@ Record of participant's payment for a specific session.
 
 **Admin Logic:**
 - Admin is the person who created the scaffold
-- Admin can be reassigned via scaffold editing in Notion
+- Admin can be reassigned via scaffold editing in database
 - Events inherit admin from their scaffold
 - For ad-hoc events, the creator becomes the admin
 
@@ -418,9 +418,9 @@ Court cost: 2000
 
 **Actor:** Admin
 
-**Method:** Directly in Notion (without bot commands)
+**Method:** Directly in database (via SQL or admin interface)
 
-**Settings table in Notion:**
+**Settings table:**
 
 | key | value |
 |-----|-------|
@@ -428,7 +428,7 @@ Court cost: 2000
 | timezone | Europe/Belgrade |
 | reminder_hour | 12 |
 
-Bot reads settings from Notion on each action where they are needed.
+Bot reads settings from database on each action where they are needed.
 
 ---
 
@@ -596,7 +596,7 @@ You can mark payment in corresponding messages in chat.
 **Where they work:** Only in test chat
 
 **Test environment:**
-- Separate tables in Notion (Scaffolds_Test, Events_Test, Participants_Test, EventParticipants_Test, Payments_Test, Settings_Test)
+- Separate test database (or separate schema with _test suffix tables)
 - Bot determines environment by chat_id (test chat → test tables)
 - Clear separation: prod and test never intersect
 
@@ -798,7 +798,7 @@ amount_to_pay = court_cost × number_of_courts × your_participations / sum_of_a
 **Manual testing:**
 - Separate test chat in Telegram
 - Test commands `/test *` (admin only)
-- Separate tables in Notion (*_Test)
+- Separate test database (or separate schema)
 
 **E2E testing:**
 - Playwright + Telegram Web (web.telegram.org)
@@ -831,7 +831,7 @@ Full list — see Scenario 12.
 
 ---
 
-## Notion Structure
+## Database Schema
 
 ### Production Tables
 
@@ -951,7 +951,7 @@ Bot selects table set by chat_id:
 ## Open Questions — RESOLVED
 
 1. **Is there a need to edit scaffold (not just toggle/remove)?**
-   → No, admin will fix manually in Notion if needed.
+   → No, admin will fix manually in database if needed.
 
 2. **What to do with historical events when scaffold is deleted?**
    → Nothing, events remain.

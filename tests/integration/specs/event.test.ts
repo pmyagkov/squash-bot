@@ -6,8 +6,6 @@ import { scaffoldService } from '~/services/scaffoldService'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { setBotInstance } from '~/utils/logger'
-import { notionClient } from '~/storage/client'
-import { createMockNotionClient, clearMockNotionStore } from '@integration/mocks/notionMock'
 import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
 import { parseDate } from '~/utils/dateParser'
 import { setupFakeTime } from '@integration/helpers/timeHelpers'
@@ -22,15 +20,9 @@ dayjs.extend(timezone)
 describe('event commands', () => {
   let bot: Bot
   let sentMessages: SentMessage[] = []
-  const testChatId = String(TEST_CHAT_ID)
 
   beforeEach(async () => {
-    // Mock Notion API
-    const mockNotionClient = createMockNotionClient()
-    notionClient.setMockClient(mockNotionClient)
-
-    // Clear mock storage before each test
-    clearMockNotionStore()
+    // Database is automatically cleared by vitest.setup.ts beforeEach hook
 
     // Create bot via createBot (with all commands)
     bot = await createBot()
@@ -47,16 +39,15 @@ describe('event commands', () => {
 
   afterEach(async () => {
     // Clear mock storage after each test
-    clearMockNotionStore()
+    // Database is automatically cleared by vitest.setup.ts beforeEach hook
     // Clear mock client
-    notionClient.clearMockClient()
+    // No cleanup needed
   })
 
   describe('/event add', () => {
     describe('event date parsing formats', () => {
       let bot: Bot
       let sentMessages: SentMessage[] = []
-      const testChatId = String(TEST_CHAT_ID)
 
       // Set fixed date: Monday, January 15, 2024 at 12:00:00
       // This makes it easy to test relative dates (tomorrow, today, next week)
@@ -65,11 +56,10 @@ describe('event commands', () => {
 
       beforeEach(async () => {
         // Mock Notion API
-        const mockNotionClient = createMockNotionClient()
-        notionClient.setMockClient(mockNotionClient)
+        // Database is automatically set up by vitest.setup.ts
 
         // Clear mock storage before each test
-        clearMockNotionStore()
+        // Database is automatically cleared by vitest.setup.ts beforeEach hook
 
         // Create bot via createBot (with all commands)
         bot = await createBot()
@@ -86,14 +76,14 @@ describe('event commands', () => {
 
       afterEach(async () => {
         // Clear mock storage after each test
-        clearMockNotionStore()
+        // Database is automatically cleared by vitest.setup.ts beforeEach hook
         // Clear mock client
-        notionClient.clearMockClient()
+        // No cleanup needed
       })
 
       // Helper function to check if event was created successfully
       const checkEventCreated = async (expectedDayOfWeek?: number) => {
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events.length).toBeGreaterThan(0)
         const event = events[0]
         expect(event.courts).toBe(2)
@@ -113,7 +103,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created with correct date
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         expect(event.datetime.getFullYear()).toBe(2024)
@@ -143,7 +133,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created for tomorrow
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
 
@@ -171,7 +161,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created for today
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         const today = new Date(FIXED_DATE)
@@ -259,7 +249,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
@@ -284,7 +274,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Saturday (6 = Saturday)
@@ -309,7 +299,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Friday (5 = Friday)
@@ -338,7 +328,7 @@ describe('event commands', () => {
         expect(errorMessage).toBeDefined()
 
         // Check that event is NOT created
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(0)
       })
 
@@ -355,7 +345,7 @@ describe('event commands', () => {
         expect(errorMessage).toBeDefined()
 
         // Check that event is NOT created
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(0)
       })
 
@@ -372,7 +362,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created (should work with uppercase)
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events.length).toBeGreaterThan(0)
         const event = events[0]
         expect(event.datetime.getDay()).toBe(6) // Saturday = 6
@@ -397,7 +387,7 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check that event is created (should work with uppercase)
-        const events = await eventService.getEvents(testChatId)
+        const events = await eventService.getEvents()
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
@@ -424,7 +414,7 @@ describe('event commands', () => {
       expect(errorMessage).toBeDefined()
 
       // Check that event is NOT created
-      const events = await eventService.getEvents(testChatId)
+      const events = await eventService.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -441,7 +431,7 @@ describe('event commands', () => {
       expect(errorMessage).toBeDefined()
 
       // Check that event is NOT created
-      const events = await eventService.getEvents(testChatId)
+      const events = await eventService.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -458,7 +448,7 @@ describe('event commands', () => {
       expect(usageMessage).toBeDefined()
 
       // Check that event is NOT created
-      const events = await eventService.getEvents(testChatId)
+      const events = await eventService.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -472,7 +462,7 @@ describe('event commands', () => {
       await bot.handleUpdate(update)
 
       // Check that event is created in Notion (via service)
-      const events = await eventService.getEvents(testChatId)
+      const events = await eventService.getEvents()
       expect(events.length).toBeGreaterThan(0)
       const createdEvent = events[0]
       expect(createdEvent.courts).toBe(2)
@@ -500,7 +490,7 @@ describe('event commands', () => {
 
   it('should list events via /event list', async () => {
     // First create an event
-    const event = await eventService.createEvent(testChatId, {
+    const event = await eventService.createEvent({
       datetime: new Date('2024-01-20T19:00:00'),
       courts: 2,
       status: 'created',
@@ -524,7 +514,7 @@ describe('event commands', () => {
   describe('/event announce', () => {
     it('should announce event successfully', async () => {
       // Create event in 'created' status
-      const event = await eventService.createEvent(testChatId, {
+      const event = await eventService.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
@@ -544,7 +534,7 @@ describe('event commands', () => {
       expect(successMessage).toBeDefined()
 
       // Check that event status is updated to 'announced'
-      const updatedEvent = await eventService.getEventById(testChatId, event.id)
+      const updatedEvent = await eventService.findById(event.id)
       expect(updatedEvent?.status).toBe('announced')
 
       // Check that telegramMessageId is set
@@ -598,14 +588,14 @@ describe('event commands', () => {
 
     it('should handle announce for already announced event', async () => {
       // Create event in 'announced' status
-      const event = await eventService.createEvent(testChatId, {
+      const event = await eventService.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
       })
 
       // Announce it first time
-      await eventService.announceEvent(testChatId, event.id, bot)
+      await eventService.announceEvent(event.id, bot)
 
       // Clear sent messages from first announce
       sentMessages.length = 0
@@ -632,7 +622,7 @@ describe('event commands', () => {
     it('should format announcement message correctly', async () => {
       // Create event with specific date/time
       const eventDateTime = new Date('2024-01-20T19:00:00Z')
-      const event = await eventService.createEvent(testChatId, {
+      const event = await eventService.createEvent({
         datetime: eventDateTime,
         courts: 3,
         status: 'created',
@@ -664,7 +654,7 @@ describe('event commands', () => {
   describe('/event add-by-scaffold', () => {
     it('should create event from scaffold without auto-announce', async () => {
       // Create a scaffold first
-      const scaffold = await scaffoldService.createScaffold(testChatId, 'Tue', '21:00', 3)
+      const scaffold = await scaffoldService.createScaffold('Tue', '21:00', 3)
 
       const update = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
         userId: ADMIN_ID,
@@ -674,7 +664,7 @@ describe('event commands', () => {
       await bot.handleUpdate(update)
 
       // Check that event was created
-      const events = await eventService.getEvents(testChatId)
+      const events = await eventService.getEvents()
       expect(events.length).toBeGreaterThan(0)
       const createdEvent = events.find((e) => e.scaffoldId === scaffold.id)
       expect(createdEvent).toBeDefined()
@@ -712,7 +702,7 @@ describe('event commands', () => {
       expect(usageMessage).toBeDefined()
 
       // Check that no event was created
-      const events = await eventService.getEvents(testChatId)
+      const events = await eventService.getEvents()
       expect(events).toHaveLength(0)
     })
 
@@ -731,13 +721,13 @@ describe('event commands', () => {
       expect(errorMessage).toBeDefined()
 
       // Check that no event was created
-      const events = await eventService.getEvents(testChatId)
+      const events = await eventService.getEvents()
       expect(events).toHaveLength(0)
     })
 
     it('should reject duplicate event creation', async () => {
       // Create a scaffold
-      const scaffold = await scaffoldService.createScaffold(testChatId, 'Wed', '19:00', 2)
+      const scaffold = await scaffoldService.createScaffold('Wed', '19:00', 2)
 
       // Create event first time
       const update1 = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
@@ -748,7 +738,7 @@ describe('event commands', () => {
       await bot.handleUpdate(update1)
 
       // Verify first event was created
-      const events1 = await eventService.getEvents(testChatId)
+      const events1 = await eventService.getEvents()
       expect(events1).toHaveLength(1)
 
       // Clear sent messages
@@ -770,7 +760,7 @@ describe('event commands', () => {
       expect(errorMessage?.text).toContain(scaffold.id)
 
       // Check that no additional event was created
-      const events2 = await eventService.getEvents(testChatId)
+      const events2 = await eventService.getEvents()
       expect(events2).toHaveLength(1)
     })
   })
@@ -778,7 +768,7 @@ describe('event commands', () => {
   describe('/event cancel', () => {
     it('should cancel event successfully', async () => {
       // Create event
-      const event = await eventService.createEvent(testChatId, {
+      const event = await eventService.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
@@ -798,7 +788,7 @@ describe('event commands', () => {
       expect(successMessage).toBeDefined()
 
       // Check that event status is updated to 'cancelled'
-      const updatedEvent = await eventService.getEventById(testChatId, event.id)
+      const updatedEvent = await eventService.findById(event.id)
       expect(updatedEvent?.status).toBe('cancelled')
     })
 
@@ -817,13 +807,13 @@ describe('event commands', () => {
 
     it('should send cancellation notification for announced event', async () => {
       // Create and announce event
-      const event = await eventService.createEvent(testChatId, {
+      const event = await eventService.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
       })
 
-      await eventService.announceEvent(testChatId, event.id, bot)
+      await eventService.announceEvent(event.id, bot)
 
       // Clear sent messages from announce
       sentMessages.length = 0
@@ -849,13 +839,13 @@ describe('event commands', () => {
       expect(notificationMessage).toBeDefined()
 
       // Verify event is cancelled
-      const updatedEvent = await eventService.getEventById(testChatId, event.id)
+      const updatedEvent = await eventService.findById(event.id)
       expect(updatedEvent?.status).toBe('cancelled')
     })
 
     it('should not send notification for non-announced event', async () => {
       // Create event without announcing
-      const event = await eventService.createEvent(testChatId, {
+      const event = await eventService.createEvent({
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
@@ -879,7 +869,7 @@ describe('event commands', () => {
       expect(cancelMessages).toHaveLength(0)
 
       // Verify event is cancelled
-      const updatedEvent = await eventService.getEventById(testChatId, event.id)
+      const updatedEvent = await eventService.findById(event.id)
       expect(updatedEvent?.status).toBe('cancelled')
     })
   })

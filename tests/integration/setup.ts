@@ -8,7 +8,9 @@ let testDb: ReturnType<typeof drizzle> | null = null
 export function getTestDb() {
   if (!testDb) {
     const sqlite = new Database(':memory:')
-    testDb = drizzle(sqlite, { schema })
+    // Configure SQLite to handle booleans as integers
+    sqlite.pragma('journal_mode = WAL')
+    testDb = drizzle(sqlite, { schema, logger: false })
     createTables(testDb)
   }
   return testDb

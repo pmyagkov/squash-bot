@@ -19,8 +19,7 @@ async function handleEventCallback(
   ctx: Context,
   actionName: string,
   handler: (
-    event: Event,
-    chatId: number
+    event: Event
   ) => Promise<{ success: boolean; errorMessage?: string; logMessage?: string }>
 ): Promise<void> {
   if (!ctx.callbackQuery) {
@@ -41,14 +40,14 @@ async function handleEventCallback(
 
   try {
     // Find event by telegram_message_id
-    const event = await eventService.getByMessageId(chatId, String(messageId))
+    const event = await eventService.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
     }
 
     // Execute action-specific logic
-    const result = await handler(event, chatId)
+    const result = await handler(event)
 
     if (!result.success) {
       await ctx.answerCallbackQuery({ text: result.errorMessage || 'Action failed' })
@@ -82,7 +81,7 @@ export async function handleJoin(ctx: Context): Promise<void> {
     return
   }
 
-  await handleEventCallback(ctx, 'join', async (event, chatId) => {
+  await handleEventCallback(ctx, 'join', async (event) => {
     // Get user info
     const telegramId = String(ctx.from!.id)
     const username = ctx.from!.username
@@ -92,14 +91,13 @@ export async function handleJoin(ctx: Context): Promise<void> {
 
     // Find or create participant
     const participant = await participantService.findOrCreateParticipant(
-      chatId,
       telegramId,
       username,
       displayName
     )
 
     // Add to event (or increment count)
-    await participantService.addToEvent(chatId, event.id, participant.id)
+    await participantService.addToEvent(event.id, participant.id)
 
     return {
       success: true,
@@ -116,10 +114,10 @@ export async function handleLeave(ctx: Context): Promise<void> {
     return
   }
 
-  await handleEventCallback(ctx, 'leave', async (event, chatId) => {
+  await handleEventCallback(ctx, 'leave', async (event) => {
     // Find participant
     const telegramId = String(ctx.from!.id)
-    const participant = await participantService.findByTelegramId(chatId, telegramId)
+    const participant = await participantService.findByTelegramId(telegramId)
 
     if (!participant) {
       return {
@@ -129,7 +127,7 @@ export async function handleLeave(ctx: Context): Promise<void> {
     }
 
     // Remove from event (or decrement count)
-    await participantService.removeFromEvent(chatId, event.id, participant.id)
+    await participantService.removeFromEvent(event.id, participant.id)
 
     const username = ctx.from!.username || telegramId
     return {
@@ -143,10 +141,10 @@ export async function handleLeave(ctx: Context): Promise<void> {
  * Handle "+court" button callback
  */
 export async function handleAddCourt(ctx: Context): Promise<void> {
-  await handleEventCallback(ctx, 'add court', async (event, chatId) => {
+  await handleEventCallback(ctx, 'add court', async (event) => {
     // Increment courts
     const newCourts = event.courts + 1
-    await eventService.updateEvent(chatId, event.id, { courts: newCourts })
+    await eventService.updateEvent(event.id, { courts: newCourts })
 
     const username = ctx.from?.username || ctx.from?.id || 'unknown'
     return {
@@ -160,7 +158,7 @@ export async function handleAddCourt(ctx: Context): Promise<void> {
  * Handle "-court" button callback
  */
 export async function handleRemoveCourt(ctx: Context): Promise<void> {
-  await handleEventCallback(ctx, 'remove court', async (event, chatId) => {
+  await handleEventCallback(ctx, 'remove court', async (event) => {
     // Decrement courts (minimum 1)
     if (event.courts <= 1) {
       return {
@@ -170,7 +168,7 @@ export async function handleRemoveCourt(ctx: Context): Promise<void> {
     }
 
     const newCourts = event.courts - 1
-    await eventService.updateEvent(chatId, event.id, { courts: newCourts })
+    await eventService.updateEvent(event.id, { courts: newCourts })
 
     const username = ctx.from?.username || ctx.from?.id || 'unknown'
     return {
@@ -202,21 +200,21 @@ export async function handleFinalize(ctx: Context): Promise<void> {
 
   try {
     // Find event by telegram_message_id
-    const event = await eventService.getByMessageId(chatId, String(messageId))
+    const event = await eventService.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
     }
 
     // Check if there are participants
-    const participants = await participantService.getEventParticipants(chatId, event.id)
+    const participants = await participantService.getEventParticipants(event.id)
     if (participants.length === 0) {
       await ctx.answerCallbackQuery({ text: 'No participants to finalize' })
       return
     }
 
     // Update event status to finalized
-    await eventService.updateEvent(chatId, event.id, { status: 'finalized' })
+    await eventService.updateEvent(event.id, { status: 'finalized' })
 
     // Update announcement message (remove buttons, add "✅ Finalized")
     await updateAnnouncementMessage(ctx, event.id, chatId, true)
@@ -261,14 +259,14 @@ export async function handleCancel(ctx: Context): Promise<void> {
 
   try {
     // Find event by telegram_message_id
-    const event = await eventService.getByMessageId(chatId, String(messageId))
+    const event = await eventService.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
     }
 
     // Update event status to cancelled
-    await eventService.updateEvent(chatId, event.id, { status: 'cancelled' })
+    await eventService.updateEvent(event.id, { status: 'cancelled' })
 
     // Update announcement message (add "❌ Event cancelled", show restore button)
     await updateAnnouncementMessage(ctx, event.id, chatId, false, true)
@@ -319,14 +317,14 @@ export async function handleRestore(ctx: Context): Promise<void> {
 
   try {
     // Find event by telegram_message_id
-    const event = await eventService.getByMessageId(chatId, String(messageId))
+    const event = await eventService.findByMessageId(String(messageId))
     if (!event) {
       await ctx.answerCallbackQuery({ text: 'Event not found' })
       return
     }
 
     // Update event status to announced
-    await eventService.updateEvent(chatId, event.id, { status: 'announced' })
+    await eventService.updateEvent(event.id, { status: 'announced' })
 
     // Restore full announcement
     await updateAnnouncementMessage(ctx, event.id, chatId)
@@ -365,7 +363,7 @@ async function updateAnnouncementMessage(
   finalized: boolean = false,
   cancelled: boolean = false
 ): Promise<void> {
-  const event = await eventService.getEventById(chatId, eventId)
+  const event = await eventService.findById(eventId)
   if (!event || !event.telegramMessageId) {
     return
   }
@@ -381,7 +379,7 @@ async function updateAnnouncementMessage(
   let messageText = `🎾 Squash: ${dayName}, ${dateStr}, ${timeStr}\nCourts: ${event.courts}\n\n`
 
   // Add participants
-  const participants = await participantService.getEventParticipants(chatId, eventId)
+  const participants = await participantService.getEventParticipants(eventId)
   if (participants.length === 0) {
     messageText += 'Participants:\n(nobody yet)'
   } else {
@@ -432,7 +430,7 @@ async function updateAnnouncementMessage(
  * Send payment message
  */
 async function sendPaymentMessage(ctx: Context, eventId: string, chatId: number): Promise<void> {
-  const event = await eventService.getEventById(chatId, eventId)
+  const event = await eventService.findById(eventId)
   if (!event) {
     return
   }
@@ -441,7 +439,7 @@ async function sendPaymentMessage(ctx: Context, eventId: string, chatId: number)
   const courtPrice = await settingsService.getCourtPrice()
 
   // Get participants
-  const participants = await participantService.getEventParticipants(chatId, eventId)
+  const participants = await participantService.getEventParticipants(eventId)
   const totalParticipants = participants.reduce((sum, ep) => sum + ep.participations, 0)
 
   if (totalParticipants === 0) {
@@ -476,7 +474,7 @@ async function sendPaymentMessage(ctx: Context, eventId: string, chatId: number)
   const sentMessage = await ctx.api.sendMessage(chatId, messageText)
 
   // Save payment_message_id
-  await eventService.updateEvent(chatId, eventId, {
-    payment_message_id: String(sentMessage.message_id),
+  await eventService.updateEvent(eventId, {
+    paymentMessageId: String(sentMessage.message_id),
   })
 }

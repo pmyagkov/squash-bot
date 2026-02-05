@@ -23,6 +23,12 @@ describe('Scaffold Integration Tests', () => {
 
     const scaffolds = await scaffoldService.getScaffolds()
     expect(scaffolds).toHaveLength(2)
+    expect(scaffolds[0].dayOfWeek).toBe('Tue')
+    expect(scaffolds[0].defaultCourts).toBe(2)
+    expect(scaffolds[0].isActive).toBe(true)
+    expect(scaffolds[1].dayOfWeek).toBe('Sat')
+    expect(scaffolds[1].defaultCourts).toBe(3)
+    expect(scaffolds[1].isActive).toBe(true)
   })
 
   it('should find scaffold by id', async () => {

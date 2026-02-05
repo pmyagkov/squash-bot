@@ -1,5 +1,18 @@
-import { pgTable, text, integer, boolean, timestamp, varchar, serial } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, timestamp, varchar, serial, customType } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
+
+// Custom boolean type for cross-database compatibility (PostgreSQL + SQLite)
+const booleanInt = customType<{ data: boolean; driverData: number }>({
+  dataType() {
+    return 'integer'
+  },
+  fromDriver(value: number): boolean {
+    return value === 1
+  },
+  toDriver(value: boolean): number {
+    return value ? 1 : 0
+  },
+})
 
 // Scaffolds table
 export const scaffolds = pgTable('scaffolds', {
@@ -7,7 +20,7 @@ export const scaffolds = pgTable('scaffolds', {
   dayOfWeek: varchar('day_of_week', { length: 3 }).notNull(),
   time: varchar('time', { length: 5 }).notNull(),
   defaultCourts: integer('default_courts').notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
+  isActive: booleanInt('is_active').default(true).notNull(),
   announcementDeadline: text('announcement_deadline'),
 })
 
@@ -53,7 +66,7 @@ export const payments = pgTable('payments', {
     .references(() => participants.id)
     .notNull(),
   amount: integer('amount').notNull(),
-  isPaid: boolean('is_paid').default(false).notNull(),
+  isPaid: booleanInt('is_paid').default(false).notNull(),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   reminderCount: integer('reminder_count').default(0).notNull(),
 })

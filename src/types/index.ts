@@ -40,6 +40,7 @@ export interface EventParticipant {
   eventId: string
   participantId: string
   participations: number
+  participant: Participant // Always populated via JOIN query
 }
 
 // Payment

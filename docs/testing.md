@@ -77,7 +77,7 @@ describe('shouldTrigger', () => {
 
 ## Integration Tests
 
-Integration tests validate features end-to-end with mocked Notion storage.
+Integration tests validate features end-to-end with in-memory SQLite database.
 
 ### Location
 
@@ -98,23 +98,23 @@ Features are defined in [docs/features.md](features.md).
 | Helper | Location | Purpose |
 |--------|----------|---------|
 | botMock | `tests/integration/mocks/botMock.ts` | Capture sent messages |
-| notionMock | `tests/integration/mocks/notionMock.ts` | Mock Notion client |
 | updateHelpers | `tests/integration/helpers/updateHelpers.ts` | Create Telegram updates |
 | callbackHelpers | `tests/integration/helpers/callbackHelpers.ts` | Create callback queries |
 | testFixtures | `tests/integration/fixtures/testFixtures.ts` | Shared test data |
 
-### Mock Architecture
+### Database Setup
 
-Mocks use Entity Registry Pattern. See `tests/integration/mocks/README.md` for details on adding new entity mocks.
+Integration tests use in-memory SQLite database via Drizzle ORM:
+- Database is automatically set up in `tests/integration/setup.ts`
+- Database is cleared before each test via `beforeEach` hook in `tests/integration/vitest.setup.ts`
+- No manual cleanup needed in individual tests
 
 ### Example Structure
 
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createBot } from '~/bot'
-import { notionClient } from '~/storage/client'
-import { createMockNotionClient, clearMockNotionStore } from '@integration/mocks/notionMock'
 import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
@@ -124,18 +124,10 @@ describe('scaffold-add', () => {
   let sentMessages: SentMessage[] = []
 
   beforeEach(async () => {
-    const mockClient = createMockNotionClient()
-    notionClient.setMockClient(mockClient)
-    clearMockNotionStore()
-
+    // Database is automatically cleared by vitest.setup.ts beforeEach hook
     bot = await createBot()
     sentMessages = setupMockBotApi(bot)
     await bot.init()
-  })
-
-  afterEach(() => {
-    clearMockNotionStore()
-    notionClient.clearMockClient()
   })
 
   it('should create scaffold with valid input', async () => {
