@@ -5,10 +5,11 @@ import type { Scaffold, DayOfWeek, Event } from '~/types'
 import { config } from '~/config'
 import { settingsRepo } from '~/storage/repo/settings'
 import { shouldTrigger } from '~/utils/timeOffset'
-import { eventRepo } from '~/storage/repo/event'
-import { scaffoldRepo } from '~/storage/repo/scaffold'
-import { TelegramOutput } from '~/services/transport/telegram/output'
-import { logToTelegram } from '~/services/logger'
+import type { TelegramOutput } from '~/services/transport/telegram/output'
+import type { AppContainer } from '../container'
+import type { EventRepo } from '~/storage/repo/event'
+import type { ScaffoldRepo } from '~/storage/repo/scaffold'
+import type { Logger } from '~/services/logger'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
@@ -120,17 +121,23 @@ export function eventExists(events: Event[], scaffoldId: string, datetime: Date)
  * Business logic orchestrator for events
  */
 export class EventBusiness {
+  private eventRepository: EventRepo
+  private scaffoldRepository: ScaffoldRepo
   private telegramOutput: TelegramOutput
+  private logger: Logger
 
-  constructor(telegramOutput: TelegramOutput) {
-    this.telegramOutput = telegramOutput
+  constructor(container: AppContainer) {
+    this.eventRepository = container.resolve('eventRepository')
+    this.scaffoldRepository = container.resolve('scaffoldRepository')
+    this.telegramOutput = container.resolve('telegramOutput')
+    this.logger = container.resolve('logger')
   }
 
   /**
    * Announces an event to Telegram and updates its status
    */
   async announceEvent(id: string): Promise<Event> {
-    const event = await eventRepo.findById(id)
+    const event = await this.eventRepository.findById(id)
     if (!event) {
       throw new Error(`Event ${id} not found`)
     }
@@ -139,7 +146,7 @@ export class EventBusiness {
     const messageId = await this.telegramOutput.sendEventAnnouncement(event)
 
     // Update event with telegram_message_id and status
-    const updatedEvent = await eventRepo.updateEvent(id, {
+    const updatedEvent = await this.eventRepository.updateEvent(id, {
       telegramMessageId: String(messageId),
       status: 'announced',
     })
@@ -151,12 +158,12 @@ export class EventBusiness {
    * Cancels an event and optionally sends notification
    */
   async cancelEvent(id: string, sendNotification: boolean = true): Promise<Event> {
-    const event = await eventRepo.findById(id)
+    const event = await this.eventRepository.findById(id)
     if (!event) {
       throw new Error(`Event ${id} not found`)
     }
 
-    const updatedEvent = await eventRepo.updateEvent(id, { status: 'cancelled' })
+    const updatedEvent = await this.eventRepository.updateEvent(id, { status: 'cancelled' })
 
     // Send notification if event was announced
     if (sendNotification && event.status === 'announced' && event.telegramMessageId) {
@@ -171,7 +178,7 @@ export class EventBusiness {
    * Returns the number of events created
    */
   async checkAndCreateEventsFromScaffolds(): Promise<number> {
-    const scaffolds = await scaffoldRepo.getScaffolds()
+    const scaffolds = await this.scaffoldRepository.getScaffolds()
     const activeScaffolds = scaffolds.filter((s) => s.isActive)
 
     let createdCount = 0
@@ -181,7 +188,7 @@ export class EventBusiness {
         const nextOccurrence = calculateNextOccurrence(scaffold)
 
         // Check if event already exists
-        const allEvents = await eventRepo.getEvents()
+        const allEvents = await this.eventRepository.getEvents()
         const exists = eventExists(allEvents, scaffold.id, nextOccurrence)
         if (exists) {
           continue
@@ -193,7 +200,7 @@ export class EventBusiness {
         }
 
         // Create event
-        const event = await eventRepo.createEvent({
+        const event = await this.eventRepository.createEvent({
           scaffoldId: scaffold.id,
           datetime: nextOccurrence,
           courts: scaffold.defaultCourts,
@@ -204,12 +211,12 @@ export class EventBusiness {
         await this.announceEvent(event.id)
 
         createdCount++
-        await logToTelegram(
+        await this.logger.log(
           `Created and announced event ${event.id} from scaffold ${scaffold.id}`,
           'info'
         )
       } catch (error) {
-        await logToTelegram(
+        await this.logger.log(
           `Failed to create event from scaffold ${scaffold.id}: ${error instanceof Error ? error.message : String(error)}`,
           'error'
         )
