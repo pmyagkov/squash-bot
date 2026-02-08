@@ -2,15 +2,31 @@
 
 Testing strategy for the squash bot project.
 
+## Architecture Overview
+
+```
+src/
+├── business/              # Coordination, business logic
+├── services/
+│   ├── formatters/        # Pure functions: objects → { text, reply_markup }
+│   ├── transport/
+│   │   ├── telegram/      # input.ts, output.ts
+│   │   └── api/           # REST API for n8n
+│   └── logger/            # Logging with providers
+└── storage/
+    ├── db/                # Drizzle ORM schema
+    └── repo/              # Repository layer (database operations)
+```
+
 ## Test Types and Location
 
-| Type | Location | Named by | File pattern |
-|------|----------|----------|--------------|
-| Unit | `src/**/*.test.ts` | source file | `<name>.test.ts` |
-| Integration | `tests/integration/specs/` | feature | `<feature>.test.ts` |
-| E2E | `tests/e2e/specs/` | feature | `<feature>.spec.ts` |
+| Type | Location | Named by | What to Check |
+|------|----------|----------|---------------|
+| Unit | `src/**/*.test.ts` | source file | Layer-specific logic (see below) |
+| Integration | `tests/integration/specs/` | feature | Bot response only |
+| E2E | `tests/e2e/specs/` | — | Critical paths (smoke) |
 
-**Features are defined in [docs/features.md](features.md).** Integration and E2E tests should be named after features from this list.
+**Features are defined in [docs/features.md](features.md).** Integration tests should be named after features from this list.
 
 ## Commands
 
@@ -30,68 +46,130 @@ npm run typecheck && npm run lint && npm test
 
 ---
 
-## Unit Tests
+## Unit Tests by Layer
 
-Unit tests are colocated with source files and test isolated logic.
+Unit tests are colocated with source files.
 
-### When to Write
+### storage/repo
 
-- Utility functions (`utils/`)
-- Pure business logic in services
-- Data transformations and calculations
-
-### Example
+Test database operations with in-memory SQLite. Also test pure logic (calculations, validation).
 
 ```
-src/
-├── utils/
-│   ├── timeOffset.ts
-│   └── timeOffset.test.ts    # Unit test next to source
-├── services/
-│   ├── eventService.ts
-│   └── eventService.test.ts  # Unit test next to source
+src/storage/repo/
+├── event.ts
+└── event.test.ts      # Unit + DB tests
 ```
 
-### Structure
+**What to test:**
+- CRUD operations (createEvent, findById, update, delete)
+- Pure logic (calculateNextOccurrence, validation)
+- Edge cases and error handling
 
-```typescript
-import { describe, it, expect } from 'vitest'
-import { shouldTrigger } from './timeOffset'
+**What to mock:** Nothing — use real in-memory database.
 
-describe('shouldTrigger', () => {
-  it('should return true when current time matches offset', () => {
-    // Arrange
-    const eventTime = new Date('2024-01-20T21:00:00')
-    const currentTime = new Date('2024-01-19T12:00:00')
+### services/formatters
 
-    // Act
-    const result = shouldTrigger(eventTime, currentTime, 33)
+Test pure functions that transform domain objects to Telegram messages.
 
-    // Assert
-    expect(result).toBe(true)
-  })
-})
 ```
+src/services/formatters/
+├── event.ts
+└── event.test.ts
+```
+
+**What to test:**
+- Input domain objects → output `{ text, reply_markup }`
+- Edge cases (empty participants, long names, etc.)
+
+**What to mock:** Nothing — pure functions.
+
+### services/transport/telegram
+
+Test parsing and output separately.
+
+```
+src/services/transport/telegram/
+├── input.ts
+├── input.test.ts      # Parsing tests
+├── output.ts
+└── output.test.ts     # grammy API mock tests
+```
+
+**input.ts — what to test:**
+- Telegram Update → normalized context
+- Extracting userId, chatId, messageId, callback data
+
+**output.ts — what to test:**
+- Correct grammy API calls (sendMessage, editMessage, pin/unpin)
+- Correct parameters passed
+
+**What to mock:** grammy API (for output tests).
+
+### services/transport/api
+
+Test REST API handlers.
+
+```
+src/services/transport/api/
+├── index.ts
+└── index.test.ts
+```
+
+**What to test:**
+- Request parsing
+- Response formatting
+- Error handling
+
+### services/logger
+
+Test routing logic.
+
+```
+src/services/logger/
+├── index.ts
+└── index.test.ts
+```
+
+**What to test:**
+- `critical` → both providers (file + telegram)
+- `notice` → file only
+
+**What to mock:** Providers (file writer, telegram sender).
+
+### business
+
+Test coordination logic.
+
+```
+src/business/
+├── event.ts
+├── event.test.ts
+├── scaffold.ts
+└── scaffold.test.ts
+```
+
+**What to test:**
+- Correct services called in correct order
+- Data passed between services correctly
+- Error handling and rollback
+
+**What to mock:** All services (entities, formatters, transport, logger).
 
 ---
 
 ## Integration Tests
 
-Integration tests validate features end-to-end with in-memory SQLite database.
+Integration tests validate features end-to-end.
 
 ### Location
 
 `tests/integration/specs/<feature>.test.ts`
 
-Features are defined in [docs/features.md](features.md).
+One file = one feature from [docs/features.md](features.md).
 
 ### What to Test
 
-- Command parsing and validation
-- Service layer interactions
-- Bot responses and message formatting
-- Error handling
-- Callback query handling (inline buttons)
+**Only bot response.** Do not check database state — that's covered by entity unit tests.
 
 ### Test Helpers
 
@@ -104,12 +182,12 @@ Features are defined in [docs/features.md](features.md).
 
 ### Database Setup
 
-Integration tests use in-memory SQLite database via Drizzle ORM:
+Integration tests use in-memory SQLite database:
 - Database is automatically set up in `tests/integration/setup.ts`
-- Database is cleared before each test via `beforeEach` hook in `tests/integration/vitest.setup.ts`
-- No manual cleanup needed in individual tests
+- Database is cleared before each test via `beforeEach` hook
+- No manual cleanup needed
 
-### Example Structure
+### Example
 
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -124,7 +202,6 @@ describe('scaffold-add', () => {
   let sentMessages: SentMessage[] = []
 
   beforeEach(async () => {
-    // Database is automatically cleared by vitest.setup.ts beforeEach hook
     bot = await createBot()
     sentMessages = setupMockBotApi(bot)
     await bot.init()
@@ -138,25 +215,12 @@ describe('scaffold-add', () => {
 
     await bot.handleUpdate(update)
 
+    // Check only bot response, not database
     const response = sentMessages.find(msg =>
       msg.text.includes('Created scaffold')
     )
     expect(response).toBeDefined()
     expect(response?.text).toMatch(/sc_\w+: Tue 21:00, 2 courts/)
-  })
-
-  it('should reject invalid day', async () => {
-    const update = createTextMessageUpdate('/scaffold add Invalid 21:00 2', {
-      userId: ADMIN_ID,
-      chatId: TEST_CHAT_ID,
-    })
-
-    await bot.handleUpdate(update)
-
-    const response = sentMessages.find(msg =>
-      msg.text.includes('Invalid day')
-    )
-    expect(response).toBeDefined()
   })
 })
 ```
@@ -165,30 +229,33 @@ describe('scaffold-add', () => {
 
 ## E2E Tests
 
-E2E tests validate full user flows through Telegram Web interface using Playwright.
+E2E tests are smoke tests for critical paths only.
+
+### Scope
+
+Only 3-5 tests for critical user flows:
+- Create event
+- Register for event (I'm in)
+- Finalize session + mark payment
+
+**Do not cover all features** — E2E tests are expensive to maintain.
 
 ### Location
 
-`tests/e2e/specs/<feature>.spec.ts`
-
-Features are defined in [docs/features.md](features.md).
+`tests/e2e/specs/critical-flows.spec.ts`
 
 ### Prerequisites
 
 1. Node.js 18+ and dependencies installed
-2. Telegram authentication state file (see below)
+2. Telegram authentication state file
 
 ### Preparing Authentication
-
-Telegram Web requires a logged-in session. Auth is saved once and reused.
 
 ```bash
 npm run test:auth
 ```
 
-This opens a browser for Telegram login. After successful login, session is saved to `.auth/telegram-auth.json`.
-
-**Security:** Keep this file secret. Do not commit to repository. `.auth/` is in `.gitignore`.
+Session is saved to `.auth/telegram-auth.json`. Keep this file secret.
 
 ### Running Tests
 
@@ -197,73 +264,30 @@ npm run test:e2e           # Headless mode
 npm run test:e2e:ui        # Headed mode (visible browser)
 ```
 
-### Example Structure
-
-```typescript
-import { test, expect } from '@e2e/fixtures/fixtures'
-import { hasAuth } from '@e2e/config/config'
-
-test.describe('scaffold-list', () => {
-  test.skip(!hasAuth, 'Auth state not found. Run `npm run test:auth`')
-
-  test('should list scaffolds via /scaffold list', async ({ scaffoldCommands }) => {
-    // Act
-    const response = await scaffoldCommands.list()
-
-    // Assert
-    expect(response).toMatch(/sc_\w+:|No scaffolds found/)
-  })
-})
-
-test.describe('scaffold-add', () => {
-  test.skip(!hasAuth, 'Auth state not found. Run `npm run test:auth`')
-
-  test('should create scaffold and see confirmation', async ({ scaffoldCommands }) => {
-    // Act
-    const response = await scaffoldCommands.add('Tue', '21:00', 2)
-
-    // Assert
-    expect(response).toContain('Created scaffold')
-    expect(response).toContain('Tue 21:00, 2 courts')
-  })
-
-  test('should reject invalid day', async ({ scaffoldCommands }) => {
-    // Act
-    const response = await scaffoldCommands.add('Invalid', '21:00', 2)
-
-    // Assert
-    expect(response).toContain('Invalid day')
-  })
-})
-```
-
-### Page Objects
-
-Use page objects in `tests/e2e/pages/` for reusable Telegram interactions:
-
-```typescript
-// tests/e2e/pages/TelegramChat.ts
-export class TelegramChat {
-  constructor(private page: Page) {}
-
-  async sendCommand(command: string): Promise<string> {
-    await this.page.locator('div[contenteditable="true"]').fill(command)
-    await this.page.keyboard.press('Enter')
-    return this.waitForBotResponse()
-  }
-
-  async waitForBotResponse(): Promise<string> {
-    // Wait for and return bot's response message
-  }
-
-  async clickInlineButton(text: string): Promise<void> {
-    await this.page.getByRole('button', { name: text }).click()
-  }
-}
-```
-
 ### Troubleshooting
 
-- **UI changes:** If Telegram Web UI changes, update selectors using Playwright Inspector
-- **Session expired:** Regenerate auth file with `npm run test:auth`
-- **Debugging:** Use `npm run test:e2e:ui` for visible browser
+- **UI changes:** Update selectors using Playwright Inspector
+- **Session expired:** Regenerate with `npm run test:auth`
+- **Debugging:** Use `npm run test:e2e:ui`
+
+---
+
+## Naming Conventions
+
+- **No suffixes** — files named by entity (`event.ts`), context from folder
+- **Test files** — `<name>.test.ts` next to source
+- **Integration tests** — named by feature from `features.md`
+
+---
+
+## Mocking Rules
+
+| When testing | Mock these |
+|--------------|------------|
+| storage/repo | — (use real DB) |
+| services/formatters | — (pure functions) |
+| services/transport/input | — |
+| services/transport/output | grammy API |
+| services/logger | providers |
+| business | all services (repo, formatters, transport, logger) |
+| integration tests | — (full path) |

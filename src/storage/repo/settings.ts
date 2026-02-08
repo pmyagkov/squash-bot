@@ -2,7 +2,7 @@ import { db } from '~/storage/db'
 import { settings } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 
-export class SettingsService {
+export class SettingsRepo {
   async getSettings(): Promise<Record<string, string>> {
     const results = await db.select().from(settings)
     const settingsMap: Record<string, string> = {}
@@ -79,6 +79,13 @@ export class SettingsService {
     const value = await this.getSetting('min_players_per_court')
     return value ? parseInt(value, 10) : 2
   }
-}
 
-export const settingsService = new SettingsService()
+  /**
+   * Get chat ID for event announcements
+   * @returns Chat ID or null if not configured
+   */
+  async getChatId(): Promise<number | null> {
+    const value = await this.getSetting('chat_id')
+    return value ? parseInt(value, 10) : null
+  }
+}

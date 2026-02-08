@@ -3,7 +3,7 @@ import { payments } from '~/storage/db/schema'
 import { eq } from 'drizzle-orm'
 import type { Payment } from '~/types'
 
-class PaymentService {
+export class PaymentRepo {
   async createPayment(eventId: string, participantId: string, amount: number): Promise<Payment> {
     const [payment] = await db
       .insert(payments)
@@ -70,5 +70,3 @@ class PaymentService {
     }
   }
 }
-
-export const paymentService = new PaymentService()

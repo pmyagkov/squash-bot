@@ -18,6 +18,8 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 
 ## System Architecture
 
+### External Systems
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         n8n                                  │
@@ -29,10 +31,6 @@ Telegram bot for managing squash court payments in a community. Automates sessio
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Bot (TypeScript)                          │
-│  - Telegram API (all communication)                          │
-│  - PostgreSQL via Drizzle ORM (data storage)                 │
-│  - Business logic                                            │
-│  - REST endpoints for n8n                                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,6 +38,168 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 - **n8n:** Only scheduler — triggers bot on schedule, monitors health
 - **Bot:** All logic + only one who writes to Telegram
 - If bot is dead → n8n sends alert to admin
+
+### Internal Architecture
+
+```
+src/
+├── business/                      # Business logic and orchestration
+│   ├── event.ts                   # EventBusiness: event workflows + callback/command handlers
+│   ├── scaffold.ts                # ScaffoldBusiness: scaffold command handlers
+│   └── utility.ts                 # UtilityBusiness: utility command handlers (start, help, etc.)
+├── services/
+│   ├── formatters/                # UI formatting (messages, keyboards)
+│   │   └── event.ts               # formatEventMessage, formatAnnouncementText, formatPaymentText
+│   ├── transport/
+│   │   ├── telegram/              # Telegram transport layer
+│   │   │   ├── index.ts           # TelegramTransport: unified input/output handler
+│   │   │   ├── types.ts           # CallbackTypes, CommandTypes definitions
+│   │   │   └── parsers.ts         # Context parsers (grammY Context → typed data)
+│   │   └── api/
+│   │       └── index.ts           # REST API server (Fastify) for n8n webhooks
+│   └── logger/
+│       ├── logger.ts              # Logger class with provider pattern
+│       ├── providers/             # ConsoleProvider, FileProvider, TelegramProvider
+│       └── adapters/              # TelegramMessenger (adapter for logger)
+├── storage/
+│   ├── db/                        # Drizzle ORM schema, migrations
+│   └── repo/                      # Repository layer (database operations only)
+│       ├── event.ts               # EventRepo: CRUD operations for events
+│       ├── scaffold.ts            # ScaffoldRepo: CRUD operations for scaffolds
+│       ├── participant.ts         # ParticipantRepo: CRUD operations for participants
+│       └── ...
+├── helpers/                       # Pure utility functions
+│   └── dateTime.ts                # Date/time parsing and calculations
+├── utils/                         # Shared utilities
+│   ├── environment.ts             # Environment variable helpers
+│   └── timeOffset.ts              # Time offset calculations
+├── config/                        # Configuration from environment
+└── container.ts                   # IoC container (awilix) setup
+```
+
+### Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           TelegramTransport                                  │
+│  ┌─────────────────────┐        ┌─────────────────────────────────────────┐ │
+│  │ grammY (Bot)        │        │ Output Methods                          │ │
+│  │ - bot.on('callback')│───────▶│ - sendMessage()                         │ │
+│  │ - bot.command()     │ parse  │ - editMessage()                         │ │
+│  └─────────────────────┘        │ - answerCallback()                      │ │
+│           │                     │ - pinMessage() / unpinMessage()         │ │
+│           ▼                     └─────────────────────────────────────────┘ │
+│  ┌─────────────────────┐                         ▲                          │
+│  │ Parsers             │                         │                          │
+│  │ - callbackParsers   │                         │                          │
+│  │ - commandParsers    │                         │                          │
+│  └─────────────────────┘                         │                          │
+│           │                                      │                          │
+│           │ typed data                           │                          │
+│           ▼                                      │                          │
+│  ┌─────────────────────┐                         │                          │
+│  │ Handler Registry    │─────────────────────────┘                          │
+│  │ - onCallback()      │                                                    │
+│  │ - onCommand()       │                                                    │
+│  └─────────────────────┘                                                    │
+└───────────────────────────────────────────────────────────────────────────── │
+                │
+                │ calls registered handlers
+                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Business Layer                                      │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────────────┐│
+│  │ EventBusiness   │ │ ScaffoldBusiness│ │ UtilityBusiness                 ││
+│  │ - handleJoin()  │ │ - handleAdd()   │ │ - handleStart()                 ││
+│  │ - handleLeave() │ │ - handleList()  │ │ - handleHelp()                  ││
+│  │ - handleAdd()   │ │ - handleToggle()│ │ - handleMyId()                  ││
+│  │ - ...           │ │ - handleRemove()│ │ - handleGetChatId()             ││
+│  └─────────────────┘ └─────────────────┘ └─────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────────┘
+                │
+                │ uses
+                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Repositories          Formatters              Logger                        │
+│  - EventRepo           - formatEventMessage    - log()                       │
+│  - ScaffoldRepo        - formatPaymentText     - providers                   │
+│  - ParticipantRepo     - buildInlineKeyboard                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+API endpoint flow:
+transport/api → business → repo + logger + formatter → transport/telegram
+```
+
+### Layer Responsibilities
+
+| Layer | Responsibility |
+|-------|----------------|
+| **business/** | Business logic, orchestration, and handler registration via `init()` |
+| **services/transport/telegram/** | Unified Telegram I/O — parses input, routes to handlers, sends output |
+| **services/transport/api/** | REST API server for n8n webhooks |
+| **storage/repo/** | Database operations only — CRUD, queries, toDomain() transformations |
+| **services/formatters/** | UI formatting — transform domain objects to formatted strings and keyboards |
+| **services/logger/** | Logging with provider pattern — routes logs to console, file, and Telegram |
+| **storage/db/** | Drizzle ORM schema, migrations |
+| **helpers/** | Pure utility functions — date/time parsing, calculations |
+| **utils/** | Shared utilities — environment helpers, time offsets |
+
+### Transport Layer Details
+
+The `TelegramTransport` class provides:
+
+1. **Type-safe handler registration:**
+   - `onCallback<K>(action, handler)` — register callback handlers with typed data
+   - `onCommand<K>(command, handler)` — register command handlers with subcommand support
+
+2. **Output methods:**
+   - `sendMessage(chatId, text, keyboard?)` — send message, returns message ID
+   - `editMessage(chatId, messageId, text, keyboard?)` — edit existing message
+   - `answerCallback(callbackId, text?)` — answer callback query
+   - `pinMessage(chatId, messageId)` / `unpinMessage(chatId, messageId)`
+
+3. **Parsing layer:**
+   - `parsers.ts` converts grammY `Context` to typed data structures
+   - `Context` type is isolated to transport layer only
+   - Business layer receives clean, typed data (e.g., `CallbackTypes['event:join']`)
+
+### Dependency Injection
+
+All classes use IoC container (awilix) for dependency management:
+
+- **Container initialization:** Application startup creates container with all services registered as singletons
+- **Service Locator pattern:** Classes receive `AppContainer` in constructor and resolve their own dependencies
+- **No global state:** All dependencies are explicitly resolved from container
+- **Logger architecture:** Logger accepts providers array via constructor injection (avoids circular dependencies)
+- **Test container:** Helper function `createTestContainer()` provides identical structure for tests
+
+**Container registration order:**
+1. Primitives (bot, config, container)
+2. Logger with providers (TelegramProvider resolves bot/config from container)
+3. Services (transport, repositories, business classes)
+
+**Startup flow:**
+```typescript
+// 1. Create Bot instance
+const bot = new Bot(config.telegram.botToken)
+
+// 2. Create container (registers all services)
+const container = createAppContainer(bot)
+
+// 3. Initialize business classes (registers handlers in transport)
+container.resolve('eventBusiness').init()
+container.resolve('scaffoldBusiness').init()
+container.resolve('utilityBusiness').init()
+
+// 4. Start bot (after all handlers registered)
+await bot.start()
+```
+
+The `init()` pattern allows business classes to register their handlers with the transport layer during startup, keeping handler logic within business classes while transport handles routing.
+
+See [src/container.ts](../src/container.ts) for dependency registration and [tests/integration/helpers/container.ts](../tests/integration/helpers/container.ts) for test container.
+
+For testing strategy, see [docs/testing.md](testing.md).
 
 ---
 
@@ -589,56 +749,6 @@ You can mark payment in corresponding messages in chat.
 
 ---
 
-## Scenario 12: Test Commands
-
-**Actor:** Admin only
-
-**Where they work:** Only in test chat
-
-**Test environment:**
-- Separate test database (or separate schema with _test suffix tables)
-- Bot determines environment by chat_id (test chat → test tables)
-- Clear separation: prod and test never intersect
-
-**Commands:**
-
-```
-/test scaffold_create — create test scaffold
-/test scaffold_list — show scaffolds in test environment
-/test event_create — create event from scaffold or ad-hoc
-/test event_announce — announce event
-/test event_finish — move event to finished status
-/test event_finalize — simulate finalize
-/test payment_remind — send payment reminder
-/test weekly_remind — send weekly summary
-/test cleanup — delete all test data
-```
-
-**Example test scenario:**
-```
-/test scaffold_create
-→ Created test scaffold sc_test_1: Tue 21:00, 2 courts
-
-/test event_create sc_test_1
-→ Created event ev_test_1 from scaffold sc_test_1
-
-/test event_announce ev_test_1
-→ Announcement sent to test chat
-
-(press "I'm in" buttons in chat)
-
-/test event_finalize ev_test_1
-→ Event finalized, payment message sent
-
-/test payment_remind ev_test_1
-→ Reminder sent
-
-/test cleanup
-→ All test data deleted
-```
-
----
-
 ## Scenario 13: Court Capacity Overflow
 
 **Trigger:**
@@ -795,39 +905,15 @@ amount_to_pay = court_cost × number_of_courts × your_participations / sum_of_a
 
 ### Testing
 
-**Manual testing:**
-- Separate test chat in Telegram
-- Test commands `/test *` (admin only)
-- Separate test database (or separate schema)
-
-**E2E testing:**
-- Playwright + Telegram Web (web.telegram.org)
-- Test Telegram account
-- Tests write commands to test chat and check result
-
-**Test account authorization:**
-- Save Playwright session between runs
-- Or manual authorization before first test run
+See [docs/testing.md](testing.md) for full testing strategy.
 
 ### Logging
-- Technical chat for logs of all actions
-- Logged: message posting, button clicks, reminders, errors
+
+See `logging` feature in [docs/features.md](features.md).
 
 ### Test Commands
 
 Full list — see Scenario 12.
-
-```
-/test scaffold_create
-/test scaffold_list
-/test event_create
-/test event_announce
-/test event_finish
-/test event_finalize
-/test payment_remind
-/test weekly_remind
-/test cleanup
-```
 
 ---
 
@@ -934,17 +1020,6 @@ Bot selects table set by chat_id:
 | /check-payments | POST | Check debtors, send reminders | n8n (once a day) |
 
 ---
-
-## E2E Testing
-
-**Stack:**
-- Playwright
-- Telegram Web (web.telegram.org)
-- Test Telegram account
-- Test chat with bot
-
-**Test account authorization:**
-*TODO: think through approach — session saving, environment variables for authorization code*
 
 ---
 

@@ -7,15 +7,25 @@ Instructions for working with Squash Payment Bot project.
 ```
 src/
 ├── index.ts                 # Entry point
+├── container.ts             # IoC container (awilix)
 ├── bot/
 │   ├── commands/            # Telegram commands (scaffold, event, test)
 │   └── callbacks/           # Inline button handlers
-├── api/                     # REST API for n8n (health, check-events, check-payments)
-├── services/                # Business logic (scaffoldService, eventService, etc.)
-├── storage/                 # Storage (Drizzle ORM + PostgreSQL/SQLite)
+├── business/                # Business logic and orchestration
+│   └── event.ts             # EventBusiness class
+├── services/
+│   ├── formatters/          # UI formatting (messages, keyboards)
+│   ├── transport/           # External communication
+│   │   ├── api/             # REST API server (Fastify) for n8n
+│   │   └── telegram/        # TelegramOutput (bot.api wrapper)
+│   └── logger/              # Logger with provider pattern
+├── storage/
+│   ├── db/                  # Drizzle ORM schema, migrations
+│   └── repo/                # Repository layer (database operations only)
+├── helpers/                 # Pure utility functions (date/time)
+├── utils/                   # Shared utilities (environment, timeOffset)
 ├── config/                  # Configuration from env variables
-├── types/                   # TypeScript types (domain models)
-└── utils/                   # Utilities (logger, dateParser, timeOffset)
+└── types/                   # TypeScript types (domain models)
 
 tests/
 ├── integration/specs/       # Integration tests (by feature)
@@ -26,16 +36,16 @@ docs/
 ├── architecture.md          # Architecture and use cases
 ├── features.md              # Feature list (for tests)
 ├── testing.md               # Testing strategy
-├── todo.md                  # Project roadmap
 └── plans/                   # Design documents (YYYY-MM-DD-<topic>-design.md)
 ```
 
 ### Naming
 
-- Services: `*Service.ts` — singleton export
+- Repositories: `*Repo` classes in `storage/repo/` — database operations only
+- Business classes: `*Business` classes in `business/` — orchestration and domain logic
 - Commands: `src/bot/commands/<name>.ts` — exports `commandName`, `handleCommand()`
 - Types: PascalCase for interfaces, camelCase for functions
-- Entity IDs: prefixes (`sc_` for scaffold, etc.)
+- Entity IDs: prefixes (`sc_` for scaffold, `ev_` for event, etc.)
 
 ## Code Style
 
@@ -51,7 +61,6 @@ Before starting work, check these documents for context:
 |----------|---------|
 | [docs/architecture.md](docs/architecture.md) | System architecture, entities, use cases |
 | [docs/features.md](docs/features.md) | Feature list (integration/e2e tests reference this) |
-| [docs/todo.md](docs/todo.md) | Project roadmap and planned features |
 | [docs/testing.md](docs/testing.md) | Testing strategy and requirements |
 | [docs/plans/](docs/plans/) | Design documents for features |
 
@@ -69,7 +78,6 @@ Example: `2025-01-17-participant-registration-design.md`
 2. **Design document** — write design doc in `docs/plans/YYYY-MM-DD-<topic>-design.md`
 3. **Update documentation** (mandatory):
    - `docs/architecture.md` — if architecture changes
-   - `docs/todo.md` — mark feature as in progress / completed
    - `docs/features.md` — add new feature to the list
 4. **Create worktree** — isolate work in a separate git worktree
 5. **Implement** — write code following project patterns
@@ -96,11 +104,25 @@ cd .worktrees/my-feature
 2. Export `commandName` and `handleCommand(ctx)`
 3. Command is auto-loaded from the directory
 
-### Adding New Service
+### Adding New Repository
 
-1. Create `src/services/<name>Service.ts`
-2. Export singleton instance: `export const nameService = new NameService()`
-3. Use Drizzle ORM to interact with database tables from `~/storage/db/schema`
+1. Create `src/storage/repo/<name>.ts`
+2. Create class `<Name>Repo` with database operations only
+3. Register in IoC container (`src/container.ts`)
+4. Use Drizzle ORM to interact with database tables from `~/storage/db/schema`
+
+### Adding New Business Class
+
+1. Create `src/business/<name>.ts`
+2. Create class `<Name>Business` with orchestration logic
+3. Inject dependencies via constructor (repos, transport, formatters)
+4. Register in IoC container (`src/container.ts`)
+
+### Adding New Formatter
+
+1. Add function to `src/services/formatters/<name>.ts`
+2. Pure function: takes domain objects, returns formatted strings/keyboards
+3. No dependencies on other layers
 
 ## Testing
 

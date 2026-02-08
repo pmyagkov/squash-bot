@@ -3,7 +3,7 @@ import { eventParticipants, participants } from '~/storage/db/schema'
 import { eq, and } from 'drizzle-orm'
 import type { EventParticipant } from '~/types'
 
-class EventParticipantService {
+export class EventParticipantRepo {
   async addToEvent(eventId: string, participantId: string, participations = 1): Promise<void> {
     await db.insert(eventParticipants).values({
       eventId,
@@ -68,5 +68,3 @@ class EventParticipantService {
       )
   }
 }
-
-export const eventParticipantService = new EventParticipantService()

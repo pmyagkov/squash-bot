@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { eventService } from './eventService'
-import { setupFakeTime } from '../../tests/integration/helpers/timeHelpers'
-import type { Scaffold, DayOfWeek } from '../types'
+import { calculateNextOccurrence } from '~/business/event'
+import { setupFakeTime } from '@integration/helpers/timeHelpers'
+import type { Scaffold, DayOfWeek } from '~/types'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import { config } from '../config'
+import { config } from '~/config'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-describe('eventService.calculateNextOccurrence', () => {
+describe('calculateNextOccurrence', () => {
   // Set fixed date: Monday, January 15, 2024 at 12:00:00
   const FIXED_DATE = new Date('2024-01-15T12:00:00Z')
   setupFakeTime(FIXED_DATE)
@@ -25,7 +25,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
 
       // Should be tomorrow (Tuesday, January 16)
       expect(nextOccurrence.getDay()).toBe(2) // Tuesday = 2
@@ -44,7 +44,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
 
       // Should be this Saturday (January 20)
       expect(nextOccurrence.getDay()).toBe(6) // Saturday = 6
@@ -63,7 +63,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
 
       // Should be next Monday (January 22, not today, since time has passed)
       expect(nextOccurrence.getDay()).toBe(1) // Monday = 1
@@ -82,7 +82,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
 
       // Should be this Sunday (January 21)
       expect(nextOccurrence.getDay()).toBe(0) // Sunday = 0
@@ -104,7 +104,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
 
       // Should be next Monday (not today, since time has passed)
       const eventTime = dayjs.tz(nextOccurrence, config.timezone)
@@ -122,7 +122,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
 
       // Should be today (Monday)
       const eventTime = dayjs.tz(nextOccurrence, config.timezone)
@@ -141,7 +141,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
       const eventTime = dayjs.tz(nextOccurrence, config.timezone)
       expect(eventTime.format('HH:mm')).toBe('09:30')
     })
@@ -155,7 +155,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
       const eventTime = dayjs.tz(nextOccurrence, config.timezone)
       expect(eventTime.format('HH:mm')).toBe('00:00')
     })
@@ -169,7 +169,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+      const nextOccurrence = calculateNextOccurrence(scaffold)
       const eventTime = dayjs.tz(nextOccurrence, config.timezone)
       expect(eventTime.format('HH:mm')).toBe('23:59')
     })
@@ -183,7 +183,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
+      expect(() => calculateNextOccurrence(scaffold)).toThrow(
         'Invalid scaffold: invalid time format "2100"'
       )
     })
@@ -197,7 +197,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
+      expect(() => calculateNextOccurrence(scaffold)).toThrow(
         'Invalid scaffold: invalid time format "24:00"'
       )
     })
@@ -211,7 +211,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
+      expect(() => calculateNextOccurrence(scaffold)).toThrow(
         'Invalid scaffold: invalid time format "12:60"'
       )
     })
@@ -238,7 +238,7 @@ describe('eventService.calculateNextOccurrence', () => {
           isActive: true,
         }
 
-        const nextOccurrence = eventService.calculateNextOccurrence(scaffold)
+        const nextOccurrence = calculateNextOccurrence(scaffold)
         expect(nextOccurrence.getDay()).toBe(dayNum)
       })
     })
@@ -252,7 +252,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
+      expect(() => calculateNextOccurrence(scaffold)).toThrow(
         'Invalid scaffold: unknown dayOfWeek "Invalid"'
       )
     })
@@ -266,9 +266,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
-        'Invalid scaffold: missing dayOfWeek'
-      )
+      expect(() => calculateNextOccurrence(scaffold)).toThrow('Invalid scaffold: missing dayOfWeek')
     })
   })
 
@@ -282,9 +280,7 @@ describe('eventService.calculateNextOccurrence', () => {
         isActive: true,
       }
 
-      expect(() => eventService.calculateNextOccurrence(scaffold)).toThrow(
-        'Invalid scaffold: missing time'
-      )
+      expect(() => calculateNextOccurrence(scaffold)).toThrow('Invalid scaffold: missing time')
     })
   })
 })
