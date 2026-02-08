@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
-import { createBot } from '~/bot'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { setupMockBotApi } from '@integration/mocks/botMock'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { SettingsRepo } from '~/storage/repo/settings'
 import type { EventBusiness } from '~/business/event'
 
 describe('event callback handlers', () => {
@@ -23,7 +23,13 @@ describe('event callback handlers', () => {
     // Create bot and container
     bot = new Bot('test-token')
     container = createTestContainer(bot)
-    await createBot(bot, container)
+
+    // Set up chat_id in settings (required for announceEvent)
+    const settingsRepository: SettingsRepo = container.resolve('settingsRepository')
+    await settingsRepository.setSetting('chat_id', String(testChatId))
+
+    // Initialize business (registers handlers in transport)
+    container.resolve('eventBusiness').init()
 
     // Set up mock transformer to intercept all API requests
     setupMockBotApi(bot)

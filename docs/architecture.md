@@ -43,17 +43,18 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 
 ```
 src/
-├── bot/                           # Telegram bot setup and handlers
-│   ├── commands/                  # Command handlers (/event, /scaffold, etc.)
-│   └── callbacks/                 # Callback query handlers (inline buttons)
 ├── business/                      # Business logic and orchestration
-│   └── event.ts                   # EventBusiness: orchestrates event workflows
+│   ├── event.ts                   # EventBusiness: event workflows + callback/command handlers
+│   ├── scaffold.ts                # ScaffoldBusiness: scaffold command handlers
+│   └── utility.ts                 # UtilityBusiness: utility command handlers (start, help, etc.)
 ├── services/
 │   ├── formatters/                # UI formatting (messages, keyboards)
 │   │   └── event.ts               # formatEventMessage, formatAnnouncementText, formatPaymentText
 │   ├── transport/
-│   │   ├── telegram/
-│   │   │   └── output.ts          # TelegramOutput: wraps bot.api for sending messages
+│   │   ├── telegram/              # Telegram transport layer
+│   │   │   ├── index.ts           # TelegramTransport: unified input/output handler
+│   │   │   ├── types.ts           # CallbackTypes, CommandTypes definitions
+│   │   │   └── parsers.ts         # Context parsers (grammY Context → typed data)
 │   │   └── api/
 │   │       └── index.ts           # REST API server (Fastify) for n8n webhooks
 │   └── logger/
@@ -79,23 +80,88 @@ src/
 ### Data Flow
 
 ```
-transport/telegram/input → business → repo + logger + formatter → transport/telegram/output
-transport/api            → business → repo + logger + formatter
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           TelegramTransport                                  │
+│  ┌─────────────────────┐        ┌─────────────────────────────────────────┐ │
+│  │ grammY (Bot)        │        │ Output Methods                          │ │
+│  │ - bot.on('callback')│───────▶│ - sendMessage()                         │ │
+│  │ - bot.command()     │ parse  │ - editMessage()                         │ │
+│  └─────────────────────┘        │ - answerCallback()                      │ │
+│           │                     │ - pinMessage() / unpinMessage()         │ │
+│           ▼                     └─────────────────────────────────────────┘ │
+│  ┌─────────────────────┐                         ▲                          │
+│  │ Parsers             │                         │                          │
+│  │ - callbackParsers   │                         │                          │
+│  │ - commandParsers    │                         │                          │
+│  └─────────────────────┘                         │                          │
+│           │                                      │                          │
+│           │ typed data                           │                          │
+│           ▼                                      │                          │
+│  ┌─────────────────────┐                         │                          │
+│  │ Handler Registry    │─────────────────────────┘                          │
+│  │ - onCallback()      │                                                    │
+│  │ - onCommand()       │                                                    │
+│  └─────────────────────┘                                                    │
+└───────────────────────────────────────────────────────────────────────────── │
+                │
+                │ calls registered handlers
+                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Business Layer                                      │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────────────┐│
+│  │ EventBusiness   │ │ ScaffoldBusiness│ │ UtilityBusiness                 ││
+│  │ - handleJoin()  │ │ - handleAdd()   │ │ - handleStart()                 ││
+│  │ - handleLeave() │ │ - handleList()  │ │ - handleHelp()                  ││
+│  │ - handleAdd()   │ │ - handleToggle()│ │ - handleMyId()                  ││
+│  │ - ...           │ │ - handleRemove()│ │ - handleGetChatId()             ││
+│  └─────────────────┘ └─────────────────┘ └─────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────────┘
+                │
+                │ uses
+                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Repositories          Formatters              Logger                        │
+│  - EventRepo           - formatEventMessage    - log()                       │
+│  - ScaffoldRepo        - formatPaymentText     - providers                   │
+│  - ParticipantRepo     - buildInlineKeyboard                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+API endpoint flow:
+transport/api → business → repo + logger + formatter → transport/telegram
 ```
 
 ### Layer Responsibilities
 
 | Layer | Responsibility |
 |-------|----------------|
-| **bot/** | Telegram bot setup, command handlers, callback handlers |
-| **business/** | Business logic and orchestration — coordinates repo, transport, and formatters |
+| **business/** | Business logic, orchestration, and handler registration via `init()` |
+| **services/transport/telegram/** | Unified Telegram I/O — parses input, routes to handlers, sends output |
+| **services/transport/api/** | REST API server for n8n webhooks |
 | **storage/repo/** | Database operations only — CRUD, queries, toDomain() transformations |
 | **services/formatters/** | UI formatting — transform domain objects to formatted strings and keyboards |
-| **services/transport/** | External communication — Telegram Bot API, REST API server |
 | **services/logger/** | Logging with provider pattern — routes logs to console, file, and Telegram |
 | **storage/db/** | Drizzle ORM schema, migrations |
 | **helpers/** | Pure utility functions — date/time parsing, calculations |
 | **utils/** | Shared utilities — environment helpers, time offsets |
+
+### Transport Layer Details
+
+The `TelegramTransport` class provides:
+
+1. **Type-safe handler registration:**
+   - `onCallback<K>(action, handler)` — register callback handlers with typed data
+   - `onCommand<K>(command, handler)` — register command handlers with subcommand support
+
+2. **Output methods:**
+   - `sendMessage(chatId, text, keyboard?)` — send message, returns message ID
+   - `editMessage(chatId, messageId, text, keyboard?)` — edit existing message
+   - `answerCallback(callbackId, text?)` — answer callback query
+   - `pinMessage(chatId, messageId)` / `unpinMessage(chatId, messageId)`
+
+3. **Parsing layer:**
+   - `parsers.ts` converts grammY `Context` to typed data structures
+   - `Context` type is isolated to transport layer only
+   - Business layer receives clean, typed data (e.g., `CallbackTypes['event:join']`)
 
 ### Dependency Injection
 
@@ -110,7 +176,26 @@ All classes use IoC container (awilix) for dependency management:
 **Container registration order:**
 1. Primitives (bot, config, container)
 2. Logger with providers (TelegramProvider resolves bot/config from container)
-3. Services (telegramOutput, repositories, business classes)
+3. Services (transport, repositories, business classes)
+
+**Startup flow:**
+```typescript
+// 1. Create Bot instance
+const bot = new Bot(config.telegram.botToken)
+
+// 2. Create container (registers all services)
+const container = createAppContainer(bot)
+
+// 3. Initialize business classes (registers handlers in transport)
+container.resolve('eventBusiness').init()
+container.resolve('scaffoldBusiness').init()
+container.resolve('utilityBusiness').init()
+
+// 4. Start bot (after all handlers registered)
+await bot.start()
+```
+
+The `init()` pattern allows business classes to register their handlers with the transport layer during startup, keeping handler logic within business classes while transport handles routing.
 
 See [src/container.ts](../src/container.ts) for dependency registration and [tests/integration/helpers/container.ts](../tests/integration/helpers/container.ts) for test container.
 

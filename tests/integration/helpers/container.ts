@@ -2,12 +2,14 @@ import { Bot } from 'grammy'
 import { createContainer, asClass, asValue, InjectionMode, type AwilixContainer } from 'awilix'
 import { config } from '~/config'
 import type { Container } from '~/container'
-import { TelegramOutput } from '~/services/transport/telegram/output'
+import { TelegramTransport } from '~/services/transport/telegram'
 import { Logger } from '~/services/logger/logger'
 import { ConsoleProvider } from '~/services/logger/providers/console'
 import { FileProvider } from '~/services/logger/providers/file'
 import { TelegramProvider } from '~/services/logger/providers/telegram'
 import { EventBusiness } from '~/business/event'
+import { ScaffoldBusiness } from '~/business/scaffold'
+import { UtilityBusiness } from '~/business/utility'
 import { EventRepo } from '~/storage/repo/event'
 import { ScaffoldRepo } from '~/storage/repo/scaffold'
 import { EventParticipantRepo } from '~/storage/repo/eventParticipant'
@@ -42,7 +44,7 @@ export function createTestContainer(bot: Bot): TestContainer {
 
   // Register services
   container.register({
-    telegramOutput: asClass(TelegramOutput).singleton(),
+    transport: asClass(TelegramTransport).singleton(),
     logger: asValue(logger),
     eventRepository: asClass(EventRepo).singleton(),
     scaffoldRepository: asClass(ScaffoldRepo).singleton(),
@@ -51,6 +53,8 @@ export function createTestContainer(bot: Bot): TestContainer {
     settingsRepository: asClass(SettingsRepo).singleton(),
     participantRepository: asClass(ParticipantRepo).singleton(),
     eventBusiness: asClass(EventBusiness).singleton(),
+    scaffoldBusiness: asClass(ScaffoldBusiness).singleton(),
+    utilityBusiness: asClass(UtilityBusiness).singleton(),
   })
 
   return container

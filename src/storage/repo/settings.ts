@@ -79,4 +79,13 @@ export class SettingsRepo {
     const value = await this.getSetting('min_players_per_court')
     return value ? parseInt(value, 10) : 2
   }
+
+  /**
+   * Get chat ID for event announcements
+   * @returns Chat ID or null if not configured
+   */
+  async getChatId(): Promise<number | null> {
+    const value = await this.getSetting('chat_id')
+    return value ? parseInt(value, 10) : null
+  }
 }

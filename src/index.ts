@@ -1,5 +1,4 @@
 import { Bot } from 'grammy'
-import { createBot } from './bot'
 import { createApiServer } from './services/transport/api'
 import { config } from './config'
 import { createAppContainer } from './container'
@@ -13,17 +12,21 @@ async function main() {
     const container = createAppContainer(bot)
     const logger = container.resolve('logger')
 
-    // 3. Start Telegram bot
-    await createBot(bot, container)
+    // 3. Initialize business (registers handlers in transport)
+    container.resolve('eventBusiness').init()
+    container.resolve('scaffoldBusiness').init()
+    container.resolve('utilityBusiness').init()
+
+    // 4. Start Telegram bot
     await bot.start()
     await logger.log('Telegram bot started', 'info')
 
-    // 4. Start API server
+    // 5. Start API server
     const server = await createApiServer(bot, container)
     await server.listen({ port: config.server.port, host: '0.0.0.0' })
     await logger.log(`API server started on port ${config.server.port}`, 'info')
 
-    // 5. Graceful shutdown
+    // 6. Graceful shutdown
     const shutdown = async () => {
       await logger.log('Shutting down...', 'info')
       await bot.stop()

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
-import { createBot } from '~/bot'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
@@ -14,6 +13,7 @@ import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { EventBusiness } from '~/business/event'
+import type { SettingsRepo } from '~/storage/repo/settings'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -25,6 +25,7 @@ describe('event commands', () => {
   let eventRepository: EventRepo
   let scaffoldRepository: ScaffoldRepo
   let eventBusiness: EventBusiness
+  let settingsRepository: SettingsRepo
 
   beforeEach(async () => {
     // Database is automatically cleared by vitest.setup.ts beforeEach hook
@@ -32,7 +33,11 @@ describe('event commands', () => {
     // Create bot and container
     bot = new Bot('test-token')
     container = createTestContainer(bot)
-    await createBot(bot, container)
+
+    // Initialize business (registers handlers in transport)
+    container.resolve('eventBusiness').init()
+    container.resolve('scaffoldBusiness').init()
+    container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
     sentMessages = setupMockBotApi(bot)
@@ -41,6 +46,10 @@ describe('event commands', () => {
     eventRepository = container.resolve('eventRepository')
     scaffoldRepository = container.resolve('scaffoldRepository')
     eventBusiness = container.resolve('eventBusiness')
+    settingsRepository = container.resolve('settingsRepository')
+
+    // Set up chat_id for announceEvent to work
+    await settingsRepository.setSetting('chat_id', String(TEST_CHAT_ID))
 
     // Initialize bot (needed for handleUpdate)
     await bot.init()
@@ -75,7 +84,11 @@ describe('event commands', () => {
         // Create bot and container
         bot = new Bot('test-token')
         container = createTestContainer(bot)
-        await createBot(bot, container)
+
+        // Initialize business (registers handlers in transport)
+        container.resolve('eventBusiness').init()
+        container.resolve('scaffoldBusiness').init()
+        container.resolve('utilityBusiness').init()
 
         // Set up mock transformer to intercept all API requests
         sentMessages = setupMockBotApi(bot)

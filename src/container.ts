@@ -2,12 +2,15 @@ import { createContainer, asClass, asValue, InjectionMode } from 'awilix'
 import type { AwilixContainer } from 'awilix'
 import type { Bot } from 'grammy'
 import { config } from './config'
-import type { TelegramOutput } from './services/transport/telegram/output'
-import { TelegramOutput as TelegramOutputImpl } from './services/transport/telegram/output'
+import { TelegramTransport } from './services/transport/telegram'
 import { ConsoleProvider, FileProvider, TelegramProvider, type Logger } from './services/logger'
 import { Logger as LoggerImpl } from './services/logger/logger'
 import type { EventBusiness } from './business/event'
 import { EventBusiness as EventBusinessImpl } from './business/event'
+import type { ScaffoldBusiness } from './business/scaffold'
+import { ScaffoldBusiness as ScaffoldBusinessImpl } from './business/scaffold'
+import type { UtilityBusiness } from './business/utility'
+import { UtilityBusiness as UtilityBusinessImpl } from './business/utility'
 import type { EventRepo } from './storage/repo/event'
 import { EventRepo as EventRepoImpl } from './storage/repo/event'
 import type { ScaffoldRepo } from './storage/repo/scaffold'
@@ -21,12 +24,11 @@ import { SettingsRepo as SettingsRepoImpl } from './storage/repo/settings'
 import type { ParticipantRepo } from './storage/repo/participant'
 import { ParticipantRepo as ParticipantRepoImpl } from './storage/repo/participant'
 
-// Placeholder - will be populated in later tasks
 export interface Container {
   bot: Bot
   config: typeof config
   container: AppContainer
-  telegramOutput: TelegramOutput
+  transport: TelegramTransport
   logger: Logger
   eventRepository: EventRepo
   scaffoldRepository: ScaffoldRepo
@@ -35,6 +37,8 @@ export interface Container {
   settingsRepository: SettingsRepo
   participantRepository: ParticipantRepo
   eventBusiness: EventBusiness
+  scaffoldBusiness: ScaffoldBusiness
+  utilityBusiness: UtilityBusiness
 }
 
 export type AppContainer = AwilixContainer<Container>
@@ -60,7 +64,7 @@ export function createAppContainer(bot: Bot): AppContainer {
 
   // Register services
   container.register({
-    telegramOutput: asClass(TelegramOutputImpl).singleton(),
+    transport: asClass(TelegramTransport).singleton(),
     logger: asValue(logger),
     eventRepository: asClass(EventRepoImpl).singleton(),
     scaffoldRepository: asClass(ScaffoldRepoImpl).singleton(),
@@ -69,6 +73,8 @@ export function createAppContainer(bot: Bot): AppContainer {
     settingsRepository: asClass(SettingsRepoImpl).singleton(),
     participantRepository: asClass(ParticipantRepoImpl).singleton(),
     eventBusiness: asClass(EventBusinessImpl).singleton(),
+    scaffoldBusiness: asClass(ScaffoldBusinessImpl).singleton(),
+    utilityBusiness: asClass(UtilityBusinessImpl).singleton(),
   })
 
   return container
