@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
+import { mockBot, type SentMessage } from '@mocks'
 import { parseDate } from '~/utils/dateParser'
 import { setupFakeTime } from '@integration/helpers/timeHelpers'
 import dayjs from 'dayjs'
@@ -40,7 +40,7 @@ describe('event commands', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = setupMockBotApi(bot)
+    sentMessages = mockBot(bot)
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
@@ -91,7 +91,7 @@ describe('event commands', () => {
         container.resolve('utilityBusiness').init()
 
         // Set up mock transformer to intercept all API requests
-        sentMessages = setupMockBotApi(bot)
+        sentMessages = mockBot(bot)
 
         // Resolve repositories
         eventRepository = container.resolve('eventRepository')
