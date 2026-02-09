@@ -30,10 +30,10 @@ export default defineConfig({
       ],
       thresholds: {
         'src/storage/repo/**': {
-          statements: 91,
-          branches: 83,
-          functions: 90,
-          lines: 90,
+          statements: 95,
+          branches: 87,
+          functions: 97,
+          lines: 95,
         },
         'src/helpers/**': {
           statements: 100,
@@ -54,10 +54,10 @@ export default defineConfig({
           lines: 100,
         },
         'src/services/transport/**': {
-          statements: 69,
-          branches: 59,
-          functions: 82,
-          lines: 70,
+          statements: 77,
+          branches: 68,
+          functions: 88,
+          lines: 77,
         },
         'src/services/logger/**': {
           statements: 68,
