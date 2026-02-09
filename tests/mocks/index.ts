@@ -8,3 +8,4 @@ export * from './utils'
 
 // Services
 export * from './logger'
+export * from './config'
