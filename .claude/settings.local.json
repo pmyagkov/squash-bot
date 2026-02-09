@@ -22,7 +22,8 @@
       "Bash(grep:*)",
       "Bash(npm uninstall:*)",
       "Bash(git restore:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(gh pr create:*)"
     ]
   }
 }
