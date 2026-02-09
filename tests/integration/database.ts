@@ -72,7 +72,8 @@ function createTables(db: ReturnType<typeof drizzle>) {
       participant_id TEXT NOT NULL,
       participations INTEGER DEFAULT 1 NOT NULL,
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
-      FOREIGN KEY (participant_id) REFERENCES participants(id)
+      FOREIGN KEY (participant_id) REFERENCES participants(id),
+      UNIQUE (event_id, participant_id)
     )
   `)
 

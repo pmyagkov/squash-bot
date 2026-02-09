@@ -2,10 +2,12 @@ import { Bot } from 'grammy'
 import { TEST_CONFIG } from '@fixtures'
 
 export interface SentMessage {
+  method?: string
   chatId: number | string
   text: string
   options?: any
   reply_markup?: any
+  message_id?: number
 }
 
 /**
@@ -37,6 +39,7 @@ export function mockBot(bot: Bot): SentMessage[] {
       const text = sendMessagePayload.text || ''
 
       sentMessages.push({
+        method: 'sendMessage',
         chatId,
         text,
         reply_markup: sendMessagePayload.reply_markup,
@@ -72,6 +75,27 @@ export function mockBot(bot: Bot): SentMessage[] {
     }
 
     if (method === 'editMessageText') {
+      // Type payload for editMessageText
+      const editMessagePayload = payload as {
+        chat_id: number | string
+        message_id: number
+        text: string
+        parse_mode?: string
+        reply_markup?: any
+      }
+
+      sentMessages.push({
+        method: 'editMessageText',
+        chatId: editMessagePayload.chat_id,
+        message_id: editMessagePayload.message_id,
+        text: editMessagePayload.text || '',
+        reply_markup: editMessagePayload.reply_markup,
+        options: {
+          parse_mode: editMessagePayload.parse_mode,
+          reply_markup: editMessagePayload.reply_markup,
+        },
+      })
+
       return Promise.resolve({ ok: true, result: true } as any)
     }
 

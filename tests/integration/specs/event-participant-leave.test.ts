@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { TEST_CHAT_ID } from '@integration/fixtures/testFixtures'
-import { mockBot } from '@mocks'
+import { mockBot, type SentMessage } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ParticipantRepo } from '~/storage/repo/participant'
@@ -10,6 +10,7 @@ import type { EventBusiness } from '~/business/event'
 
 describe('event-participant-leave', () => {
   let bot: Bot
+  let sentMessages: SentMessage[]
   let container: TestContainer
   let eventRepository: EventRepo
   let participantRepository: ParticipantRepo
@@ -25,7 +26,7 @@ describe('event-participant-leave', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    mockBot(bot)
+    sentMessages = mockBot(bot)
 
     // Resolve dependencies
     eventRepository = container.resolve('eventRepository')
@@ -92,9 +93,17 @@ describe('event-participant-leave', () => {
     // Verify participant was removed (participations = 0 means record is removed/filtered)
     participants = await participantRepository.getEventParticipants(event.id)
     expect(participants).toHaveLength(0)
+
+    // Verify announcement message was updated to show no participants
+    const editedMessages = sentMessages.filter(
+      (msg) => msg.method === 'editMessageText' && msg.message_id === messageId
+    )
+    const lastEdit = editedMessages[editedMessages.length - 1]
+    expect(lastEdit?.text).toContain('Participants:')
+    expect(lastEdit?.text).toContain('(nobody yet)')
   })
 
-  it('removes all entries when user leaves after joining twice', async () => {
+  it('decrements participations counter when user leaves', async () => {
     const { event, messageId } = await setupAnnouncedEvent()
 
     const joinUpdate = createCallbackQueryUpdate({
@@ -106,14 +115,15 @@ describe('event-participant-leave', () => {
       firstName: 'Test',
     })
 
-    // Join twice (creates 2 event_participant records)
+    // Join twice (participations = 2)
     await bot.handleUpdate(joinUpdate)
     await bot.handleUpdate(joinUpdate)
 
     let participants = await participantRepository.getEventParticipants(event.id)
-    expect(participants).toHaveLength(2)
+    expect(participants).toHaveLength(1)
+    expect(participants[0].participations).toBe(2)
 
-    // Leave removes ALL records for this user+event
+    // Leave once (participations = 1)
     const leaveUpdate = createCallbackQueryUpdate({
       userId: 123456,
       chatId: TEST_CHAT_ID,
@@ -126,7 +136,30 @@ describe('event-participant-leave', () => {
     await bot.handleUpdate(leaveUpdate)
 
     participants = await participantRepository.getEventParticipants(event.id)
+    expect(participants).toHaveLength(1)
+    expect(participants[0].participations).toBe(1)
+
+    // Verify message shows decremented counter
+    let editedMessages = sentMessages.filter(
+      (msg) => msg.method === 'editMessageText' && msg.message_id === messageId
+    )
+    let afterFirstLeave = editedMessages[editedMessages.length - 1]
+    expect(afterFirstLeave?.text).toContain('Participants (1):')
+    expect(afterFirstLeave?.text).toContain('@testuser')
+    expect(afterFirstLeave?.text).not.toContain('×')
+
+    // Leave again (participations = 0, record removed)
+    await bot.handleUpdate(leaveUpdate)
+
+    participants = await participantRepository.getEventParticipants(event.id)
     expect(participants).toHaveLength(0)
+
+    // Verify message shows no participants
+    editedMessages = sentMessages.filter(
+      (msg) => msg.method === 'editMessageText' && msg.message_id === messageId
+    )
+    const afterSecondLeave = editedMessages[editedMessages.length - 1]
+    expect(afterSecondLeave?.text).toContain('(nobody yet)')
   })
 
   it('handles leave by unregistered user without crashing', async () => {
