@@ -1,9 +1,5 @@
 import { TEST_CONFIG } from './config'
-import type { Event } from '~/types/event'
-import type { Scaffold } from '~/types/scaffold'
-import type { EventParticipant } from '~/types/eventParticipant'
-import type { Payment } from '~/types/payment'
-import type { Participant } from '~/types/participant'
+import type { Event, Scaffold, EventParticipant, Payment, Participant } from '~/types'
 
 /**
  * Creates test Event with reasonable defaults
@@ -14,14 +10,13 @@ import type { Participant } from '~/types/participant'
 export function buildEvent(overrides?: Partial<Event>): Event {
   return {
     id: 'ev_test123',
-    date: '2024-01-15',
-    time: '18:00',
+    datetime: new Date('2024-01-15T18:00:00Z'),
     courts: 2,
-    status: 'open',
-    scaffoldId: null,
-    telegramMessageId: null,
-    createdAt: new Date('2024-01-15T10:00:00Z'),
-    updatedAt: new Date('2024-01-15T10:00:00Z'),
+    status: 'created',
+    scaffoldId: undefined,
+    telegramMessageId: undefined,
+    paymentMessageId: undefined,
+    announcementDeadline: undefined,
     ...overrides,
   }
 }
@@ -36,8 +31,7 @@ export function buildScaffold(overrides?: Partial<Scaffold>): Scaffold {
     time: '18:00',
     defaultCourts: 2,
     isActive: true,
-    createdAt: new Date('2024-01-15T10:00:00Z'),
-    updatedAt: new Date('2024-01-15T10:00:00Z'),
+    announcementDeadline: undefined,
     ...overrides,
   }
 }
@@ -47,12 +41,11 @@ export function buildScaffold(overrides?: Partial<Scaffold>): Scaffold {
  */
 export function buildEventParticipant(overrides?: Partial<EventParticipant>): EventParticipant {
   return {
-    id: 'ep_test123',
+    id: 1,
     eventId: 'ev_test123',
     participantId: 'p_test123',
-    status: 'in',
-    createdAt: new Date('2024-01-15T10:00:00Z'),
-    updatedAt: new Date('2024-01-15T10:00:00Z'),
+    participations: 1,
+    participant: buildParticipant(),
     ...overrides,
   }
 }
@@ -62,13 +55,13 @@ export function buildEventParticipant(overrides?: Partial<EventParticipant>): Ev
  */
 export function buildPayment(overrides?: Partial<Payment>): Payment {
   return {
-    id: 'pay_test123',
+    id: 1,
     eventId: 'ev_test123',
     participantId: 'p_test123',
     amount: 500,
-    status: 'pending',
-    createdAt: new Date('2024-01-15T10:00:00Z'),
-    updatedAt: new Date('2024-01-15T10:00:00Z'),
+    isPaid: false,
+    paidAt: undefined,
+    reminderCount: 0,
     ...overrides,
   }
 }
@@ -79,12 +72,9 @@ export function buildPayment(overrides?: Partial<Payment>): Payment {
 export function buildParticipant(overrides?: Partial<Participant>): Participant {
   return {
     id: 'p_test123',
-    telegramId: TEST_CONFIG.userId,
-    firstName: 'Test',
-    lastName: 'User',
-    username: 'testuser',
-    createdAt: new Date('2024-01-15T10:00:00Z'),
-    updatedAt: new Date('2024-01-15T10:00:00Z'),
+    telegramId: String(TEST_CONFIG.userId),
+    telegramUsername: 'testuser',
+    displayName: 'Test User',
     ...overrides,
   }
 }

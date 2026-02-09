@@ -9,7 +9,8 @@ describe('Domain object builders', () => {
 
       expect(event.id).toBe('ev_test123')
       expect(event.courts).toBe(2)
-      expect(event.status).toBe('open')
+      expect(event.status).toBe('created')
+      expect(event.datetime).toBeInstanceOf(Date)
     })
 
     it('should allow overriding fields', () => {
@@ -43,15 +44,16 @@ describe('Domain object builders', () => {
     it('should create participant with TEST_CONFIG userId', () => {
       const participant = buildParticipant()
 
-      expect(participant.telegramId).toBe(TEST_CONFIG.userId)
-      expect(participant.firstName).toBe('Test')
+      expect(participant.telegramId).toBe(String(TEST_CONFIG.userId))
+      expect(participant.displayName).toBe('Test User')
+      expect(participant.telegramUsername).toBe('testuser')
     })
 
     it('should allow overriding fields', () => {
-      const participant = buildParticipant({ firstName: 'Custom' })
+      const participant = buildParticipant({ displayName: 'Custom' })
 
-      expect(participant.firstName).toBe('Custom')
-      expect(participant.telegramId).toBe(TEST_CONFIG.userId) // default preserved
+      expect(participant.displayName).toBe('Custom')
+      expect(participant.telegramId).toBe(String(TEST_CONFIG.userId)) // default preserved
     })
   })
 
@@ -61,7 +63,8 @@ describe('Domain object builders', () => {
 
       expect(ep.eventId).toBe('ev_test123')
       expect(ep.participantId).toBe('p_test123')
-      expect(ep.status).toBe('in')
+      expect(ep.participations).toBe(1)
+      expect(ep.participant).toBeDefined()
     })
   })
 
@@ -71,7 +74,8 @@ describe('Domain object builders', () => {
 
       expect(payment.eventId).toBe('ev_test123')
       expect(payment.amount).toBe(500)
-      expect(payment.status).toBe('pending')
+      expect(payment.isPaid).toBe(false)
+      expect(payment.reminderCount).toBe(0)
     })
   })
 })

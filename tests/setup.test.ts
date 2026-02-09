@@ -13,11 +13,11 @@ describe('test context', () => {
   })
 
   test('should create fresh container for each test', ({ container }) => {
-    // Modify container in this test
+    // Each test gets a fresh container
     const logger = container.resolve('logger')
-    logger.log.mockResolvedValue(undefined)
 
-    // Modification should not affect other tests
+    // Verify mock is configured
     expect(logger.log).toBeDefined()
+    expect(logger.log).toHaveBeenCalledTimes(0)
   })
 })
