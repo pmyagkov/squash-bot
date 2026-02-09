@@ -11,7 +11,6 @@ export function mockEventBusiness() {
   const mock = mockClass<typeof EventBusiness>()
 
   mock.checkAndCreateEventsFromScaffolds.mockResolvedValue(0)
-  mock.checkAndSendPaymentReminders.mockResolvedValue(0)
   mock.init.mockReturnValue(undefined)
 
   return mock

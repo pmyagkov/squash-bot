@@ -7,7 +7,6 @@ describe('Business layer mocks', () => {
       const business = mockEventBusiness()
 
       expect(business.checkAndCreateEventsFromScaffolds).toBeDefined()
-      expect(business.checkAndSendPaymentReminders).toBeDefined()
       expect(business.init).toBeDefined()
     })
 
@@ -15,7 +14,6 @@ describe('Business layer mocks', () => {
       const business = mockEventBusiness()
 
       expect(await business.checkAndCreateEventsFromScaffolds()).toBe(0)
-      expect(await business.checkAndSendPaymentReminders()).toBe(0)
     })
 
     it('should allow overriding return values', async () => {
