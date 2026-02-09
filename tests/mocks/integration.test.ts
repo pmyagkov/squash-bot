@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { test, describe, expect, vi } from '@tests/setup'
 import { createMockContainer } from '@mocks'
 import type { EventRepo } from '~/storage/repo/event'
 import type { EventBusiness } from '~/business/event'
@@ -10,9 +10,8 @@ import type { Logger } from '~/services/logger'
  * This test verifies that all mocks work together correctly.
  */
 describe('Mock System Integration', () => {
-  it('should integrate all mocks to create a working test environment', async () => {
-    // 1. Create container with all mocks
-    const container = createMockContainer()
+  test('should integrate all mocks to create a working test environment', async ({ container }) => {
+    // 1. Container provided automatically via test context
 
     // 2. Resolve all key dependencies
     const eventRepo = container.resolve<EventRepo>('eventRepository')
@@ -77,7 +76,7 @@ describe('Mock System Integration', () => {
     expect(appConfig.timezone).toBe('Europe/Moscow')
   })
 
-  it('should allow multiple independent containers', () => {
+  test('should allow multiple independent containers', () => {
     // First container
     const container1 = createMockContainer()
     const eventRepo1 = container1.resolve('eventRepository')
@@ -92,8 +91,7 @@ describe('Mock System Integration', () => {
     expect(eventRepo1).not.toBe(eventRepo2)
   })
 
-  it('should verify mock isolation - changes to one mock do not affect others', () => {
-    const container = createMockContainer()
+  test('should verify mock isolation', ({ container }) => {
     const eventRepo = container.resolve<EventRepo>('eventRepository')
     const scaffoldRepo = container.resolve('scaffoldRepository')
 
@@ -105,9 +103,7 @@ describe('Mock System Integration', () => {
     expect(scaffoldRepo.findById).not.toBe(eventRepo.findById)
   })
 
-  it('should support dependency injection pattern', () => {
-    const container = createMockContainer()
-
+  test('should support dependency injection pattern', ({ container }) => {
     // Business class should receive injected dependencies
     const eventBusiness = container.resolve<EventBusiness>('eventBusiness')
 
