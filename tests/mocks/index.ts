@@ -5,3 +5,6 @@
 
 // Utilities
 export * from './utils'
+
+// Services
+export * from './logger'
