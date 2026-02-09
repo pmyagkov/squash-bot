@@ -75,6 +75,9 @@ export default defineConfig({
       '@e2e': path.resolve(__dirname, './tests/e2e'),
       '@integration': path.resolve(__dirname, './tests/integration'),
       '@test-utils': path.resolve(__dirname, './tests/shared'),
+      '@mocks': path.resolve(__dirname, './tests/mocks'),
+      '@fixtures': path.resolve(__dirname, './tests/fixtures'),
+      '@tests/setup': path.resolve(__dirname, './tests/setup'),
     },
   },
 })
