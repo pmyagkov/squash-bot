@@ -9,7 +9,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./tests/integration/config/setup.ts', './tests/integration/vitest.setup.ts'],
-    include: ['tests/integration/**/*.{test,spec}.{js,ts}', 'src/**/*.test.{js,ts}'],
+    include: [
+      'tests/integration/**/*.{test,spec}.{js,ts}',
+      'tests/mocks/**/*.test.{js,ts}',
+      'src/**/*.test.{js,ts}',
+    ],
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
     coverage: {
       provider: 'v8',
