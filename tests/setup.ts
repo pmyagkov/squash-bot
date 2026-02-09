@@ -1,12 +1,11 @@
 import { test as base } from 'vitest'
-import type { AppContainer } from '~/container'
-import { createMockContainer } from '@mocks'
+import { createMockContainer, type MockAppContainer } from '@mocks'
 
 /**
  * Test context with automatic mock container
  */
 interface TestContext {
-  container: AppContainer
+  container: MockAppContainer
 }
 
 /**
@@ -23,10 +22,11 @@ interface TestContext {
  * })
  */
 export const test = base.extend<TestContext>({
+  // eslint-disable-next-line no-empty-pattern
   container: async ({}, use) => {
     const container = createMockContainer()
     await use(container)
-  }
+  },
 })
 
 // Re-export everything else from vitest
