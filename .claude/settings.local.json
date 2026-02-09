@@ -22,7 +22,12 @@
       "Bash(grep:*)",
       "Bash(npm uninstall:*)",
       "Bash(git restore:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(git stash:*)",
+      "Bash(tee:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(npm info:*)"
     ]
   }
 }
