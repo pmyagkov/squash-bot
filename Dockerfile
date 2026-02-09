@@ -1,12 +1,14 @@
-FROM node:22-alpine
+# Multi-stage build for Squash Payment Bot
+# Stage 1: Builder - compile TypeScript to JavaScript
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including devDependencies for building)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -14,9 +16,48 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
-# Expose port
+# Stage 2: Production - minimal runtime image
+FROM node:20-alpine
+
+# Install dumb-init for signal handling
+RUN apk add --no-cache dumb-init
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copy built artifacts from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy Drizzle migrations and config
+COPY --from=builder /app/src/storage/db/migrations ./src/storage/db/migrations
+COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+
+# Copy entrypoint script
+COPY scripts/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
+# Create non-root user and switch to it
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs:1001
+
+# Expose API port
 EXPOSE 3010
 
-# Start application
-CMD ["npm", "start"]
+# Health check on /health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3010/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# Run entrypoint script (migrations + start app)
+CMD ["./docker-entrypoint.sh"]
 

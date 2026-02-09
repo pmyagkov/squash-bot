@@ -4,6 +4,10 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+/**
+ * Vitest configuration for unit and integration tests
+ * Uses SQLite in-memory database for fast, isolated tests
+ */
 export default defineConfig({
   test: {
     globals: true,

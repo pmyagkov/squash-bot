@@ -1,9 +1,13 @@
 import * as dotenv from 'dotenv'
 import * as path from 'path'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 /**
  * Global setup for Playwright E2E tests
- * Loads .env.test file before running tests
+ * Loads .env.test file and runs PostgreSQL migrations before tests
  */
 async function globalSetup() {
   const rootDir = path.resolve(__dirname, '../..')
@@ -22,6 +26,7 @@ async function globalSetup() {
     'TELEGRAM_MAIN_CHAT_ID',
     'NOTION_API_KEY',
     'NOTION_DATABASE_SCAFFOLDS',
+    'DATABASE_URL',
   ]
 
   const missing = requiredVars.filter((varName) => !process.env[varName])
@@ -33,6 +38,23 @@ async function globalSetup() {
 
   console.log(`[E2E Setup] Environment loaded successfully`)
   console.log(`[E2E Setup] Test Chat ID: ${process.env.TELEGRAM_MAIN_CHAT_ID || 'not set'}`)
+
+  // Run database migrations for E2E tests
+  if (process.env.DATABASE_URL) {
+    console.log(`[E2E Setup] Running database migrations...`)
+    try {
+      const { stdout, stderr } = await execAsync('npx drizzle-kit push', {
+        cwd: rootDir,
+        env: { ...process.env },
+      })
+      if (stdout) console.log(stdout)
+      if (stderr) console.error(stderr)
+      console.log(`[E2E Setup] Database migrations completed successfully`)
+    } catch (error) {
+      console.error(`[E2E Setup] Failed to run migrations:`, error)
+      throw error
+    }
+  }
 }
 
 export default globalSetup
