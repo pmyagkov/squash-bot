@@ -1,6 +1,5 @@
 import { Bot } from 'grammy'
 import Fastify, { FastifyInstance } from 'fastify'
-import { config } from '~/config'
 import type { AppContainer } from '~/container'
 
 export async function createApiServer(
@@ -9,6 +8,7 @@ export async function createApiServer(
 ): Promise<FastifyInstance> {
   const logger = container.resolve('logger')
   const eventBusiness = container.resolve('eventBusiness')
+  const config = container.resolve('config')
   const server = Fastify({
     logger: true,
   })

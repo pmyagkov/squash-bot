@@ -2,8 +2,6 @@ import { test, describe, expect, vi } from '@tests/setup'
 import { createMockContainer } from '@mocks'
 import type { EventRepo } from '~/storage/repo/event'
 import type { EventBusiness } from '~/business/event'
-import type { TelegramTransport } from '~/services/transport/telegram'
-import type { Logger } from '~/services/logger'
 
 /**
  * End-to-end validation of the mock system integration.
@@ -14,14 +12,11 @@ describe('Mock System Integration', () => {
     // 1. Container provided automatically via test context
 
     // 2. Resolve all key dependencies
-    const eventRepo = container.resolve<EventRepo>('eventRepository')
-    const eventBusiness = container.resolve<EventBusiness>('eventBusiness')
-    const telegram = container.resolve<TelegramTransport>('transport')
-    const logger = container.resolve<Logger>('logger')
-    const appConfig = container.resolve<{
-      telegram: { botToken: string }
-      timezone: string
-    }>('config')
+    const eventRepo = container.resolve('eventRepository')
+    const eventBusiness = container.resolve('eventBusiness')
+    const telegram = container.resolve('transport')
+    const logger = container.resolve('logger')
+    const appConfig = container.resolve('config')
 
     // 3. Verify all dependencies are mock instances (not real implementations)
     expect(eventRepo).toBeDefined()
@@ -48,7 +43,7 @@ describe('Mock System Integration', () => {
     }
 
     // Mock repository returns data
-    eventRepo.createEvent = vi.fn().mockResolvedValue(mockEvent)
+    eventRepo.createEvent.mockResolvedValue(mockEvent)
     const created = await eventRepo.createEvent({
       datetime: mockEvent.datetime,
       courts: 2,
@@ -57,17 +52,16 @@ describe('Mock System Integration', () => {
     expect(created).toEqual(mockEvent)
 
     // Mock business orchestrates operations
-    eventBusiness.announceEvent = vi.fn().mockResolvedValue(mockEvent)
+    eventBusiness.announceEvent.mockResolvedValue(mockEvent)
     const result = await eventBusiness.announceEvent('ev_test123')
     expect(result).toEqual(mockEvent)
 
     // Mock transport sends messages
-    telegram.sendMessage = vi.fn().mockResolvedValue(undefined)
+    telegram.sendMessage.mockResolvedValue(10)
     await telegram.sendMessage(123456, 'Test message')
     expect(telegram.sendMessage).toHaveBeenCalledWith(123456, 'Test message')
 
     // Mock logger logs without side effects
-    logger.log = vi.fn()
     await logger.log('Test log message')
     expect(logger.log).toHaveBeenCalledWith('Test log message')
 

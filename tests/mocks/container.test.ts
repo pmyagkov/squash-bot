@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createMockContainer } from './container'
 import { mockEventRepo } from './repos'
+import { buildEvent } from '@fixtures'
 
 describe('createMockContainer', () => {
   it('should create container with all dependencies', () => {
@@ -24,7 +25,7 @@ describe('createMockContainer', () => {
 
   it('should allow overriding specific dependencies', () => {
     const customRepo = mockEventRepo()
-    customRepo.findById.mockResolvedValue({ id: 'custom' } as any)
+    customRepo.findById.mockResolvedValue(buildEvent({ id: 'custom' }))
 
     const container = createMockContainer({
       eventRepository: customRepo,

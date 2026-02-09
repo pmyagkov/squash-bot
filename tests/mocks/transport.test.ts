@@ -10,7 +10,6 @@ describe('mockTelegramTransport', () => {
     expect(transport.answerCallback).toBeDefined()
     expect(transport.pinMessage).toBeDefined()
     expect(transport.unpinMessage).toBeDefined()
-    expect(transport.unpinAllMessages).toBeDefined()
   })
 
   it('should have reasonable defaults for successful operations', async () => {

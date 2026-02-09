@@ -54,10 +54,10 @@ export default defineConfig({
           lines: 100,
         },
         'src/services/transport/**': {
-          statements: 26,
-          branches: 21,
-          functions: 25,
-          lines: 26,
+          statements: 69,
+          branches: 59,
+          functions: 82,
+          lines: 70,
         },
         'src/services/logger/**': {
           statements: 68,
