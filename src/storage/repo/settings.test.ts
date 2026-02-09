@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
-import { clearTestDb } from '@integration/setup'
+import { clearTestDb } from '@integration/database'
 import { createTestContainer, type TestContainer } from '@integration/helpers/container'
 import type { SettingsRepo } from './settings'
 import { db } from '~/storage/db'
