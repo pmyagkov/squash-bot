@@ -16,7 +16,7 @@ describe('grammy mocks', () => {
       const ctx = mockContext({
         userId: 999,
         chatId: 888,
-        firstName: 'Custom'
+        firstName: 'Custom',
       })
 
       expect(ctx.from?.id).toBe(999)
@@ -27,7 +27,7 @@ describe('grammy mocks', () => {
     it('should create callback query context', () => {
       const ctx = mockContext({
         callbackQueryId: 'cb_test',
-        callbackQueryData: 'event:join'
+        callbackQueryData: 'event:join',
       })
 
       expect(ctx.callbackQuery?.id).toBe('cb_test')
@@ -37,7 +37,7 @@ describe('grammy mocks', () => {
     it('should create message context', () => {
       const ctx = mockContext({
         messageText: '/event add',
-        messageId: 123
+        messageId: 123,
       })
 
       expect(ctx.message?.text).toBe('/event add')
@@ -65,6 +65,23 @@ describe('grammy mocks', () => {
 
       await expect(api.editMessageText(123, 456, 'updated')).resolves.toBe(true)
       await expect(api.answerCallbackQuery('cb_123')).resolves.toBe(true)
+    })
+
+    it('should track sent messages for later verification', async () => {
+      const api = mockBotApi()
+
+      await api.sendMessage(123, 'First message')
+      await api.sendMessage(456, 'Second message')
+
+      // Verify messages were tracked
+      expect(api.sendMessage).toHaveBeenCalledTimes(2)
+      expect(api.sendMessage).toHaveBeenNthCalledWith(1, 123, 'First message')
+      expect(api.sendMessage).toHaveBeenNthCalledWith(2, 456, 'Second message')
+
+      // Can also get all call arguments
+      const calls = api.sendMessage.mock.calls
+      expect(calls[0]).toEqual([123, 'First message'])
+      expect(calls[1]).toEqual([456, 'Second message'])
     })
   })
 })
