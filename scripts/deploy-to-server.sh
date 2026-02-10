@@ -34,7 +34,7 @@ npm ci --omit=dev
 
 # Run database migrations
 echo "Running database migrations..."
-npx drizzle-kit migrate
+node dist/storage/db/migrate.js
 
 # Restart the application
 echo "Restarting application..."

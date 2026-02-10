@@ -8,7 +8,7 @@
 # Features:
 # - Auto-detects CI vs local environment
 # - Manages PostgreSQL database lifecycle (local only)
-# - Runs database migrations
+# - Database migrations and seed are handled by db-init service in docker-compose
 # - Executes E2E tests with proper configuration
 # - Colorful output with clear status messages
 #
@@ -174,20 +174,6 @@ stop_postgres() {
   fi
 }
 
-# Run database migrations
-run_migrations() {
-  step "Running database migrations..."
-
-  npx drizzle-kit push
-
-  if [[ $? -eq 0 ]]; then
-    success "Database migrations completed"
-  else
-    error "Database migrations failed"
-    exit 1
-  fi
-}
-
 # Run E2E tests
 run_tests() {
   local watch_mode=$1
@@ -279,9 +265,6 @@ if ! is_ci; then
     start_postgres
   fi
 fi
-
-# Run migrations
-run_migrations
 
 # Run tests
 TEST_EXIT_CODE=0
