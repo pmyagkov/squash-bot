@@ -1,5 +1,5 @@
-import { db } from './storage/db'
-import { settings } from './storage/db/schema'
+import { db } from '.'
+import { settings } from './schema'
 
 const SEEDS: Record<string, Record<string, string>> = {
   test: {
@@ -20,10 +20,7 @@ async function seed() {
   console.log(`[Seed] Seeding settings for '${env}' environment...`)
 
   for (const [key, value] of Object.entries(values)) {
-    await db
-      .insert(settings)
-      .values({ key, value })
-      .onConflictDoNothing({ target: settings.key })
+    await db.insert(settings).values({ key, value }).onConflictDoNothing({ target: settings.key })
 
     console.log(`[Seed] ${key} = ${value} (insert if not exists)`)
   }

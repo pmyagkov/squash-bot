@@ -67,7 +67,7 @@ fi
 
 # Seed database settings
 echo "[Entrypoint] Seeding database settings..."
-if node dist/db-seed.js; then
+if node dist/storage/db/seed.js; then
   echo "[Entrypoint] Database seeding completed successfully"
 else
   echo "[Entrypoint] ERROR: Database seeding failed"

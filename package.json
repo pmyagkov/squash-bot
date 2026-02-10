@@ -21,7 +21,7 @@
     "test:e2e:watch": "./scripts/run-e2e-tests.sh --watch",
     "test:e2e:stop-db": "./scripts/run-e2e-tests.sh --stop-db",
     "test:auth": "tsx scripts/create-telegram-auth.ts",
-    "db:seed": "tsx src/db-seed.ts",
+    "db:seed": "tsx src/storage/db/seed.ts",
     "prepare": "husky"
   },
   "keywords": [
