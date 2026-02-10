@@ -39,6 +39,7 @@
       "Bash(git -C *)",
       "Bash(gh pr checks:*)",
       "Bash(gh api:*)"
+      "Bash(gh pr create:*)"
     ]
   }
 }
