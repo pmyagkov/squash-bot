@@ -83,9 +83,7 @@ echo ""
 echo "TELEGRAM CONFIGURATION"
 echo "========================================"
 TELEGRAM_BOT_TOKEN=$(prompt_for_value "TELEGRAM_BOT_TOKEN" "Telegram bot token from @BotFather" true "")
-TELEGRAM_MAIN_CHAT_ID=$(prompt_for_value "TELEGRAM_MAIN_CHAT_ID" "Main chat ID for the bot" false "")
 TELEGRAM_LOG_CHAT_ID=$(prompt_for_value "TELEGRAM_LOG_CHAT_ID" "Log chat ID for error notifications" false "")
-ADMIN_TELEGRAM_ID=$(prompt_for_value "ADMIN_TELEGRAM_ID" "Admin user Telegram ID" false "")
 
 echo ""
 echo "API CONFIGURATION"
@@ -104,9 +102,7 @@ echo "Creating $ENV_FILE..."
 cat > "$ENV_FILE" << EOF
 # Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
-TELEGRAM_MAIN_CHAT_ID=$TELEGRAM_MAIN_CHAT_ID
 TELEGRAM_LOG_CHAT_ID=$TELEGRAM_LOG_CHAT_ID
-ADMIN_TELEGRAM_ID=$ADMIN_TELEGRAM_ID
 
 # Server Configuration
 PORT=$PORT

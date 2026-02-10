@@ -39,21 +39,8 @@ function getConfig() {
     environment,
     telegram: {
       botToken: process.env.TELEGRAM_BOT_TOKEN!,
-      mainChatId: process.env.TELEGRAM_MAIN_CHAT_ID!,
       logChatId: process.env.TELEGRAM_LOG_CHAT_ID!,
-      adminId: process.env.ADMIN_TELEGRAM_ID!,
       useTestServer: process.env.TELEGRAM_TEST_SERVER === 'true',
-    },
-    notion: {
-      apiKey: process.env.NOTION_API_KEY || '',
-      databases: {
-        scaffolds: process.env.NOTION_DATABASE_SCAFFOLDS!,
-        events: process.env.NOTION_DATABASE_EVENTS!,
-        participants: process.env.NOTION_DATABASE_PARTICIPANTS!,
-        eventParticipants: process.env.NOTION_DATABASE_EVENT_PARTICIPANTS!,
-        payments: process.env.NOTION_DATABASE_PAYMENTS!,
-        settings: process.env.NOTION_DATABASE_SETTINGS!,
-      },
     },
     database: {
       url: process.env.DATABASE_URL || '',
