@@ -80,26 +80,26 @@ describe('parseDate', () => {
   describe('next week day names', () => {
     it('should parse "next tue" to 7+ days from now', () => {
       const result = parseDate('next tue')
-      const now = dayjs.tz(new Date(), 'Europe/Belgrade')
-      const resultDayjs = dayjs.tz(result, 'Europe/Belgrade')
-      const daysUntil = resultDayjs.diff(now, 'day')
+      const nowDay = dayjs.tz(new Date(), 'Europe/Belgrade').startOf('day')
+      const resultDay = dayjs.tz(result, 'Europe/Belgrade').startOf('day')
+      const daysUntil = resultDay.diff(nowDay, 'day')
 
       // Should always be at least 7 days from now
       expect(daysUntil).toBeGreaterThanOrEqual(7)
       // Should be a Tuesday
-      expect(resultDayjs.day()).toBe(2)
+      expect(resultDay.day()).toBe(2)
     })
 
     it('should parse "next saturday" to 7+ days from now', () => {
       const result = parseDate('next saturday')
-      const now = dayjs.tz(new Date(), 'Europe/Belgrade')
-      const resultDayjs = dayjs.tz(result, 'Europe/Belgrade')
-      const daysUntil = resultDayjs.diff(now, 'day')
+      const nowDay = dayjs.tz(new Date(), 'Europe/Belgrade').startOf('day')
+      const resultDay = dayjs.tz(result, 'Europe/Belgrade').startOf('day')
+      const daysUntil = resultDay.diff(nowDay, 'day')
 
       // Should always be at least 7 days from now
       expect(daysUntil).toBeGreaterThanOrEqual(7)
       // Should be a Saturday
-      expect(resultDayjs.day()).toBe(6)
+      expect(resultDay.day()).toBe(6)
     })
   })
 

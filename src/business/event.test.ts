@@ -1,13 +1,7 @@
 import { test, describe, expect } from '@tests/setup'
 import { buildEvent, buildScaffold, buildParticipant, buildEventParticipant } from '@fixtures'
 import { TEST_CONFIG } from '@fixtures/config'
-import { EventBusiness } from '~/business/event'
-import dayjs from 'dayjs'
-import utc from 'dayjs/plugin/utc'
-import timezone from 'dayjs/plugin/timezone'
-
-dayjs.extend(utc)
-dayjs.extend(timezone)
+import { EventBusiness, calculateNextOccurrence } from '~/business/event'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MockCalls = [string, (data: any) => Promise<void>][]
@@ -505,27 +499,8 @@ describe('EventBusiness', () => {
       const scaffold = buildScaffold({ id: 'sc_dup', dayOfWeek: 'Tue', time: '18:00' })
       scaffoldRepo.findById.mockResolvedValue(scaffold)
 
-      // Existing event with matching scaffold and close datetime
-      const existingEvent = buildEvent({
-        id: 'ev_existing',
-        scaffoldId: 'sc_dup',
-        // We need the datetime to match calculateNextOccurrence
-        // Since the function calculates from "now", we mock getEvents to return an event
-        // whose datetime is close enough (within 1 hour) to the calculated nextOccurrence
-      })
-      // Mock getEvents to return events. The eventExists function checks if scaffoldId matches
-      // and datetimes are within 1 hour. We'll make the datetime match by calculating similarly.
-      eventRepo.getEvents.mockResolvedValue([existingEvent])
-
-      // Calculate next Tuesday 18:00 using dayjs with timezone, matching calculateNextOccurrence
-      const tz = 'Europe/Belgrade'
-      const now = dayjs().tz(tz)
-      const currentDay = now.day()
-      const targetDay = 2 // Tuesday
-      let daysUntil = targetDay - currentDay
-      if (daysUntil < 0) daysUntil += 7
-      if (daysUntil === 0) daysUntil = 7 // If today is Tuesday, next week
-      const nextTue = now.add(daysUntil, 'day').hour(18).minute(0).second(0).millisecond(0).toDate()
+      // Use calculateNextOccurrence to get the exact datetime the handler will compute
+      const nextTue = calculateNextOccurrence(scaffold)
 
       const duplicateEvent = buildEvent({
         id: 'ev_existing',
@@ -1205,15 +1180,8 @@ describe('EventBusiness', () => {
       })
       scaffoldRepo.getScaffolds.mockResolvedValue([scaffold])
 
-      // Calculate next Wednesday 19:00 using dayjs with timezone, matching calculateNextOccurrence
-      const tz = 'Europe/Belgrade'
-      const now = dayjs().tz(tz)
-      const currentDay = now.day()
-      const targetDay = 3 // Wednesday
-      let daysUntil = targetDay - currentDay
-      if (daysUntil < 0) daysUntil += 7
-      if (daysUntil === 0) daysUntil = 7
-      const nextWed = now.add(daysUntil, 'day').hour(19).minute(0).second(0).millisecond(0).toDate()
+      // Use calculateNextOccurrence to get the exact datetime the handler will compute
+      const nextWed = calculateNextOccurrence(scaffold)
 
       const existingEvent = buildEvent({
         id: 'ev_exists',
