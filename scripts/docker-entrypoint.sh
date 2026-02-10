@@ -65,6 +65,15 @@ else
   exit 1
 fi
 
+# Seed database settings
+echo "[Entrypoint] Seeding database settings..."
+if node dist/db-seed.js; then
+  echo "[Entrypoint] Database seeding completed successfully"
+else
+  echo "[Entrypoint] ERROR: Database seeding failed"
+  exit 1
+fi
+
 # Start the application
 echo "[Entrypoint] Starting application..."
 exec node dist/index.js
