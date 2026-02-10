@@ -12,20 +12,8 @@ export function mockConfig(overrides?: Partial<ConfigType>): ConfigType {
     environment: 'test' as const,
     telegram: {
       botToken: TEST_CONFIG.botToken,
-      mainChatId: String(TEST_CONFIG.chatId),
       logChatId: String(TEST_CONFIG.chatId),
-      adminId: String(TEST_CONFIG.adminId),
-    },
-    notion: {
-      apiKey: TEST_CONFIG.apiKey,
-      databases: {
-        scaffolds: 'test-scaffolds-db',
-        events: 'test-events-db',
-        participants: 'test-participants-db',
-        eventParticipants: 'test-event-participants-db',
-        payments: 'test-payments-db',
-        settings: 'test-settings-db',
-      },
+      useTestServer: false,
     },
     database: {
       url: ':memory:',

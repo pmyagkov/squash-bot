@@ -16,7 +16,7 @@ The bot automates session registration, cost calculation, and payment tracking. 
 3. Create environment files:
    - Copy `.env.example` to `.env.prod` and fill in production values
    - Copy `.env.example` to `.env.test` and fill in test values
-   - Both files use the same variable names (e.g., `TELEGRAM_BOT_TOKEN`, `NOTION_DATABASE_SCAFFOLDS`)
+   - Both files use the same variable names (e.g., `TELEGRAM_BOT_TOKEN`)
    - Production values go in `.env.prod`, test values go in `.env.test`
    - See `.env.example` for the full list of required variables
 
@@ -63,7 +63,6 @@ The bot supports two environments: **production** and **test**. Each environment
 1. Create `.env.test` file based on `.env.example` and fill in test values:
    - `TELEGRAM_BOT_TOKEN` - test bot token
    - `TELEGRAM_TEST_CHAT_ID` - test chat ID
-   - `NOTION_DATABASE_*` - test database IDs
    - See [docs/manual-testing.md](./docs/manual-testing.md) for details
 2. Start the bot in test mode:
    ```bash
@@ -87,7 +86,6 @@ Detailed setup and testing instructions can be found in [docs/manual-testing.md]
 src/
   bot/           # Telegram bot logic
   api/           # REST endpoints for n8n
-  notion/        # Notion API client
   services/      # Business logic
   types/         # TypeScript types
   utils/         # Helpers

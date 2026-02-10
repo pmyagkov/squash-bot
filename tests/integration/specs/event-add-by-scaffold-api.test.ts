@@ -38,9 +38,6 @@ describe('event-add-by-scaffold-api', () => {
     settingsRepository = container.resolve('settingsRepository')
     eventBusiness = container.resolve('eventBusiness')
 
-    // Set up chat_id for announceEvent to work
-    await settingsRepository.setSetting('chat_id', String(TEST_CHAT_ID))
-
     // Initialize bot (needed for handleUpdate)
     await bot.init()
   })

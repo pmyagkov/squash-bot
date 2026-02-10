@@ -29,10 +29,6 @@ describe('event-restore', () => {
     eventRepository = container.resolve('eventRepository')
     eventBusiness = container.resolve('eventBusiness')
 
-    // Set chat_id setting (required for announceEvent)
-    const settingsRepository = container.resolve('settingsRepository')
-    await settingsRepository.setSetting('chat_id', String(TEST_CHAT_ID))
-
     // Initialize bot (needed for handleUpdate)
     await bot.init()
   })

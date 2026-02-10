@@ -37,9 +37,15 @@
       "Bash(echo:*)",
       "Bash(git status:*)",
       "Bash(git -C *)",
-      "Bash(gh pr checks:*)",
-      "Bash(gh api:*)"
-      "Bash(gh pr create:*)"
+      "Bash(gh pr *)",
+      "Bash(gh api:*)",
+      "Bash(node -e:*)",
+      "Bash(npx prettier:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker rm:*)",
+      "Bash(curl:*)",
+      "Bash(docker run:*)",
+      "Bash(ENVIRONMENT=test npx playwright test:*)"
     ]
   }
 }

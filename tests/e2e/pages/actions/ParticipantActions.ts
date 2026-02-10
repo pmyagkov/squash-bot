@@ -43,19 +43,19 @@ export class ParticipantActions extends TelegramWebPage {
    * +🎾 — increase number of courts by 1
    */
   async addCourt(): Promise<void> {
-    await this.clickInlineButton('+🎾')
+    await this.clickInlineButton('+court')
     // Wait for message update
     await this.page.waitForTimeout(500)
   }
 
   /**
-   * Click "-🎾" button to decrease number of courts
+   * Click "-court" button to decrease number of courts
    *
    * From architecture.md Scenario 6:
-   * -🎾 — decrease number of courts by 1 (minimum 1)
+   * -court — decrease number of courts by 1 (minimum 1)
    */
   async removeCourt(): Promise<void> {
-    await this.clickInlineButton('-🎾')
+    await this.clickInlineButton('-court')
     // Wait for message update
     await this.page.waitForTimeout(500)
   }
@@ -116,7 +116,7 @@ export class ParticipantActions extends TelegramWebPage {
     }
 
     // Extract participants section
-    const participantsMatch = message.match(/Participants:([\s\S]*?)(?:\n\n|$)/)
+    const participantsMatch = message.match(/Participants(?:\s*\(\d+\))?:([\s\S]*?)(?:\n\n|$)/)
     if (!participantsMatch) return participants
 
     const participantsText = participantsMatch[1]
@@ -184,8 +184,13 @@ export class ParticipantActions extends TelegramWebPage {
    * @returns Updated announcement text
    */
   async waitForAnnouncementUpdate(): Promise<string> {
-    // Wait a bit for the update
-    await this.page.waitForTimeout(500)
-    return await this.getLastMessageText()
+    // Wait for the bot to process callback and edit the announcement
+    await this.page.waitForTimeout(1000)
+    // The announcement is edited in-place — it's NOT the last message.
+    // Find it by content among all messages. Use .last() for multiple events.
+    const announcement = this.page
+      .locator(this.selectors.messageText, { hasText: 'Participants' })
+      .last()
+    return await announcement.innerText()
   }
 }

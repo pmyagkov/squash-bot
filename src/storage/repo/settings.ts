@@ -81,11 +81,20 @@ export class SettingsRepo {
   }
 
   /**
-   * Get chat ID for event announcements
-   * @returns Chat ID or null if not configured
+   * Get main chat ID setting
+   * @returns Main chat ID or null if not configured
    */
-  async getChatId(): Promise<number | null> {
-    const value = await this.getSetting('chat_id')
+  async getMainChatId(): Promise<number | null> {
+    const value = await this.getSetting('main_chat_id')
     return value ? parseInt(value, 10) : null
+  }
+
+  /**
+   * Get admin Telegram user ID setting
+   * @returns Admin user ID or null if not configured
+   */
+  async getAdminId(): Promise<string | null> {
+    const value = await this.getSetting('admin_id')
+    return value || null
   }
 }

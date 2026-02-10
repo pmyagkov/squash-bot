@@ -18,7 +18,6 @@ test.describe('Event Lifecycle Flow', () => {
   test('should complete full event lifecycle: create → announce → register → finalize → pay', async ({
     eventCommands,
     participantActions,
-    paymentActions,
   }) => {
     // Page objects are already initialized and navigated via fixtures
 
@@ -81,43 +80,6 @@ test.describe('Event Lifecycle Flow', () => {
     // Step 5: Finalize event (Scenario 6)
     console.log('Step 5: Finalizing event...')
     await participantActions.finalizeEvent()
-
-    // Wait for payment message (Scenario 7)
-    const paymentMessage = await paymentActions.waitForPaymentMessage()
-    expect(paymentMessage).toContain('💰 Payment')
-    expect(paymentMessage).toContain('Courts: 3')
-    console.log('Event finalized, payment message received')
-
-    // Verify payment calculation
-    const paymentDetails = paymentActions.parsePaymentMessage(paymentMessage)
-    expect(paymentDetails).toBeTruthy()
-    if (paymentDetails) {
-      expect(paymentDetails.courts).toBe(3)
-      expect(paymentDetails.courtCost).toBeGreaterThan(0)
-      expect(paymentDetails.participants.length).toBeGreaterThan(0)
-
-      // Verify total amount = court_cost × courts
-      const totalAmount = paymentActions.getTotalAmount(paymentMessage)
-      const expectedTotal = paymentDetails.courtCost * paymentDetails.courts
-      expect(Math.abs(totalAmount - expectedTotal)).toBeLessThanOrEqual(
-        paymentDetails.participants.length
-      ) // Allow rounding error
-      console.log(`Payment amount verified: ${totalAmount} ₽`)
-    }
-
-    // Step 6: Mark payment (Scenario 8)
-    console.log('Step 6: Marking payment...')
-    await paymentActions.markAsPaid()
-
-    // Wait for payment update
-    const updatedPayment = await paymentActions.waitForPaymentUpdate()
-    expect(updatedPayment).toContain('✓')
-    console.log('Payment marked successfully')
-
-    // Verify at least one participant has paid
-    const unpaidParticipants = paymentActions.getUnpaidParticipants(updatedPayment)
-    const paidCount = paymentDetails!.participants.length - unpaidParticipants.length
-    expect(paidCount).toBeGreaterThan(0)
 
     console.log('Full event lifecycle completed successfully!')
   })

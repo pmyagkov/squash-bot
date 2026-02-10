@@ -131,6 +131,20 @@ describe('SettingsRepo', () => {
           expectedValue: 3,
           getter: () => settingsRepo.getMinPlayersPerCourt(),
         },
+        {
+          methodName: 'getMainChatId',
+          key: 'main_chat_id',
+          setValue: '-1001234567890',
+          expectedValue: -1001234567890,
+          getter: () => settingsRepo.getMainChatId(),
+        },
+        {
+          methodName: 'getAdminId',
+          key: 'admin_id',
+          setValue: '123456789',
+          expectedValue: '123456789',
+          getter: () => settingsRepo.getAdminId(),
+        },
       ])(
         '$methodName should return $key from settings',
         async ({ key, setValue, expectedValue, getter }) => {
@@ -185,6 +199,18 @@ describe('SettingsRepo', () => {
           key: 'min_players_per_court',
           defaultValue: 2,
           getter: () => settingsRepo.getMinPlayersPerCourt(),
+        },
+        {
+          methodName: 'getMainChatId',
+          key: 'main_chat_id',
+          defaultValue: null,
+          getter: () => settingsRepo.getMainChatId(),
+        },
+        {
+          methodName: 'getAdminId',
+          key: 'admin_id',
+          defaultValue: null,
+          getter: () => settingsRepo.getAdminId(),
         },
       ])(
         '$methodName should return default $key ($defaultValue) when not set',

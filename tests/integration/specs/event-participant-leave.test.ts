@@ -33,10 +33,6 @@ describe('event-participant-leave', () => {
     participantRepository = container.resolve('participantRepository')
     eventBusiness = container.resolve('eventBusiness')
 
-    // Set chat_id setting (required for announceEvent)
-    const settingsRepository = container.resolve('settingsRepository')
-    await settingsRepository.setSetting('chat_id', String(TEST_CHAT_ID))
-
     // Initialize bot (needed for handleUpdate)
     await bot.init()
   })

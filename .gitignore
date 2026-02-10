@@ -9,9 +9,9 @@ dist/
 .env.local
 .env.*.local
 .env.prod
-.env.test
-# But keep .env.example
+# But keep .env.example and .env.test (safe test values)
 !.env.example
+!.env.test
 
 # IDE
 .vscode/

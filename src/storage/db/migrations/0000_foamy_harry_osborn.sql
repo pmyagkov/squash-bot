@@ -2,7 +2,8 @@ CREATE TABLE "event_participants" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"event_id" text NOT NULL,
 	"participant_id" text NOT NULL,
-	"participations" integer DEFAULT 1 NOT NULL
+	"participations" integer DEFAULT 1 NOT NULL,
+	CONSTRAINT "event_participants_event_id_participant_id_unique" UNIQUE("event_id","participant_id")
 );
 --> statement-breakpoint
 CREATE TABLE "events" (
@@ -28,7 +29,7 @@ CREATE TABLE "payments" (
 	"event_id" text NOT NULL,
 	"participant_id" text NOT NULL,
 	"amount" integer NOT NULL,
-	"is_paid" boolean DEFAULT false NOT NULL,
+	"is_paid" integer DEFAULT 0 NOT NULL,
 	"paid_at" timestamp with time zone,
 	"reminder_count" integer DEFAULT 0 NOT NULL
 );
@@ -38,7 +39,7 @@ CREATE TABLE "scaffolds" (
 	"day_of_week" varchar(3) NOT NULL,
 	"time" varchar(5) NOT NULL,
 	"default_courts" integer NOT NULL,
-	"is_active" boolean DEFAULT true NOT NULL,
+	"is_active" integer DEFAULT 1 NOT NULL,
 	"announcement_deadline" text
 );
 --> statement-breakpoint

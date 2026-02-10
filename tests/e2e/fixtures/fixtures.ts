@@ -24,17 +24,12 @@ type TestFixtures = {
 
 export const test = base.extend<TestFixtures>({
   /**
-   * Chat ID from .env.test (TELEGRAM_MAIN_CHAT_ID)
-   * This is the test chat where bot commands will be sent
+   * Chat ID for the test chat where bot commands will be sent
+   * This value matches the seed script in src/db-seed.ts
    */
+  // eslint-disable-next-line no-empty-pattern
   chatId: async ({}, use) => {
-    const chatId = process.env.TELEGRAM_MAIN_CHAT_ID
-    if (!chatId) {
-      throw new Error(
-        'TELEGRAM_MAIN_CHAT_ID is not set. Make sure .env.test is loaded via global-setup.ts'
-      )
-    }
-    await use(chatId)
+    await use('-5009884489')
   },
 
   /**

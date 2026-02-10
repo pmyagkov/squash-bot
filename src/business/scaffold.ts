@@ -2,6 +2,7 @@ import type { Scaffold } from '~/types'
 import type { TelegramTransport, CommandTypes } from '~/services/transport/telegram'
 import type { AppContainer } from '../container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
+import type { SettingsRepo } from '~/storage/repo/settings'
 import type { Logger } from '~/services/logger'
 import { isAdmin } from '~/utils/environment'
 import { parseDayOfWeek } from '~/helpers/dateTime'
@@ -11,11 +12,13 @@ import { parseDayOfWeek } from '~/helpers/dateTime'
  */
 export class ScaffoldBusiness {
   private scaffoldRepository: ScaffoldRepo
+  private settingsRepository: SettingsRepo
   private transport: TelegramTransport
   private logger: Logger
 
   constructor(container: AppContainer) {
     this.scaffoldRepository = container.resolve('scaffoldRepository')
+    this.settingsRepository = container.resolve('settingsRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
   }
@@ -33,7 +36,7 @@ export class ScaffoldBusiness {
   // === Command Handlers ===
 
   private async handleAdd(data: CommandTypes['scaffold:add']): Promise<void> {
-    if (!isAdmin(data.userId)) {
+    if (!(await isAdmin(data.userId, this.settingsRepository))) {
       await this.transport.sendMessage(
         data.chatId,
         '❌ This command is only available to administrators'
@@ -82,7 +85,7 @@ export class ScaffoldBusiness {
   }
 
   private async handleList(data: CommandTypes['scaffold:list']): Promise<void> {
-    if (!isAdmin(data.userId)) {
+    if (!(await isAdmin(data.userId, this.settingsRepository))) {
       await this.transport.sendMessage(
         data.chatId,
         '❌ This command is only available to administrators'
@@ -119,7 +122,7 @@ export class ScaffoldBusiness {
   }
 
   private async handleToggle(data: CommandTypes['scaffold:toggle']): Promise<void> {
-    if (!isAdmin(data.userId)) {
+    if (!(await isAdmin(data.userId, this.settingsRepository))) {
       await this.transport.sendMessage(
         data.chatId,
         '❌ This command is only available to administrators'
@@ -158,7 +161,7 @@ export class ScaffoldBusiness {
   }
 
   private async handleRemove(data: CommandTypes['scaffold:remove']): Promise<void> {
-    if (!isAdmin(data.userId)) {
+    if (!(await isAdmin(data.userId, this.settingsRepository))) {
       await this.transport.sendMessage(
         data.chatId,
         '❌ This command is only available to administrators'

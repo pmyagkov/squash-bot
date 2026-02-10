@@ -1,4 +1,5 @@
 import { Page, Locator } from '@playwright/test'
+import { getTelegramWebUrl } from '@e2e/config/config'
 
 /**
  * Base class for all Telegram Web page objects
@@ -16,24 +17,24 @@ export class TelegramWebPage {
    */
   protected get selectors() {
     return {
-      // Message input
-      messageComposer: '#message-input-text [role="textbox"][contenteditable="true"]',
+      // Message input (Web K)
+      messageComposer: '.input-message-input[contenteditable="true"]:not(.input-field-input-fake)',
 
-      // Messages
-      messageContainer: '.sender-group-container',
-      lastMessage: '.sender-group-container:last-child .text-content',
-      messageText: '.text-content',
+      // Messages (Web K)
+      messageContainer: '.bubbles-group',
+      lastMessage: '.bubbles-group:last-child .bubble:last-child .translatable-message',
+      messageText: '.translatable-message',
 
-      // Inline buttons
+      // Inline buttons (Web K)
       inlineKeyboard: '.reply-markup',
       inlineButton: '.reply-markup-button',
 
-      // Chat list
-      chatList: '.chat-list',
+      // Chat list (Web K)
+      chatList: '.chatlist-chat',
       chatItem: '.chatlist-chat',
 
       // Search
-      searchInput: 'input[type="text"]',
+      searchInput: '.input-search-input',
     }
   }
 
@@ -48,7 +49,10 @@ export class TelegramWebPage {
    * Navigate to a specific chat by chat ID
    */
   async navigateToChat(chatId: string): Promise<void> {
-    await this.page.goto(`https://web.telegram.org/a/#${chatId}`)
+    await this.page.goto(getTelegramWebUrl(chatId), { waitUntil: 'domcontentloaded' })
+    // Web K needs a reload for hash-based navigation to take effect
+    await this.page.waitForSelector(this.selectors.chatItem, { timeout: 15000 })
+    await this.page.evaluate(() => window.location.reload())
     await this.waitForLoad()
   }
 
@@ -116,34 +120,21 @@ export class TelegramWebPage {
    * @returns Text content of the matching message
    */
   async waitForMessageContaining(text: string, timeout = 10000): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const checkInterval = 200
-      let elapsed = 0
+    const startTime = Date.now()
 
-      const interval = setInterval(async () => {
-        try {
-          const message = await this.getLastMessage()
-          const messageText = await message?.innerText()
-
-          if (messageText && messageText.includes(text)) {
-            clearInterval(interval)
-            resolve(messageText)
-          } else {
-            elapsed += checkInterval
-            if (elapsed >= timeout) {
-              clearInterval(interval)
-              reject(new Error(`Timeout waiting for message containing "${text}"`))
-            }
-          }
-        } catch (error) {
-          elapsed += checkInterval
-          if (elapsed >= timeout) {
-            clearInterval(interval)
-            reject(error)
-          }
+    while (Date.now() - startTime < timeout) {
+      const messages = await this.getAllMessages().all()
+      // Search from newest to oldest
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const messageText = await messages[i].innerText()
+        if (messageText && messageText.includes(text)) {
+          return messageText
         }
-      }, checkInterval)
-    })
+      }
+      await this.page.waitForTimeout(200)
+    }
+
+    throw new Error(`Timeout waiting for message containing "${text}"`)
   }
 
   /**
@@ -151,7 +142,8 @@ export class TelegramWebPage {
    * @param buttonText - Text on the button to find
    */
   protected findInlineButton(buttonText: string): Locator {
-    return this.page.locator(this.selectors.inlineButton, { hasText: buttonText })
+    const lastKeyboard = this.page.locator(this.selectors.inlineKeyboard).last()
+    return lastKeyboard.locator(this.selectors.inlineButton, { hasText: buttonText })
   }
 
   /**

@@ -1,0 +1,62 @@
+# Docker Compose for local development and E2E tests
+# Provides PostgreSQL 16 + DB initialization (migrations + seed)
+# Usage: docker compose -f docker-compose.dev.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: squash-bot-postgres-test
+    environment:
+      - POSTGRES_DB=squash_bot_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=test
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d squash_bot_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  db-init:
+    image: node:22-alpine
+    container_name: squash-bot-db-init
+    working_dir: /app
+    volumes:
+      - .:/app
+      - db_init_node_modules:/app/node_modules
+    environment:
+      - DATABASE_URL=postgresql://postgres:test@postgres:5432/squash_bot_test
+      - ENVIRONMENT=test
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm ci --ignore-scripts && npx tsx src/storage/db/migrate.ts && npx tsx src/storage/db/seed.ts"
+    restart: "no"
+
+  bot:
+    image: node:22-alpine
+    container_name: squash-bot-app-test
+    working_dir: /app
+    volumes:
+      - .:/app
+      - bot_node_modules:/app/node_modules
+    env_file:
+      - .env.test
+    environment:
+      - DATABASE_URL=postgresql://postgres:test@postgres:5432/squash_bot_test
+      - ENVIRONMENT=test
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    command: sh -c "npm ci --ignore-scripts && npx tsx watch src/index.ts"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3010/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  db_init_node_modules:
+  bot_node_modules:

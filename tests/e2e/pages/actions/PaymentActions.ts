@@ -60,19 +60,15 @@ export class PaymentActions extends TelegramWebPage {
     courtCost: number
     participants: Array<{ username: string; amount: number; paid: boolean }>
   } | null {
-    // Parse courts
-    const courtsMatch = message.match(/Courts:\s*(\d+)/)
+    // Parse courts and cost from "Courts: 3 × 2000 din = 6000 din"
+    const courtsMatch = message.match(/Courts:\s*(\d+)\s*×\s*(\d+)\s*din/)
     if (!courtsMatch) return null
-
-    // Parse court cost
-    const costMatch = message.match(/Court cost:\s*(\d+)/)
-    if (!costMatch) return null
 
     // Parse participants and their payments
     const participants: Array<{ username: string; amount: number; paid: boolean }> = []
 
-    // Match pattern: @username (×count) — amount ₽ [✓]
-    const regex = /@(\w+)(?:\s*\(×\d+\))?\s*—\s*(\d+)\s*₽\s*(✓)?/g
+    // Match pattern: @username — amount din (×count) [✓]
+    const regex = /@(\w+)\s*—\s*(\d+)\s*din(?:\s*\(×\d+\))?\s*(✓)?/g
     let match
 
     while ((match = regex.exec(message)) !== null) {
@@ -85,7 +81,7 @@ export class PaymentActions extends TelegramWebPage {
 
     return {
       courts: parseInt(courtsMatch[1], 10),
-      courtCost: parseInt(costMatch[1], 10),
+      courtCost: parseInt(courtsMatch[2], 10),
       participants,
     }
   }

@@ -18,10 +18,6 @@ TELEGRAM_BOT_TOKEN=your-test-bot-token
 TELEGRAM_MAIN_CHAT_ID=-1234567890  # ID тестового чата
 TELEGRAM_LOG_CHAT_ID=-0987654321
 ADMIN_TELEGRAM_ID=123456789
-
-NOTION_API_KEY=your-notion-key
-NOTION_DATABASE_SCAFFOLDS=test-db-id
-# ... остальные database IDs
 ```
 
 ### 2. Авторизация в Telegram
@@ -129,7 +125,6 @@ test.describe('My Test Suite', () => {
 
 - `TELEGRAM_MAIN_CHAT_ID` - ID тестового чата (обязательно)
 - `TELEGRAM_BOT_TOKEN` - токен тестового бота
-- `NOTION_DATABASE_*` - IDs тестовых баз данных в Notion
 
 ### Тестовые данные (config.ts)
 

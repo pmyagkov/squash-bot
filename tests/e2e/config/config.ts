@@ -9,6 +9,16 @@ import * as path from 'path'
 export const authFile = path.resolve(process.cwd(), '.auth', 'telegram-auth.json')
 export const hasAuth = fs.existsSync(authFile)
 
+// Telegram test server support
+export const useTestServer = process.env.TELEGRAM_TEST_SERVER === 'true'
+
+export function getTelegramWebUrl(chatId?: string): string {
+  const base = useTestServer ? 'https://webk.telegram.org/' : 'https://web.telegram.org/k/'
+  const query = useTestServer ? '?test=1' : ''
+  const hash = chatId ? `#${chatId}` : ''
+  return `${base}${query}${hash}`
+}
+
 /**
  * Timeouts (in milliseconds)
  */
