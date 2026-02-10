@@ -6,7 +6,11 @@ import { createAppContainer } from './container'
 async function main() {
   try {
     // 1. Create Bot instance
-    const bot = new Bot(config.telegram.botToken)
+    const bot = new Bot(config.telegram.botToken, {
+      client: {
+        environment: config.telegram.useTestServer ? 'test' : 'prod',
+      },
+    })
 
     // 2. Create container
     const container = createAppContainer(bot)

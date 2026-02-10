@@ -21,22 +21,16 @@ async function globalSetup() {
   dotenv.config({ path: envPath, override: false })
 
   // Verify required variables
-  const requiredVars = [
-    'TELEGRAM_BOT_TOKEN',
-    'TELEGRAM_MAIN_CHAT_ID',
-    'NOTION_API_KEY',
-    'NOTION_DATABASE_SCAFFOLDS',
-    'DATABASE_URL',
-  ]
+  const requiredVars = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_MAIN_CHAT_ID', 'DATABASE_URL']
 
   const missing = requiredVars.filter((varName) => !process.env[varName])
   if (missing.length > 0) {
-    console.warn(
-      `[E2E Setup] Warning: Missing environment variables: ${missing.join(', ')}`
-    )
+    console.warn(`[E2E Setup] Warning: Missing environment variables: ${missing.join(', ')}`)
   }
 
+  const useTestServer = process.env.TELEGRAM_TEST_SERVER === 'true'
   console.log(`[E2E Setup] Environment loaded successfully`)
+  console.log(`[E2E Setup] Telegram server: ${useTestServer ? 'TEST' : 'PRODUCTION'}`)
   console.log(`[E2E Setup] Test Chat ID: ${process.env.TELEGRAM_MAIN_CHAT_ID || 'not set'}`)
 
   // Run database migrations for E2E tests

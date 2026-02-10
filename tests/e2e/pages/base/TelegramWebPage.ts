@@ -1,4 +1,5 @@
 import { Page, Locator } from '@playwright/test'
+import { getTelegramWebUrl } from '@e2e/config/config'
 
 /**
  * Base class for all Telegram Web page objects
@@ -48,7 +49,7 @@ export class TelegramWebPage {
    * Navigate to a specific chat by chat ID
    */
   async navigateToChat(chatId: string): Promise<void> {
-    await this.page.goto(`https://web.telegram.org/a/#${chatId}`)
+    await this.page.goto(getTelegramWebUrl(chatId))
     await this.waitForLoad()
   }
 

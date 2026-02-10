@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Docker entrypoint script for Squash Payment Bot
 # Runs database migrations and starts the application

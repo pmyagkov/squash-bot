@@ -1,17 +1,15 @@
 import { defineConfig } from '@playwright/test'
 import process from 'process'
+import dotenv from 'dotenv'
 
-/**
- * Playwright configuration for Wine Edu Bot e2e tests
- *
- * Features:
- * - Mobile viewport (iPhone 14 Pro Max size)
- * - Direct link to bot (@wine_edu_bot)
- * - Manual authentication via npm run auth:manual
- * - Saved authentication state for all tests
- */
+// Load .env.test to read TELEGRAM_TEST_SERVER before config is evaluated
+dotenv.config({ path: '.env.test' })
 
 const authFile = '.auth/telegram-auth.json'
+const useTestServer = process.env.TELEGRAM_TEST_SERVER === 'true'
+const telegramBaseURL = useTestServer
+  ? 'https://webk.telegram.org/?test=1'
+  : 'https://web.telegram.org/k/'
 
 export default defineConfig({
   testDir: './tests/e2e/specs',
@@ -39,8 +37,8 @@ export default defineConfig({
 
   // Shared settings for all the projects below
   use: {
-    // Direct link to bot
-    baseURL: 'https://web.telegram.org/k/#@belgrade_squash_bot',
+    // Direct link to Telegram Web (test or production)
+    baseURL: telegramBaseURL,
 
     // Mobile viewport (iPhone 14 Pro Max)
     viewport: { width: 430, height: 932 },

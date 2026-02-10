@@ -18,8 +18,9 @@ describe('mockConfig', () => {
         mainChatId: String(TEST_CONFIG.chatId),
         logChatId: String(TEST_CONFIG.chatId),
         adminId: String(TEST_CONFIG.adminId),
+        useTestServer: false,
       },
-      timezone: 'UTC'
+      timezone: 'UTC',
     })
 
     expect(config.telegram.botToken).toBe('custom-token')

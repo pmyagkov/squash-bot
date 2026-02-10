@@ -42,6 +42,7 @@ function getConfig() {
       mainChatId: process.env.TELEGRAM_MAIN_CHAT_ID!,
       logChatId: process.env.TELEGRAM_LOG_CHAT_ID!,
       adminId: process.env.ADMIN_TELEGRAM_ID!,
+      useTestServer: process.env.TELEGRAM_TEST_SERVER === 'true',
     },
     notion: {
       apiKey: process.env.NOTION_API_KEY || '',

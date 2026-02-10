@@ -1,6 +1,6 @@
 # Multi-stage build for Squash Payment Bot
 # Stage 1: Builder - compile TypeScript to JavaScript
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Production - minimal runtime image
-FROM node:20-alpine
+FROM node:22-alpine
 
 # Install dumb-init for signal handling
 RUN apk add --no-cache dumb-init
@@ -27,8 +27,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --omit=dev && npm cache clean --force
+# Install only production dependencies (--ignore-scripts to skip husky prepare)
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist

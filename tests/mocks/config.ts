@@ -15,6 +15,7 @@ export function mockConfig(overrides?: Partial<ConfigType>): ConfigType {
       mainChatId: String(TEST_CONFIG.chatId),
       logChatId: String(TEST_CONFIG.chatId),
       adminId: String(TEST_CONFIG.adminId),
+      useTestServer: false,
     },
     notion: {
       apiKey: TEST_CONFIG.apiKey,

@@ -7,23 +7,36 @@
  *
  * Usage:
  *   npm run auth:manual
+ *   TELEGRAM_TEST_SERVER=true npm run auth:manual   # for test environment
  */
 
 import { chromium } from '@playwright/test'
 import * as readline from 'readline'
+import dotenv from 'dotenv'
+
+dotenv.config({ path: '.env.test' })
 
 const authFile = '.auth/telegram-auth.json'
+const useTestServer = process.env.TELEGRAM_TEST_SERVER === 'true'
+const telegramUrl = useTestServer
+  ? 'https://webk.telegram.org/?test=1'
+  : 'https://web.telegram.org/k/'
 
 async function manualAuth() {
+  const envLabel = useTestServer ? 'TEST SERVER' : 'PRODUCTION'
+
   console.log('')
   console.log('╔════════════════════════════════════════════════════════╗')
   console.log('║       MANUAL AUTHENTICATION FOR PLAYWRIGHT TESTS      ║')
+  console.log(`║       Environment: ${envLabel.padEnd(37)}║`)
   console.log('╚════════════════════════════════════════════════════════╝')
+  console.log('')
+  console.log(`Opening: ${telegramUrl}`)
   console.log('')
   console.log('A browser window will open. Please:')
   console.log('')
   console.log('1. Log in to Telegram Web')
-  console.log('2. Search for @belgrade_squash_bot')
+  console.log('2. Search for the bot')
   console.log('3. Open the bot chat')
   console.log('4. Send /start command')
   console.log('5. Wait for the bot to respond')
@@ -44,7 +57,7 @@ async function manualAuth() {
   const page = await context.newPage()
 
   // Navigate to Telegram
-  await page.goto('https://web.telegram.org/k/')
+  await page.goto(telegramUrl)
 
   // Wait for user input
   const rl = readline.createInterface({
