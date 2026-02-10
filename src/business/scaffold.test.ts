@@ -1,18 +1,15 @@
-import { test, describe, expect, beforeEach } from '@tests/setup'
+import { test, describe, expect } from '@tests/setup'
 import { buildScaffold } from '@fixtures'
 import { TEST_CONFIG } from '@fixtures/config'
 import { ScaffoldBusiness } from '~/business/scaffold'
-
-// Control isAdmin() by setting ADMIN_TELEGRAM_ID before each test
-beforeEach(() => {
-  process.env.ADMIN_TELEGRAM_ID = String(TEST_CONFIG.adminId)
-})
 
 describe('ScaffoldBusiness', () => {
   // ── handleAdd ──────────────────────────────────────────────────────
 
   describe('handleAdd', () => {
     test('happy path: creates scaffold, sends success message', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -44,6 +41,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('not admin → sends admin-only error', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const transport = container.resolve('transport')
       const scaffoldRepo = container.resolve('scaffoldRepository')
 
@@ -70,6 +69,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('invalid day → sends error', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const transport = container.resolve('transport')
       const scaffoldRepo = container.resolve('scaffoldRepository')
 
@@ -96,6 +97,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('invalid courts → sends error', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const transport = container.resolve('transport')
       const scaffoldRepo = container.resolve('scaffoldRepository')
 
@@ -126,6 +129,8 @@ describe('ScaffoldBusiness', () => {
 
   describe('handleList', () => {
     test('with scaffolds → sends formatted list', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -172,6 +177,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('empty → sends "no scaffolds" message', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -196,6 +203,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('not admin → sends admin-only error', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const transport = container.resolve('transport')
 
       const business = new ScaffoldBusiness(container)
@@ -221,6 +230,8 @@ describe('ScaffoldBusiness', () => {
 
   describe('handleToggle', () => {
     test('happy path → toggles, sends status', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -251,6 +262,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('not found → sends error', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -276,6 +289,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('not admin → sends admin-only error', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const transport = container.resolve('transport')
 
       const business = new ScaffoldBusiness(container)
@@ -302,6 +317,8 @@ describe('ScaffoldBusiness', () => {
 
   describe('handleRemove', () => {
     test('happy path → removes, sends confirmation', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -328,6 +345,8 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('not found → sends error', async ({ container }) => {
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
