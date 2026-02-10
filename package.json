@@ -18,9 +18,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "test:e2e": "ENVIRONMENT=test playwright test tests/e2e --config=playwright.mjs",
     "test:e2e:ui": "ENVIRONMENT=test E2E_HEADED=true  playwright test tests/e2e --config=playwright.mjs",
-    "test:auth": "tsx scripts/create-telegram-auth.ts"
+    "test:auth": "tsx scripts/create-telegram-auth.ts",
+    "prepare": "husky"
   },
   "keywords": [
     "telegram",
@@ -49,6 +51,7 @@
     "@playwright/test": "1.57.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.16",
     "better-sqlite3": "^12.6.2",
     "drizzle-kit": "^0.31.8",
@@ -56,11 +59,13 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-vitest": "^0.5.4",
+    "husky": "^9.1.7",
     "prettier": "^3.4.2",
     "ts-node-dev": "^2.0.0",
     "tsx": "4.21.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "vitest-mock-extended": "^3.1.0"
   }
 }

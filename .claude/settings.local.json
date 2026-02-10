@@ -23,6 +23,22 @@
       "Bash(npm uninstall:*)",
       "Bash(git restore:*)",
       "Bash(git mv:*)",
+      "Bash(git stash:*)",
+      "Bash(tee:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(npm info:*)",
+      "Bash(bash -n:*)",
+      "Bash(./scripts/run-e2e-tests.sh:*)",
+      "Bash(npm run:*)",
+      "Bash(npx eslint:*)",
+      "Bash(awk:*)",
+      "Bash(git push:*)",
+      "Bash(echo:*)",
+      "Bash(git status:*)",
+      "Bash(git -C *)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh api:*)"
       "Bash(gh pr create:*)"
     ]
   }

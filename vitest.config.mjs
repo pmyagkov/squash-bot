@@ -8,9 +8,71 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./tests/integration/config/setup.ts', './tests/integration/vitest.setup.ts'],
-    include: ['tests/integration/**/*.{test,spec}.{js,ts}', 'src/**/*.test.{js,ts}'],
+    setupFiles: ['./tests/integration/vitest.setup.ts'],
+    include: [
+      'tests/integration/**/*.{test,spec}.{js,ts}',
+      'tests/mocks/**/*.test.{js,ts}',
+      'tests/**/*.test.{js,ts}',
+      'src/**/*.test.{js,ts}',
+    ],
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.spec.ts',
+        'src/index.ts',
+        'src/config/**',
+        'src/**/__mocks__/**',
+        'src/**/*.d.ts',
+      ],
+      thresholds: {
+        'src/storage/repo/**': {
+          statements: 95,
+          branches: 87,
+          functions: 97,
+          lines: 95,
+        },
+        'src/helpers/**': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        'src/utils/**': {
+          statements: 94,
+          branches: 85,
+          functions: 87,
+          lines: 94,
+        },
+        'src/services/formatters/**': {
+          statements: 100,
+          branches: 100,
+          functions: 100,
+          lines: 100,
+        },
+        'src/services/transport/**': {
+          statements: 77,
+          branches: 68,
+          functions: 88,
+          lines: 77,
+        },
+        'src/services/logger/**': {
+          statements: 68,
+          branches: 58,
+          functions: 100,
+          lines: 68,
+        },
+        'src/business/**': {
+          statements: 90,
+          branches: 74,
+          functions: 95,
+          lines: 89,
+        },
+      },
+    },
   },
   resolve: {
     alias: {
@@ -18,6 +80,9 @@ export default defineConfig({
       '@e2e': path.resolve(__dirname, './tests/e2e'),
       '@integration': path.resolve(__dirname, './tests/integration'),
       '@test-utils': path.resolve(__dirname, './tests/shared'),
+      '@mocks': path.resolve(__dirname, './tests/mocks'),
+      '@fixtures': path.resolve(__dirname, './tests/fixtures'),
+      '@tests/setup': path.resolve(__dirname, './tests/setup'),
     },
   },
 })

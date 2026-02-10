@@ -89,7 +89,7 @@ Remove scaffold.
 
 ## Event Management
 
-### event-create-from-scaffold ✅
+### event-add-by-scaffold-api ✅
 
 Auto-create event from scaffold on schedule.
 
@@ -243,7 +243,7 @@ Cancel event.
 
 ## Participant Registration
 
-### participant-join ✅
+### event-participant-join ✅
 
 Register for event.
 
@@ -268,7 +268,7 @@ Participants (3):
 
 ---
 
-### participant-leave ✅
+### event-participant-leave ✅
 
 Unregister from event.
 
@@ -289,7 +289,7 @@ Unregister from event.
 
 ## Session Management
 
-### session-adjust-courts ✅
+### event-adjust-courts ✅
 
 Change court count for event.
 
@@ -316,7 +316,7 @@ Change court count for event.
 
 ---
 
-### session-finalize
+### event-finalize
 
 Finalize session, create payment records, and send personal notifications.
 
@@ -364,7 +364,7 @@ Participants (4):
 
 ---
 
-### session-cancel-via-button ✅
+### event-cancel-via-button ✅
 
 Cancel event via inline button.
 
@@ -381,7 +381,7 @@ Cancel event via inline button.
 
 ---
 
-### session-restore ✅
+### event-restore ✅
 
 Restore cancelled event.
 
@@ -397,7 +397,7 @@ Restore cancelled event.
 
 ---
 
-### session-unfinalize
+### event-unfinalize
 
 Unfinalize session and clean up payment records.
 
@@ -430,7 +430,7 @@ Unfinalize session and clean up payment records.
 
 Send personal payment notification to each participant after finalization.
 
-**Actor:** System (triggered by session-finalize)
+**Actor:** System (triggered by event-finalize)
 **Chat:** Private DM to each participant
 
 **Flow:**
@@ -465,7 +465,7 @@ Your amount: 1000 din
 
 Notify users in group chat who couldn't receive personal messages (general purpose).
 
-**Actor:** System (triggered by session-finalize if deliveries failed)
+**Actor:** System (triggered by event-finalize if deliveries failed)
 **Chat:** Main
 
 **Condition:** `failedParticipants.length > 0`
@@ -648,7 +648,7 @@ You can mark payment in corresponding messages in chat.
 Warn admin about too many participants.
 
 **Actor:** System
-**Trigger:** After participant-join, participant-leave, or session-adjust-courts
+**Trigger:** After event-participant-join, event-participant-leave, or event-adjust-courts
 **Chat:** Private (admin) → Main (fallback)
 
 **Condition:** total_participations > courts × max_players_per_court (default: 4)

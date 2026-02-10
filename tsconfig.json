@@ -21,8 +21,13 @@
     "baseUrl": ".",
     "paths": {
       "~/*": ["src/*"],
-      "@e2e/*": ["tests/e2e/*"],
+      "@mocks": ["tests/mocks"],
+      "@mocks/*": ["tests/mocks/*"],
+      "@fixtures": ["tests/fixtures"],
+      "@fixtures/*": ["tests/fixtures/*"],
+      "@tests/setup": ["tests/setup"],
       "@integration/*": ["tests/integration/*"],
+      "@e2e/*": ["tests/e2e/*"],
       "@test-utils/*": ["tests/shared/*"]
     }
   },

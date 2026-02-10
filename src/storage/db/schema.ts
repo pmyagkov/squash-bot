@@ -1,4 +1,13 @@
-import { pgTable, text, integer, timestamp, varchar, serial, customType } from 'drizzle-orm/pg-core'
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  varchar,
+  serial,
+  customType,
+  unique,
+} from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // Custom boolean type for cross-database compatibility (PostgreSQL + SQLite)
@@ -45,16 +54,20 @@ export const participants = pgTable('participants', {
 })
 
 // EventParticipants junction table
-export const eventParticipants = pgTable('event_participants', {
-  id: serial('id').primaryKey(),
-  eventId: text('event_id')
-    .references(() => events.id, { onDelete: 'cascade' })
-    .notNull(),
-  participantId: text('participant_id')
-    .references(() => participants.id)
-    .notNull(),
-  participations: integer('participations').default(1).notNull(),
-})
+export const eventParticipants = pgTable(
+  'event_participants',
+  {
+    id: serial('id').primaryKey(),
+    eventId: text('event_id')
+      .references(() => events.id, { onDelete: 'cascade' })
+      .notNull(),
+    participantId: text('participant_id')
+      .references(() => participants.id)
+      .notNull(),
+    participations: integer('participations').default(1).notNull(),
+  },
+  (table) => [unique().on(table.eventId, table.participantId)]
+)
 
 // Payments table
 export const payments = pgTable('payments', {
