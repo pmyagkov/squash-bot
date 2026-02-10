@@ -113,8 +113,6 @@ Required variables in `.env.test`:
 - `DATABASE_URL` - PostgreSQL connection string
 - `TELEGRAM_BOT_TOKEN` - Test bot token
 - `TELEGRAM_MAIN_CHAT_ID` - Test chat ID
-- `NOTION_API_KEY` - Notion API key
-- `NOTION_DATABASE_*` - Notion database IDs
 
 Example `.env.test`:
 ```bash

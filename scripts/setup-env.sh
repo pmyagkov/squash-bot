@@ -88,17 +88,6 @@ TELEGRAM_LOG_CHAT_ID=$(prompt_for_value "TELEGRAM_LOG_CHAT_ID" "Log chat ID for 
 ADMIN_TELEGRAM_ID=$(prompt_for_value "ADMIN_TELEGRAM_ID" "Admin user Telegram ID" false "")
 
 echo ""
-echo "NOTION CONFIGURATION"
-echo "========================================"
-NOTION_API_KEY=$(prompt_for_value "NOTION_API_KEY" "Notion API integration token" true "")
-NOTION_DATABASE_SCAFFOLDS=$(prompt_for_value "NOTION_DATABASE_SCAFFOLDS" "Notion database ID for scaffolds" false "")
-NOTION_DATABASE_EVENTS=$(prompt_for_value "NOTION_DATABASE_EVENTS" "Notion database ID for events" false "")
-NOTION_DATABASE_PARTICIPANTS=$(prompt_for_value "NOTION_DATABASE_PARTICIPANTS" "Notion database ID for participants" false "")
-NOTION_DATABASE_EVENT_PARTICIPANTS=$(prompt_for_value "NOTION_DATABASE_EVENT_PARTICIPANTS" "Notion database ID for event participants" false "")
-NOTION_DATABASE_PAYMENTS=$(prompt_for_value "NOTION_DATABASE_PAYMENTS" "Notion database ID for payments" false "")
-NOTION_DATABASE_SETTINGS=$(prompt_for_value "NOTION_DATABASE_SETTINGS" "Notion database ID for settings" false "")
-
-echo ""
 echo "API CONFIGURATION"
 echo "========================================"
 API_KEY=$(prompt_for_value "API_KEY" "API key for n8n webhooks (generate a random string)" true "")
@@ -118,17 +107,6 @@ TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 TELEGRAM_MAIN_CHAT_ID=$TELEGRAM_MAIN_CHAT_ID
 TELEGRAM_LOG_CHAT_ID=$TELEGRAM_LOG_CHAT_ID
 ADMIN_TELEGRAM_ID=$ADMIN_TELEGRAM_ID
-
-# Notion API Configuration
-NOTION_API_KEY=$NOTION_API_KEY
-
-# Notion Database IDs
-NOTION_DATABASE_SCAFFOLDS=$NOTION_DATABASE_SCAFFOLDS
-NOTION_DATABASE_EVENTS=$NOTION_DATABASE_EVENTS
-NOTION_DATABASE_PARTICIPANTS=$NOTION_DATABASE_PARTICIPANTS
-NOTION_DATABASE_EVENT_PARTICIPANTS=$NOTION_DATABASE_EVENT_PARTICIPANTS
-NOTION_DATABASE_PAYMENTS=$NOTION_DATABASE_PAYMENTS
-NOTION_DATABASE_SETTINGS=$NOTION_DATABASE_SETTINGS
 
 # Server Configuration
 PORT=$PORT

@@ -17,17 +17,6 @@ export function mockConfig(overrides?: Partial<ConfigType>): ConfigType {
       adminId: String(TEST_CONFIG.adminId),
       useTestServer: false,
     },
-    notion: {
-      apiKey: TEST_CONFIG.apiKey,
-      databases: {
-        scaffolds: 'test-scaffolds-db',
-        events: 'test-events-db',
-        participants: 'test-participants-db',
-        eventParticipants: 'test-event-participants-db',
-        payments: 'test-payments-db',
-        settings: 'test-settings-db',
-      },
-    },
     database: {
       url: ':memory:',
     },
