@@ -30,14 +30,14 @@ export class ChatPage extends TelegramWebPage {
    * @returns Bot response text
    */
   async sendCommand(command: string, timeout = 10000): Promise<string> {
-    // Get the last message ID before sending
-    const lastMessage = this.page.locator('.Message').last()
-    const lastMessageId = await lastMessage.getAttribute('data-message-id')
+    // Get the last message ID before sending (Web K: .bubble with data-mid)
+    const lastMessage = this.page.locator('.bubble[data-mid]').last()
+    const lastMessageId = await lastMessage.getAttribute('data-mid')
 
     // Send the command
     await this.sendMessage(command)
 
-    // Wait for a new message from bot (without .own class and with higher ID)
+    // Wait for a new message from bot (without .is-out class and with higher data-mid)
     return await this.waitForBotMessage(lastMessageId || '0', timeout)
   }
 
@@ -51,14 +51,14 @@ export class ChatPage extends TelegramWebPage {
     const startTime = Date.now()
 
     while (Date.now() - startTime < timeout) {
-      // Get all messages that are NOT own and have ID > afterMessageId
-      const messages = await this.page.locator('.Message:not(.own)').all()
+      // Get all messages that are NOT own and have ID > afterMessageId (Web K selectors)
+      const messages = await this.page.locator('.bubble[data-mid]:not(.is-out)').all()
 
       for (const message of messages) {
-        const messageId = await message.getAttribute('data-message-id')
-        if (messageId && parseInt(messageId) > parseInt(afterMessageId)) {
+        const messageId = await message.getAttribute('data-mid')
+        if (messageId && parseFloat(messageId) > parseFloat(afterMessageId)) {
           // Found a new bot message!
-          const text = await message.locator('.text-content').textContent()
+          const text = await message.locator('.translatable-message').textContent()
           if (text) {
             // Skip log messages (they start with [ℹ️ INFO], [❌ ERROR], etc.)
             if (!text.trim().startsWith('[')) {

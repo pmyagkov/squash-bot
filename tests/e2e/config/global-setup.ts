@@ -10,7 +10,7 @@ const execAsync = promisify(exec)
  * Loads .env.test file and runs PostgreSQL migrations before tests
  */
 async function globalSetup() {
-  const rootDir = path.resolve(__dirname, '../..')
+  const rootDir = path.resolve(__dirname, '../../..')
   const environment = process.env.ENVIRONMENT || 'test'
 
   // Load environment-specific file

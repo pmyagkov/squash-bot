@@ -17,24 +17,24 @@ export class TelegramWebPage {
    */
   protected get selectors() {
     return {
-      // Message input
-      messageComposer: '#message-input-text [role="textbox"][contenteditable="true"]',
+      // Message input (Web K)
+      messageComposer: '.input-message-input[contenteditable="true"]:not(.input-field-input-fake)',
 
-      // Messages
-      messageContainer: '.sender-group-container',
-      lastMessage: '.sender-group-container:last-child .text-content',
-      messageText: '.text-content',
+      // Messages (Web K)
+      messageContainer: '.bubbles-group',
+      lastMessage: '.bubbles-group:last-child .bubble:last-child .translatable-message',
+      messageText: '.translatable-message',
 
-      // Inline buttons
+      // Inline buttons (Web K)
       inlineKeyboard: '.reply-markup',
       inlineButton: '.reply-markup-button',
 
-      // Chat list
-      chatList: '.chat-list',
+      // Chat list (Web K)
+      chatList: '.chatlist-chat',
       chatItem: '.chatlist-chat',
 
       // Search
-      searchInput: 'input[type="text"]',
+      searchInput: '.input-search-input',
     }
   }
 
@@ -49,7 +49,10 @@ export class TelegramWebPage {
    * Navigate to a specific chat by chat ID
    */
   async navigateToChat(chatId: string): Promise<void> {
-    await this.page.goto(getTelegramWebUrl(chatId))
+    await this.page.goto(getTelegramWebUrl(chatId), { waitUntil: 'domcontentloaded' })
+    // Web K needs a reload for hash-based navigation to take effect
+    await this.page.waitForSelector(this.selectors.chatItem, { timeout: 15000 })
+    await this.page.evaluate(() => window.location.reload())
     await this.waitForLoad()
   }
 

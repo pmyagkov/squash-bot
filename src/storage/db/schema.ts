@@ -8,7 +8,7 @@ import {
   customType,
   unique,
 } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+import { relations, sql } from 'drizzle-orm'
 
 // Custom boolean type for cross-database compatibility (PostgreSQL + SQLite)
 const booleanInt = customType<{ data: boolean; driverData: number }>({
@@ -29,7 +29,9 @@ export const scaffolds = pgTable('scaffolds', {
   dayOfWeek: varchar('day_of_week', { length: 3 }).notNull(),
   time: varchar('time', { length: 5 }).notNull(),
   defaultCourts: integer('default_courts').notNull(),
-  isActive: booleanInt('is_active').default(true).notNull(),
+  isActive: booleanInt('is_active')
+    .default(sql`1`)
+    .notNull(),
   announcementDeadline: text('announcement_deadline'),
 })
 
@@ -79,7 +81,9 @@ export const payments = pgTable('payments', {
     .references(() => participants.id)
     .notNull(),
   amount: integer('amount').notNull(),
-  isPaid: booleanInt('is_paid').default(false).notNull(),
+  isPaid: booleanInt('is_paid')
+    .default(sql`0`)
+    .notNull(),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   reminderCount: integer('reminder_count').default(0).notNull(),
 })

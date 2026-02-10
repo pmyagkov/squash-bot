@@ -263,6 +263,14 @@ fi
 
 echo ""
 
+# Load .env.test for DATABASE_URL and other variables
+if [[ -f ".env.test" ]]; then
+  set -a
+  source .env.test
+  set +a
+  success "Loaded .env.test"
+fi
+
 # Handle PostgreSQL lifecycle (local only)
 if ! is_ci; then
   if is_postgres_running; then

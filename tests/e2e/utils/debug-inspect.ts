@@ -1,6 +1,7 @@
 import { chromium } from '@playwright/test'
 import * as dotenv from 'dotenv'
 import * as path from 'path'
+import { getTelegramWebUrl } from '@e2e/config/config'
 
 async function inspect() {
   // Load .env.test
@@ -26,14 +27,16 @@ async function inspect() {
 
   const page = await context.newPage()
 
-  // Navigate to chat
-  await page.goto(`https://web.telegram.org/a/#${chatId}`)
-  await page.waitForTimeout(3000)
+  // Navigate to chat (Web K: goto + reload for hash navigation)
+  await page.goto(getTelegramWebUrl(chatId), { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('.chatlist-chat', { timeout: 15000 })
+  await page.evaluate(() => window.location.reload())
+  await page.waitForSelector('.input-message-input[contenteditable="true"]', { timeout: 15000 })
 
-  console.log('\n=== Inspecting Telegram Web Message Structure ===\n')
+  console.log('\n=== Inspecting Telegram Web K Message Structure ===\n')
 
-  // Get all message containers
-  const messages = await page.locator('.Message').all()
+  // Get all message bubbles
+  const messages = await page.locator('.bubble[data-mid]').all()
   console.log(`Total messages found: ${messages.length}`)
 
   if (messages.length > 0) {
@@ -42,12 +45,12 @@ async function inspect() {
 
     for (let i = 0; i < lastMessages.length; i++) {
       const msg = lastMessages[i]
-      const msgId = await msg.getAttribute('data-message-id')
+      const msgId = await msg.getAttribute('data-mid')
       const msgPeerId = await msg.getAttribute('data-peer-id')
-      const text = await msg.locator('.text-content').textContent().catch(() => '[no text]')
+      const text = await msg.locator('.translatable-message').textContent().catch(() => '[no text]')
 
       console.log(`Message ${i + 1}:`)
-      console.log(`  ID: ${msgId}`)
+      console.log(`  ID (data-mid): ${msgId}`)
       console.log(`  Peer ID: ${msgPeerId}`)
       console.log(`  Text: ${text?.substring(0, 100)}`)
       console.log()
@@ -55,16 +58,16 @@ async function inspect() {
   }
 
   // Try alternative selectors
-  console.log('\n=== Trying different selectors ===\n')
+  console.log('\n=== Selector counts ===\n')
 
-  const messagesBubble = await page.locator('.message-bubble').count()
-  console.log(`Messages with .message-bubble: ${messagesBubble}`)
+  const bubblesCount = await page.locator('.bubble').count()
+  console.log(`.bubble: ${bubblesCount}`)
 
-  const messagesContainer = await page.locator('.messages-container .Message').count()
-  console.log(`Messages in .messages-container: ${messagesContainer}`)
+  const bubblesWithMid = await page.locator('.bubble[data-mid]').count()
+  console.log(`.bubble[data-mid]: ${bubblesWithMid}`)
 
-  const textContent = await page.locator('.text-content').count()
-  console.log(`Elements with .text-content: ${textContent}`)
+  const messageContent = await page.locator('.translatable-message').count()
+  console.log(`.translatable-message: ${messageContent}`)
 
   console.log('\n=== Browser will stay open for inspection ===')
   console.log('Press Ctrl+C to close')
