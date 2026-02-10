@@ -205,7 +205,7 @@ describe('EventBusiness', () => {
 
       const event = buildEvent({ id: 'ev_ann', status: 'created' })
       eventRepo.findById.mockResolvedValue(event)
-      settingsRepo.getChatId.mockResolvedValue(TEST_CONFIG.chatId)
+      settingsRepo.getMainChatId.mockResolvedValue(TEST_CONFIG.chatId)
       transport.sendMessage.mockResolvedValue(42)
       eventRepo.updateEvent.mockResolvedValue(
         buildEvent({ id: 'ev_ann', status: 'announced', telegramMessageId: '42' })
@@ -292,7 +292,7 @@ describe('EventBusiness', () => {
 
       const event = buildEvent({ id: 'ev_pin', status: 'created' })
       eventRepo.findById.mockResolvedValue(event)
-      settingsRepo.getChatId.mockResolvedValue(TEST_CONFIG.chatId)
+      settingsRepo.getMainChatId.mockResolvedValue(TEST_CONFIG.chatId)
       transport.sendMessage.mockResolvedValue(55)
       eventRepo.updateEvent.mockResolvedValue(
         buildEvent({ id: 'ev_pin', status: 'announced', telegramMessageId: '55' })
@@ -352,7 +352,7 @@ describe('EventBusiness', () => {
       eventRepo.updateEvent.mockResolvedValue(
         buildEvent({ id: 'ev_announced', status: 'cancelled' })
       )
-      settingsRepo.getChatId.mockResolvedValue(TEST_CONFIG.chatId)
+      settingsRepo.getMainChatId.mockResolvedValue(TEST_CONFIG.chatId)
 
       const business = new EventBusiness(container)
       business.init()
@@ -1142,7 +1142,7 @@ describe('EventBusiness', () => {
 
       // For announceEvent
       eventRepo.findById.mockResolvedValue(createdEvent)
-      settingsRepo.getChatId.mockResolvedValue(TEST_CONFIG.chatId)
+      settingsRepo.getMainChatId.mockResolvedValue(TEST_CONFIG.chatId)
       transport.sendMessage.mockResolvedValue(999)
       eventRepo.updateEvent.mockResolvedValue(
         buildEvent({ id: 'ev_auto', status: 'announced', telegramMessageId: '999' })

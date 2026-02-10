@@ -475,7 +475,7 @@ export class EventBusiness {
 
     // If event was announced, send cancellation notification to the main chat
     if (event.status === 'announced') {
-      const chatId = await this.settingsRepository.getChatId()
+      const chatId = await this.settingsRepository.getMainChatId()
       if (chatId) {
         await this.transport.sendMessage(chatId, `❌ Event ${event.id} has been cancelled.`)
       }
@@ -547,7 +547,7 @@ export class EventBusiness {
       throw new Error(`Event ${id} not found`)
     }
 
-    const chatId = await this.settingsRepository.getChatId()
+    const chatId = await this.settingsRepository.getMainChatId()
     if (!chatId) {
       throw new Error('Chat ID not configured')
     }
@@ -586,7 +586,7 @@ export class EventBusiness {
 
     // Update message if event was announced
     if (sendNotification && event.status === 'announced' && event.telegramMessageId) {
-      const chatId = await this.settingsRepository.getChatId()
+      const chatId = await this.settingsRepository.getMainChatId()
       if (chatId) {
         const messageId = parseInt(event.telegramMessageId, 10)
         await this.updateAnnouncementMessage(id, chatId, messageId, false, true)
