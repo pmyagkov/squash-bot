@@ -64,7 +64,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "event_participants_event_id_participant_id_unique": {
+          "name": "event_participants_event_id_participant_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "event_id",
+            "participant_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -211,10 +220,10 @@
         },
         "is_paid": {
           "name": "is_paid",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": false
+          "default": 0
         },
         "paid_at": {
           "name": "paid_at",
@@ -295,10 +304,10 @@
         },
         "is_active": {
           "name": "is_active",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": true
+          "default": 1
         },
         "announcement_deadline": {
           "name": "announcement_deadline",

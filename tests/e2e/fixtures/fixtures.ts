@@ -27,6 +27,7 @@ export const test = base.extend<TestFixtures>({
    * Chat ID for the test chat where bot commands will be sent
    * This value matches the seed script in src/db-seed.ts
    */
+  // eslint-disable-next-line no-empty-pattern
   chatId: async ({}, use) => {
     await use('-5009884489')
   },

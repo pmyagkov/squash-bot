@@ -42,7 +42,10 @@
       "Bash(node -e:*)",
       "Bash(npx prettier:*)",
       "Bash(docker compose:*)",
-      "Bash(docker rm:*)"
+      "Bash(docker rm:*)",
+      "Bash(curl:*)",
+      "Bash(docker run:*)",
+      "Bash(ENVIRONMENT=test npx playwright test:*)"
     ]
   }
 }

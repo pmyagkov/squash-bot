@@ -33,9 +33,8 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy Drizzle migrations and config
-COPY --from=builder /app/src/storage/db/migrations ./src/storage/db/migrations
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+# Copy Drizzle migrations (migrate.js uses path.join(__dirname, 'migrations'))
+COPY --from=builder /app/src/storage/db/migrations ./dist/storage/db/migrations
 
 # Copy entrypoint script
 COPY scripts/docker-entrypoint.sh ./docker-entrypoint.sh

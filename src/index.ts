@@ -28,9 +28,12 @@ async function main() {
     container.resolve('scaffoldBusiness').init()
     container.resolve('utilityBusiness').init()
 
-    // 5. Start Telegram bot
-    await bot.start()
-    await logger.log('Telegram bot started', 'info')
+    // 5. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
+    bot.start({
+      onStart: (botInfo) => {
+        logger.log(`Telegram bot started as @${botInfo.username}`, 'info')
+      },
+    })
 
     // 6. Start API server
     const server = await createApiServer(bot, container)

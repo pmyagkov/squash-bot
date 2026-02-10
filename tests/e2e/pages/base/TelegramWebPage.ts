@@ -120,34 +120,21 @@ export class TelegramWebPage {
    * @returns Text content of the matching message
    */
   async waitForMessageContaining(text: string, timeout = 10000): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const checkInterval = 200
-      let elapsed = 0
+    const startTime = Date.now()
 
-      const interval = setInterval(async () => {
-        try {
-          const message = await this.getLastMessage()
-          const messageText = await message?.innerText()
-
-          if (messageText && messageText.includes(text)) {
-            clearInterval(interval)
-            resolve(messageText)
-          } else {
-            elapsed += checkInterval
-            if (elapsed >= timeout) {
-              clearInterval(interval)
-              reject(new Error(`Timeout waiting for message containing "${text}"`))
-            }
-          }
-        } catch (error) {
-          elapsed += checkInterval
-          if (elapsed >= timeout) {
-            clearInterval(interval)
-            reject(error)
-          }
+    while (Date.now() - startTime < timeout) {
+      const messages = await this.getAllMessages().all()
+      // Search from newest to oldest
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const messageText = await messages[i].innerText()
+        if (messageText && messageText.includes(text)) {
+          return messageText
         }
-      }, checkInterval)
-    })
+      }
+      await this.page.waitForTimeout(200)
+    }
+
+    throw new Error(`Timeout waiting for message containing "${text}"`)
   }
 
   /**
@@ -155,7 +142,8 @@ export class TelegramWebPage {
    * @param buttonText - Text on the button to find
    */
   protected findInlineButton(buttonText: string): Locator {
-    return this.page.locator(this.selectors.inlineButton, { hasText: buttonText })
+    const lastKeyboard = this.page.locator(this.selectors.inlineKeyboard).last()
+    return lastKeyboard.locator(this.selectors.inlineButton, { hasText: buttonText })
   }
 
   /**

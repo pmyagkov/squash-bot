@@ -129,11 +129,7 @@ export class EventCommands extends ChatPage {
    * @returns True if event was announced
    */
   isEventAnnounced(response: string): boolean {
-    return (
-      response.includes('announced') ||
-      response.includes('Announcement sent') ||
-      response.includes('✅')
-    )
+    return /Courts:\s*\d+/.test(response) && response.includes('Participants:')
   }
 
   /**
@@ -173,7 +169,7 @@ export class EventCommands extends ChatPage {
     if (!courtsMatch) return null
 
     // Parse participants
-    const participantsSection = announcement.split('Participants:')[1]
+    const participantsSection = announcement.split(/Participants(?:\s*\(\d+\))?:/)[1]
     const participants: string[] = []
 
     if (participantsSection && !participantsSection.includes('nobody yet')) {
