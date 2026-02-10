@@ -21,7 +21,7 @@ async function globalSetup() {
   dotenv.config({ path: envPath, override: false })
 
   // Verify required variables
-  const requiredVars = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_MAIN_CHAT_ID', 'DATABASE_URL']
+  const requiredVars = ['TELEGRAM_BOT_TOKEN', 'DATABASE_URL']
 
   const missing = requiredVars.filter((varName) => !process.env[varName])
   if (missing.length > 0) {
@@ -31,7 +31,7 @@ async function globalSetup() {
   const useTestServer = process.env.TELEGRAM_TEST_SERVER === 'true'
   console.log(`[E2E Setup] Environment loaded successfully`)
   console.log(`[E2E Setup] Telegram server: ${useTestServer ? 'TEST' : 'PRODUCTION'}`)
-  console.log(`[E2E Setup] Test Chat ID: ${process.env.TELEGRAM_MAIN_CHAT_ID || 'not set'}`)
+  console.log(`[E2E Setup] Test Chat ID: -5009884489 (hardcoded from seed)`)
 
   // Run database migrations for E2E tests
   if (process.env.DATABASE_URL) {

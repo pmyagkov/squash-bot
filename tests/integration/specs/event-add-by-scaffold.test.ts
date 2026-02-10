@@ -6,7 +6,6 @@ import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
-import type { SettingsRepo } from '~/storage/repo/settings'
 
 describe('event-add-by-scaffold', () => {
   let bot: Bot
@@ -14,7 +13,6 @@ describe('event-add-by-scaffold', () => {
   let container: TestContainer
   let eventRepository: EventRepo
   let scaffoldRepository: ScaffoldRepo
-  let settingsRepository: SettingsRepo
 
   beforeEach(async () => {
     // Database is automatically cleared by vitest.setup.ts beforeEach hook
@@ -34,10 +32,6 @@ describe('event-add-by-scaffold', () => {
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
     scaffoldRepository = container.resolve('scaffoldRepository')
-    settingsRepository = container.resolve('settingsRepository')
-
-    // Set up chat_id for announceEvent to work
-    await settingsRepository.setSetting('chat_id', String(TEST_CHAT_ID))
 
     // Initialize bot (needed for handleUpdate)
     await bot.init()

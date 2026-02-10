@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
 import { sql } from 'drizzle-orm'
 import * as schema from '~/storage/db/schema'
+import { TEST_CONFIG } from '@fixtures/config'
 
 let testDb: ReturnType<typeof drizzle> | null = null
 
@@ -25,6 +26,18 @@ export async function clearTestDb() {
   await db.delete(schema.scaffolds)
   await db.delete(schema.participants)
   await db.delete(schema.settings)
+}
+
+/**
+ * Seed essential settings that most tests need.
+ * Called after clearTestDb() in vitest.setup.ts beforeEach.
+ */
+export async function seedTestSettings() {
+  const db = getTestDb()
+  await db.insert(schema.settings).values([
+    { key: 'admin_id', value: String(TEST_CONFIG.adminId) },
+    { key: 'main_chat_id', value: String(TEST_CONFIG.chatId) },
+  ])
 }
 
 function createTables(db: ReturnType<typeof drizzle>) {

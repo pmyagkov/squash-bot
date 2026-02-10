@@ -7,7 +7,6 @@ describe('mockConfig', () => {
     const config = mockConfig()
 
     expect(config.telegram.botToken).toBe(TEST_CONFIG.botToken)
-    expect(config.telegram.mainChatId).toBe(String(TEST_CONFIG.chatId))
     expect(config.timezone).toBe(TEST_CONFIG.timezone)
   })
 
@@ -15,9 +14,7 @@ describe('mockConfig', () => {
     const config = mockConfig({
       telegram: {
         botToken: 'custom-token',
-        mainChatId: String(TEST_CONFIG.chatId),
         logChatId: String(TEST_CONFIG.chatId),
-        adminId: String(TEST_CONFIG.adminId),
         useTestServer: false,
       },
       timezone: 'UTC',
@@ -25,6 +22,5 @@ describe('mockConfig', () => {
 
     expect(config.telegram.botToken).toBe('custom-token')
     expect(config.timezone).toBe('UTC')
-    expect(config.telegram.mainChatId).toBe(String(TEST_CONFIG.chatId)) // default preserved
   })
 })
