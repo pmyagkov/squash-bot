@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { SettingsRepo } from '~/storage/repo/settings'
@@ -11,7 +11,7 @@ import type { EventBusiness } from '~/business/event'
 
 describe('event-finalize', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
   let settingsRepository: SettingsRepo
@@ -31,7 +31,7 @@ describe('event-finalize', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve dependencies
     eventRepository = container.resolve('eventRepository')
@@ -90,7 +90,10 @@ describe('event-finalize', () => {
       { userId: 222, username: 'bob', firstName: 'Bob' },
     ])
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     // Finalize
     const finalizeUpdate = createCallbackQueryUpdate({
@@ -115,7 +118,10 @@ describe('event-finalize', () => {
       { userId: 222, username: 'bob', firstName: 'Bob' },
     ])
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -127,11 +133,11 @@ describe('event-finalize', () => {
     await bot.handleUpdate(finalizeUpdate)
 
     // Check payment message
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment for Squash'))
-    expect(paymentMsg).toBeDefined()
-    expect(paymentMsg?.text).toContain('Each pays: 2000 din')
-    expect(paymentMsg?.text).toContain('@alice — 2000 din')
-    expect(paymentMsg?.text).toContain('@bob — 2000 din')
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment for Squash'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain('Each pays: 2000 din')
+    expect(call![1]).toContain('@alice — 2000 din')
+    expect(call![1]).toContain('@bob — 2000 din')
   })
 
   it('should update announcement to show Finalized status', async () => {
@@ -139,7 +145,10 @@ describe('event-finalize', () => {
       { userId: 111, username: 'alice', firstName: 'Alice' },
     ])
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -190,7 +199,10 @@ describe('event-finalize', () => {
     const announcedEvent = await eventRepository.findById(event.id)
     const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -206,8 +218,8 @@ describe('event-finalize', () => {
     expect(updatedEvent?.status).toBe('announced')
 
     // No payment message should be sent
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment'))
-    expect(paymentMsg).toBeUndefined()
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment'))
+    expect(call).toBeUndefined()
   })
 
   it('should send payment message after finalize', async () => {
@@ -215,7 +227,10 @@ describe('event-finalize', () => {
       { userId: 111, username: 'alice', firstName: 'Alice' },
     ])
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -226,11 +241,11 @@ describe('event-finalize', () => {
 
     await bot.handleUpdate(finalizeUpdate)
 
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment for Squash'))
-    expect(paymentMsg).toBeDefined()
-    expect(paymentMsg?.text).toContain('Courts:')
-    expect(paymentMsg?.text).toContain('Participants:')
-    expect(paymentMsg?.text).toContain('Each pays:')
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment for Squash'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain('Courts:')
+    expect(call![1]).toContain('Participants:')
+    expect(call![1]).toContain('Each pays:')
   })
 
   it('should calculate correct amounts for multiple participants', async () => {
@@ -242,7 +257,10 @@ describe('event-finalize', () => {
       { userId: 444, username: 'diana', firstName: 'Diana' },
     ])
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -253,14 +271,14 @@ describe('event-finalize', () => {
 
     await bot.handleUpdate(finalizeUpdate)
 
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment for Squash'))
-    expect(paymentMsg).toBeDefined()
-    expect(paymentMsg?.text).toContain('Participants: 4')
-    expect(paymentMsg?.text).toContain('Each pays: 1000 din')
-    expect(paymentMsg?.text).toContain('@alice — 1000 din')
-    expect(paymentMsg?.text).toContain('@bob — 1000 din')
-    expect(paymentMsg?.text).toContain('@charlie — 1000 din')
-    expect(paymentMsg?.text).toContain('@diana — 1000 din')
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment for Squash'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain('Participants: 4')
+    expect(call![1]).toContain('Each pays: 1000 din')
+    expect(call![1]).toContain('@alice — 1000 din')
+    expect(call![1]).toContain('@bob — 1000 din')
+    expect(call![1]).toContain('@charlie — 1000 din')
+    expect(call![1]).toContain('@diana — 1000 din')
   })
 
   it('should handle uneven participations with weighted split', async () => {
@@ -286,7 +304,10 @@ describe('event-finalize', () => {
     await eventParticipantRepository.addToEvent(event.id, alice.id, 2)
     await eventParticipantRepository.addToEvent(event.id, bob.id, 1)
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -297,15 +318,15 @@ describe('event-finalize', () => {
 
     await bot.handleUpdate(finalizeUpdate)
 
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment for Squash'))
-    expect(paymentMsg).toBeDefined()
-    expect(paymentMsg?.text).toContain('Participants: 3')
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment for Squash'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain('Participants: 3')
     // Per person: Math.round(4000/3) = 1333
-    expect(paymentMsg?.text).toContain('Each pays: 1333 din')
+    expect(call![1]).toContain('Each pays: 1333 din')
     // Alice: 1333 * 2 = 2666
-    expect(paymentMsg?.text).toMatch(/@alice — 2666 din/)
+    expect(call![1]).toMatch(/@alice — 2666 din/)
     // Bob: 1333 * 1 = 1333
-    expect(paymentMsg?.text).toMatch(/@bob — 1333 din/)
+    expect(call![1]).toMatch(/@bob — 1333 din/)
   })
 
   it('should handle full flow: announce, join x3, finalize', async () => {
@@ -345,8 +366,11 @@ describe('event-finalize', () => {
     const participants = await participantRepository.getEventParticipants(event.id)
     expect(participants).toHaveLength(3)
 
-    // Clear messages and finalize
-    sentMessages.length = 0
+    // Clear mocks and finalize
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -362,11 +386,11 @@ describe('event-finalize', () => {
     expect(finalizedEvent?.status).toBe('finalized')
 
     // Verify payment message sent
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment for Squash'))
-    expect(paymentMsg).toBeDefined()
-    expect(paymentMsg?.text).toContain('Participants: 3')
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment for Squash'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain('Participants: 3')
     // 2 courts x 2000 = 4000, 3 participants = 1333 each
-    expect(paymentMsg?.text).toContain('Each pays: 1333 din')
+    expect(call![1]).toContain('Each pays: 1333 din')
   })
 
   it('should calculate correctly with multiple courts', async () => {
@@ -376,7 +400,10 @@ describe('event-finalize', () => {
       { userId: 222, username: 'bob', firstName: 'Bob' },
     ])
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -387,13 +414,13 @@ describe('event-finalize', () => {
 
     await bot.handleUpdate(finalizeUpdate)
 
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment for Squash'))
-    expect(paymentMsg).toBeDefined()
-    expect(paymentMsg?.text).toContain('Courts: 4')
-    expect(paymentMsg?.text).toContain('8000 din')
-    expect(paymentMsg?.text).toContain('Each pays: 4000 din')
-    expect(paymentMsg?.text).toContain('@alice — 4000 din')
-    expect(paymentMsg?.text).toContain('@bob — 4000 din')
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment for Squash'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain('Courts: 4')
+    expect(call![1]).toContain('8000 din')
+    expect(call![1]).toContain('Each pays: 4000 din')
+    expect(call![1]).toContain('@alice — 4000 din')
+    expect(call![1]).toContain('@bob — 4000 din')
   })
 
   it('should use court price from settings', async () => {
@@ -406,7 +433,10 @@ describe('event-finalize', () => {
       { userId: 222, username: 'bob', firstName: 'Bob' },
     ])
 
-    sentMessages.length = 0
+    api.sendMessage.mockClear()
+    api.editMessageText.mockClear()
+    api.pinChatMessage.mockClear()
+    api.answerCallbackQuery.mockClear()
 
     const finalizeUpdate = createCallbackQueryUpdate({
       userId: ADMIN_ID,
@@ -417,10 +447,10 @@ describe('event-finalize', () => {
 
     await bot.handleUpdate(finalizeUpdate)
 
-    const paymentMsg = sentMessages.find((msg) => msg.text.includes('💰 Payment for Squash'))
-    expect(paymentMsg).toBeDefined()
-    expect(paymentMsg?.text).toContain('3000 din')
-    expect(paymentMsg?.text).toContain('6000 din')
-    expect(paymentMsg?.text).toContain('Each pays: 3000 din')
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('💰 Payment for Squash'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain('3000 din')
+    expect(call![1]).toContain('6000 din')
+    expect(call![1]).toContain('Each pays: 3000 din')
   })
 })

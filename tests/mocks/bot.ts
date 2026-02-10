@@ -1,127 +1,171 @@
-import { Bot } from 'grammy'
+import { vi, type Mock } from 'vitest'
+import type { Bot, Transformer } from 'grammy'
+import type { Message, User } from 'grammy/types'
 import { TEST_CONFIG } from '@fixtures'
 
-export interface SentMessage {
-  method?: string
-  chatId: number | string
+// Extract clean function type from Bot API method (strips class `this` context)
+type ApiMethod<M extends keyof Bot['api']> = Bot['api'][M] extends (...args: infer A) => infer R
+  ? (...args: A) => R
+  : never
+
+/**
+ * Mock functions matching grammy Bot API signatures.
+ * Each method is a vitest Mock with the same parameters as bot.api.<method>.
+ */
+export interface BotApiMock {
+  getMe: Mock<ApiMethod<'getMe'>>
+  sendMessage: Mock<ApiMethod<'sendMessage'>>
+  editMessageText: Mock<ApiMethod<'editMessageText'>>
+  pinChatMessage: Mock<ApiMethod<'pinChatMessage'>>
+  unpinChatMessage: Mock<ApiMethod<'unpinChatMessage'>>
+  unpinAllChatMessages: Mock<ApiMethod<'unpinAllChatMessages'>>
+  answerCallbackQuery: Mock<ApiMethod<'answerCallbackQuery'>>
+  editMessageReplyMarkup: Mock<ApiMethod<'editMessageReplyMarkup'>>
+}
+
+/** If rest object has keys, return it; otherwise undefined */
+function restOrUndefined(rest: Record<string, unknown>): Record<string, unknown> | undefined {
+  return Object.keys(rest).length > 0 ? rest : undefined
+}
+
+/** Wrap result in Telegram API response format for the transformer */
+function apiResponse<T>(result: T) {
+  return { ok: true as const, result }
+}
+
+// Payload types for transformer conversion (Telegram Bot API format, snake_case)
+interface SendMessagePayload {
+  chat_id: number | string
   text: string
-  options?: any
-  reply_markup?: any
-  message_id?: number
+  [k: string]: unknown
+}
+
+interface EditMessageTextPayload {
+  chat_id: number | string
+  message_id: number
+  text: string
+  [k: string]: unknown
+}
+
+interface ChatMessagePayload {
+  chat_id: number | string
+  message_id: number
+  [k: string]: unknown
+}
+
+interface ChatIdPayload {
+  chat_id: number | string
+}
+
+interface AnswerCallbackPayload {
+  callback_query_id: string
+  [k: string]: unknown
 }
 
 /**
  * Sets up mock transformer to intercept all bot API requests.
- * Uses official grammy API: https://grammy.dev/advanced/transformers
+ * Returns vitest mock functions matching grammy API signatures.
  *
- * TODO: This mock requires future revision to align with centralized mock patterns.
- * Consider creating a factory function that returns both bot and sentMessages,
- * or integrating with mockContainer for better consistency.
+ * Uses official grammy transformer API: https://grammy.dev/advanced/transformers
  *
  * @param bot - Bot instance to mock
- * @returns Array of sent messages that will be updated on each API call
+ * @returns Object with vitest mock functions for each API method
+ *
+ * @example
+ * const api = mockBot(bot)
+ * await bot.handleUpdate(update)
+ *
+ * expect(api.sendMessage).toHaveBeenCalledWith(
+ *   TEST_CHAT_ID,
+ *   expect.stringContaining('Created'),
+ *   expect.objectContaining({ parse_mode: 'HTML' })
+ * )
  */
-export function mockBot(bot: Bot): SentMessage[] {
-  const sentMessages: SentMessage[] = []
+export function mockBot(bot: Bot): BotApiMock {
+  let messageIdCounter = 1
 
-  // Set transformer via bot.api.config.use() (correct way according to grammy documentation)
-  // https://grammy.dev/advanced/transformers
-  bot.api.config.use((prev, method, payload, signal) => {
-    if (method === 'sendMessage') {
-      // Type payload for sendMessage
-      const sendMessagePayload = payload as {
-        chat_id: number | string
-        text: string
-        parse_mode?: string
-        reply_markup?: any
-      }
-      const chatId = sendMessagePayload.chat_id
-      const text = sendMessagePayload.text || ''
+  const api: BotApiMock = {
+    getMe: vi.fn().mockResolvedValue({
+      id: TEST_CONFIG.userId,
+      is_bot: true,
+      first_name: 'Test Bot',
+      username: 'test_bot',
+    } satisfies User) as BotApiMock['getMe'],
 
-      sentMessages.push({
-        method: 'sendMessage',
-        chatId,
-        text,
-        reply_markup: sendMessagePayload.reply_markup,
-        options: {
-          parse_mode: sendMessagePayload.parse_mode,
-          reply_markup: sendMessagePayload.reply_markup,
-        },
-      })
-
-      // Return mock response instead of real API call
-      return Promise.resolve({
-        ok: true,
-        result: {
-          message_id: Math.floor(Math.random() * 1000000),
-          chat: { id: chatId, type: 'group', title: 'Test Chat' },
-          text: text,
+    sendMessage: vi.fn().mockImplementation(
+      async (chat_id: number | string) =>
+        ({
+          message_id: messageIdCounter++,
+          chat: { id: chat_id, type: 'group', title: 'Test Chat' },
           date: Math.floor(Date.now() / 1000),
-          from: { id: TEST_CONFIG.userId, is_bot: true, first_name: 'Test Bot' },
-        },
-      } as any)
-    }
+          from: {
+            id: TEST_CONFIG.userId,
+            is_bot: true,
+            first_name: 'Test Bot',
+          },
+        }) as Message.TextMessage
+    ) as BotApiMock['sendMessage'],
 
-    if (method === 'getMe') {
-      return Promise.resolve({
-        ok: true,
-        result: {
-          id: TEST_CONFIG.userId,
-          is_bot: true,
-          first_name: 'Test Bot',
-          username: 'test_bot',
-        },
-      } as any)
-    }
+    editMessageText: vi.fn().mockResolvedValue(true) as BotApiMock['editMessageText'],
+    pinChatMessage: vi.fn().mockResolvedValue(true) as BotApiMock['pinChatMessage'],
+    unpinChatMessage: vi.fn().mockResolvedValue(true) as BotApiMock['unpinChatMessage'],
+    unpinAllChatMessages: vi.fn().mockResolvedValue(true) as BotApiMock['unpinAllChatMessages'],
+    answerCallbackQuery: vi.fn().mockResolvedValue(true) as BotApiMock['answerCallbackQuery'],
+    editMessageReplyMarkup: vi.fn().mockResolvedValue(true) as BotApiMock['editMessageReplyMarkup'],
+  }
 
-    if (method === 'editMessageText') {
-      // Type payload for editMessageText
-      const editMessagePayload = payload as {
-        chat_id: number | string
-        message_id: number
-        text: string
-        parse_mode?: string
-        reply_markup?: any
+  // Grammy's Transformer type is generic over method M, but a switch-case
+  // can't prove each branch returns the correct result type for that M.
+  // Single cast replaces the 8+ `as any` casts from the previous implementation.
+  bot.api.config.use(((prev, method, payload, signal) => {
+    switch (method) {
+      case 'getMe': {
+        return api.getMe().then(apiResponse)
       }
 
-      sentMessages.push({
-        method: 'editMessageText',
-        chatId: editMessagePayload.chat_id,
-        message_id: editMessagePayload.message_id,
-        text: editMessagePayload.text || '',
-        reply_markup: editMessagePayload.reply_markup,
-        options: {
-          parse_mode: editMessagePayload.parse_mode,
-          reply_markup: editMessagePayload.reply_markup,
-        },
-      })
+      case 'sendMessage': {
+        const { chat_id, text, ...rest } = payload as SendMessagePayload
+        return api.sendMessage(chat_id, text, restOrUndefined(rest)).then(apiResponse)
+      }
 
-      return Promise.resolve({ ok: true, result: true } as any)
+      case 'editMessageText': {
+        const { chat_id, message_id, text, ...rest } = payload as EditMessageTextPayload
+        return api
+          .editMessageText(chat_id, message_id, text, restOrUndefined(rest))
+          .then(apiResponse)
+      }
+
+      case 'pinChatMessage': {
+        const { chat_id, message_id, ...rest } = payload as ChatMessagePayload
+        return api.pinChatMessage(chat_id, message_id, restOrUndefined(rest)).then(apiResponse)
+      }
+
+      case 'unpinChatMessage': {
+        const { chat_id, message_id, ...rest } = payload as ChatMessagePayload
+        return api.unpinChatMessage(chat_id, message_id, restOrUndefined(rest)).then(apiResponse)
+      }
+
+      case 'unpinAllChatMessages': {
+        const { chat_id } = payload as ChatIdPayload
+        return api.unpinAllChatMessages(chat_id).then(apiResponse)
+      }
+
+      case 'answerCallbackQuery': {
+        const { callback_query_id, ...rest } = payload as AnswerCallbackPayload
+        return api.answerCallbackQuery(callback_query_id, restOrUndefined(rest)).then(apiResponse)
+      }
+
+      case 'editMessageReplyMarkup': {
+        const { chat_id, message_id, ...rest } = payload as ChatMessagePayload
+        return api
+          .editMessageReplyMarkup(chat_id, message_id, restOrUndefined(rest))
+          .then(apiResponse)
+      }
+
+      default:
+        return prev(method, payload, signal)
     }
+  }) as Transformer)
 
-    if (method === 'pinChatMessage') {
-      return Promise.resolve({ ok: true, result: true } as any)
-    }
-
-    if (method === 'unpinAllChatMessages') {
-      return Promise.resolve({ ok: true, result: true } as any)
-    }
-
-    if (method === 'unpinChatMessage') {
-      return Promise.resolve({ ok: true, result: true } as any)
-    }
-
-    if (method === 'answerCallbackQuery') {
-      return Promise.resolve({ ok: true, result: true } as any)
-    }
-
-    if (method === 'editMessageReplyMarkup') {
-      return Promise.resolve({ ok: true, result: true } as any)
-    }
-
-    // For other methods, call original transformer
-    return prev(method, payload, signal)
-  })
-
-  return sentMessages
+  return api
 }

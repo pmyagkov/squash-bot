@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
@@ -10,7 +10,7 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 
 describe('event-add-by-scaffold', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
   let scaffoldRepository: ScaffoldRepo
@@ -29,7 +29,7 @@ describe('event-add-by-scaffold', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
@@ -74,16 +74,31 @@ describe('event-add-by-scaffold', () => {
       expect(createdEvent?.scaffoldId).toBe(scaffold.id)
 
       // Check success message includes announce instruction
-      const successMessage = sentMessages.find(
-        (msg) => msg.text.includes(`✅ Created event`) && msg.text.includes(scaffold.id)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Created event`),
+        expect.anything()
       )
-      expect(successMessage).toBeDefined()
-      expect(successMessage?.text).toContain('3 courts')
-      expect(successMessage?.text).toContain('To announce: /event announce')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringMatching(new RegExp(scaffold.id)),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('3 courts'),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('To announce: /event announce'),
+        expect.anything()
+      )
 
       // Check that NO announcement was sent (no 🎾 Squash message)
-      const announcementMessage = sentMessages.find((msg) => msg.text.includes('🎾 Squash'))
-      expect(announcementMessage).toBeUndefined()
+      const calls = api.sendMessage.mock.calls
+      const announcementCall = calls.find((call) => call[1]?.includes('🎾 Squash'))
+      expect(announcementCall).toBeUndefined()
     })
 
     it('should reject add-by-scaffold without scaffold ID', async () => {
@@ -95,10 +110,11 @@ describe('event-add-by-scaffold', () => {
       await bot.handleUpdate(update)
 
       // Check usage message
-      const usageMessage = sentMessages.find((msg) =>
-        msg.text.includes('Usage: /event add-by-scaffold')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /event add-by-scaffold'),
+        expect.anything()
       )
-      expect(usageMessage).toBeDefined()
 
       // Check that no event was created
       const events = await eventRepository.getEvents()
@@ -114,10 +130,11 @@ describe('event-add-by-scaffold', () => {
       await bot.handleUpdate(update)
 
       // Check error message
-      const errorMessage = sentMessages.find((msg) =>
-        msg.text.includes('❌ Scaffold sc_nonexistent not found')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+        expect.anything()
       )
-      expect(errorMessage).toBeDefined()
 
       // Check that no event was created
       const events = await eventRepository.getEvents()
@@ -141,7 +158,7 @@ describe('event-add-by-scaffold', () => {
       expect(events1).toHaveLength(1)
 
       // Clear sent messages
-      sentMessages.length = 0
+      api.sendMessage.mockClear()
 
       // Try to create the same event again
       const update2 = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
@@ -152,9 +169,16 @@ describe('event-add-by-scaffold', () => {
       await bot.handleUpdate(update2)
 
       // Check error message about duplicate
-      const errorMessage = sentMessages.find((msg) => msg.text.includes('❌ Event already exists'))
-      expect(errorMessage).toBeDefined()
-      expect(errorMessage?.text).toContain(scaffold.id)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('❌ Event already exists'),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringMatching(new RegExp(scaffold.id)),
+        expect.anything()
+      )
 
       // Check that no additional event was created
       const events2 = await eventRepository.getEvents()

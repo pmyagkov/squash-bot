@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
 describe('scaffold-toggle', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let scaffoldRepository: ScaffoldRepo
 
@@ -25,7 +25,7 @@ describe('scaffold-toggle', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     scaffoldRepository = container.resolve('scaffoldRepository')
@@ -45,11 +45,11 @@ describe('scaffold-toggle', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find(
-        (msg) => msg.text.includes(scaffold.id) && msg.text.includes('inactive')
+      const toggleCall = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes(scaffold.id) && text.includes('inactive')
       )
-      expect(response).toBeDefined()
-      expect(response?.text).toContain('is now inactive')
+      expect(toggleCall).toBeDefined()
+      expect(toggleCall![1]).toContain('is now inactive')
     })
 
     it('should show usage when no id provided', async () => {
@@ -60,8 +60,11 @@ describe('scaffold-toggle', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) => msg.text.includes('Usage: /scaffold toggle'))
-      expect(response).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /scaffold toggle'),
+        expect.anything()
+      )
     })
 
     it('should show error for nonexistent scaffold', async () => {
@@ -72,10 +75,11 @@ describe('scaffold-toggle', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) =>
-        msg.text.includes('❌ Scaffold sc_nonexistent not found')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+        expect.anything()
       )
-      expect(response).toBeDefined()
     })
   })
 })

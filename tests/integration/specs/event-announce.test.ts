@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { EventBusiness } from '~/business/event'
@@ -10,7 +10,7 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 
 describe('event-announce', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
   let eventBusiness: EventBusiness
@@ -29,7 +29,7 @@ describe('event-announce', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
@@ -67,10 +67,11 @@ describe('event-announce', () => {
       await bot.handleUpdate(update)
 
       // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} announced`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Event ${event.id} announced`),
+        expect.anything()
       )
-      expect(successMessage).toBeDefined()
 
       // Check that event status is updated to 'announced'
       const updatedEvent = await eventRepository.findById(event.id)
@@ -81,17 +82,34 @@ describe('event-announce', () => {
       expect(updatedEvent?.telegramMessageId).not.toBe('')
 
       // Check that announcement message was sent to main chat
-      const announcementMessage = sentMessages.find(
-        (msg) => msg.text.includes('🎾 Squash') && msg.text.includes('Courts: 2')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('🎾 Squash'),
+        expect.anything()
       )
-      expect(announcementMessage).toBeDefined()
-      expect(announcementMessage?.text).toContain('Participants:')
-      expect(announcementMessage?.text).toContain('(nobody yet)')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Courts: 2'),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Participants:'),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('(nobody yet)'),
+        expect.anything()
+      )
 
       // Check that message has inline keyboard with "I'm in" and "I'm out" buttons
-      expect(announcementMessage?.reply_markup).toBeDefined()
-      expect(announcementMessage?.reply_markup?.inline_keyboard).toBeDefined()
-      const buttons = announcementMessage?.reply_markup?.inline_keyboard[0]
+      const announcementCall = api.sendMessage.mock.calls.find(([, text]) => text.includes('🎾 Squash'))
+      expect(announcementCall).toBeDefined()
+      const other = announcementCall![2] as Record<string, unknown>
+      const replyMarkup = other?.reply_markup as { inline_keyboard: Array<Array<{ text: string }>> }
+      expect(replyMarkup?.inline_keyboard).toBeDefined()
+      const buttons = replyMarkup.inline_keyboard[0]
       expect(buttons).toHaveLength(2)
       expect(buttons[0].text).toBe("I'm in")
       expect(buttons[1].text).toBe("I'm out")
@@ -106,8 +124,11 @@ describe('event-announce', () => {
       await bot.handleUpdate(update)
 
       // Check usage message
-      const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /event announce'))
-      expect(usageMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /event announce'),
+        expect.anything()
+      )
     })
 
     it('should reject announce for non-existent event', async () => {
@@ -119,10 +140,11 @@ describe('event-announce', () => {
       await bot.handleUpdate(update)
 
       // Check error message
-      const errorMessage = sentMessages.find((msg) =>
-        msg.text.includes('❌ Event ev_nonexistent not found')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('❌ Event ev_nonexistent not found'),
+        expect.anything()
       )
-      expect(errorMessage).toBeDefined()
     })
 
     it('should handle announce for already announced event', async () => {
@@ -137,7 +159,7 @@ describe('event-announce', () => {
       await eventBusiness.announceEvent(event.id)
 
       // Clear sent messages from first announce
-      sentMessages.length = 0
+      api.sendMessage.mockClear()
 
       // Try to announce again
       const update = createTextMessageUpdate(`/event announce ${event.id}`, {
@@ -148,13 +170,15 @@ describe('event-announce', () => {
       await bot.handleUpdate(update)
 
       // Check info message
-      const infoMessage = sentMessages.find((msg) =>
-        msg.text.includes(`ℹ️ Event ${event.id} is already announced`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`ℹ️ Event ${event.id} is already announced`),
+        expect.anything()
       )
-      expect(infoMessage).toBeDefined()
 
       // Should not send announcement again (only one message - the info message)
-      const announceMessages = sentMessages.filter((msg) => msg.text.includes('🎾 Squash'))
+      const calls = api.sendMessage.mock.calls
+      const announceMessages = calls.filter((call) => call[1]?.includes('🎾 Squash'))
       expect(announceMessages).toHaveLength(0)
     })
 
@@ -175,18 +199,37 @@ describe('event-announce', () => {
       await bot.handleUpdate(update)
 
       // Check announcement message format
-      const announcementMessage = sentMessages.find((msg) => msg.text.includes('🎾 Squash'))
-      expect(announcementMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('🎾 Squash'),
+        expect.anything()
+      )
 
       // Should include formatted date/time
-      expect(announcementMessage?.text).toMatch(/🎾 Squash: \w+, \d+ \w+, \d{2}:\d{2}/)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringMatching(/🎾 Squash: \w+, \d+ \w+, \d{2}:\d{2}/),
+        expect.anything()
+      )
 
       // Should include number of courts
-      expect(announcementMessage?.text).toContain('Courts: 3')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Courts: 3'),
+        expect.anything()
+      )
 
       // Should include participants section
-      expect(announcementMessage?.text).toContain('Participants:')
-      expect(announcementMessage?.text).toContain('(nobody yet)')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Participants:'),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('(nobody yet)'),
+        expect.anything()
+      )
     })
   })
 })

@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { SettingsRepo } from '~/storage/repo/settings'
 
 describe('event-list', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
   let settingsRepository: SettingsRepo
@@ -27,7 +27,7 @@ describe('event-list', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
@@ -63,10 +63,10 @@ describe('event-list', () => {
     await bot.handleUpdate(update)
 
     // Check that bot sent list
-    expect(sentMessages.length).toBeGreaterThan(0)
-    const listMessage = sentMessages.find((msg) => msg.text.includes('📋 Event list'))
-    expect(listMessage).toBeDefined()
-    expect(listMessage?.text).toContain(event.id)
-    expect(listMessage?.text).toContain('created')
+    expect(api.sendMessage).toHaveBeenCalled()
+    const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('📋 Event list'))
+    expect(call).toBeDefined()
+    expect(call![1]).toContain(event.id)
+    expect(call![1]).toContain('created')
   })
 })

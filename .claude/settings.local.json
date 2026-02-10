@@ -36,7 +36,9 @@
       "Bash(git push:*)",
       "Bash(echo:*)",
       "Bash(git status:*)",
-      "Bash(git -C *)"
+      "Bash(git -C *)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh api:*)"
     ]
   }
 }

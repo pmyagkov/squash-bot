@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
 describe('scaffold-list', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let scaffoldRepository: ScaffoldRepo
 
@@ -25,7 +25,7 @@ describe('scaffold-list', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     scaffoldRepository = container.resolve('scaffoldRepository')
@@ -47,13 +47,15 @@ describe('scaffold-list', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) => msg.text.includes('📋 Scaffold list'))
-      expect(response).toBeDefined()
-      expect(response?.text).toContain('Tue 21:00')
-      expect(response?.text).toContain('2 court(s)')
-      expect(response?.text).toContain('Sat 18:00')
-      expect(response?.text).toContain('3 court(s)')
-      expect(response?.text).toContain('✅ active')
+      const listCall = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes('📋 Scaffold list')
+      )
+      expect(listCall).toBeDefined()
+      expect(listCall![1]).toContain('Tue 21:00')
+      expect(listCall![1]).toContain('2 court(s)')
+      expect(listCall![1]).toContain('Sat 18:00')
+      expect(listCall![1]).toContain('3 court(s)')
+      expect(listCall![1]).toContain('✅ active')
     })
 
     it('should show empty message when no scaffolds exist', async () => {
@@ -64,8 +66,11 @@ describe('scaffold-list', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) => msg.text.includes('📋 No scaffolds found'))
-      expect(response).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('📋 No scaffolds found'),
+        expect.anything()
+      )
     })
 
     it('should reject non-admin user', async () => {
@@ -76,10 +81,11 @@ describe('scaffold-list', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) =>
-        msg.text.includes('only available to administrators')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('only available to administrators'),
+        expect.anything()
       )
-      expect(response).toBeDefined()
     })
   })
 })

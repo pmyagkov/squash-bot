@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { EventBusiness } from '~/business/event'
@@ -10,7 +10,7 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 
 describe('event-cancel', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
   let eventBusiness: EventBusiness
@@ -29,7 +29,7 @@ describe('event-cancel', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
@@ -67,10 +67,11 @@ describe('event-cancel', () => {
       await bot.handleUpdate(update)
 
       // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} cancelled`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Event ${event.id} cancelled`),
+        expect.anything()
       )
-      expect(successMessage).toBeDefined()
 
       // Check that event status is updated to 'cancelled'
       const updatedEvent = await eventRepository.findById(event.id)
@@ -86,8 +87,11 @@ describe('event-cancel', () => {
       await bot.handleUpdate(update)
 
       // Check usage message
-      const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /event cancel'))
-      expect(usageMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /event cancel'),
+        expect.anything()
+      )
     })
 
     it('should send cancellation notification for announced event', async () => {
@@ -100,8 +104,11 @@ describe('event-cancel', () => {
 
       await eventBusiness.announceEvent(event.id)
 
-      // Clear sent messages from announce
-      sentMessages.length = 0
+      // Clear mocks from announce
+      api.sendMessage.mockClear()
+      api.editMessageText.mockClear()
+      api.pinChatMessage.mockClear()
+      api.answerCallbackQuery.mockClear()
 
       // Cancel event
       const update = createTextMessageUpdate(`/event cancel ${event.id}`, {
@@ -112,16 +119,18 @@ describe('event-cancel', () => {
       await bot.handleUpdate(update)
 
       // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} cancelled`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Event ${event.id} cancelled`),
+        expect.anything()
       )
-      expect(successMessage).toBeDefined()
 
       // Check that cancellation notification was sent to main chat
-      const notificationMessage = sentMessages.find((msg) =>
-        msg.text.includes(`❌ Event ${event.id} has been cancelled.`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`❌ Event ${event.id} has been cancelled.`),
+        expect.anything()
       )
-      expect(notificationMessage).toBeDefined()
 
       // Verify event is cancelled
       const updatedEvent = await eventRepository.findById(event.id)
@@ -144,14 +153,15 @@ describe('event-cancel', () => {
       await bot.handleUpdate(update)
 
       // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} cancelled`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Event ${event.id} cancelled`),
+        expect.anything()
       )
-      expect(successMessage).toBeDefined()
 
       // Check that NO cancellation notification was sent (only success message)
-      const cancelMessages = sentMessages.filter((msg) => msg.text.includes('has been cancelled'))
-      expect(cancelMessages).toHaveLength(0)
+      const cancelCalls = api.sendMessage.mock.calls.filter(([, text]) => text.includes('has been cancelled'))
+      expect(cancelCalls).toHaveLength(0)
 
       // Verify event is cancelled
       const updatedEvent = await eventRepository.findById(event.id)

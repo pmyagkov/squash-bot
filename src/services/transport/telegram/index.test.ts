@@ -1,22 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Bot } from 'grammy'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { Bot } from 'grammy'
 import type { InlineKeyboardMarkup } from 'grammy/types'
 import { TelegramTransport } from './index'
 import { ParseError } from './parsers'
-import { mockBotApi } from '@mocks'
+import { mockBot } from '@mocks'
 import { mockLogger } from '@mocks'
 import { TEST_CONFIG } from '@fixtures/config'
 
 describe('TelegramTransport', () => {
   let transport: TelegramTransport
-  let api: ReturnType<typeof mockBotApi>
+  let bot: Bot
+  let api: ReturnType<typeof mockBot>
   let logger: ReturnType<typeof mockLogger>
 
   beforeEach(() => {
-    api = mockBotApi()
+    bot = new Bot('test-token')
+    api = mockBot(bot)
     logger = mockLogger()
 
-    const bot = { api, command: vi.fn(), on: vi.fn() } as unknown as Bot
     transport = new TelegramTransport(bot, logger)
   })
 
@@ -27,7 +28,7 @@ describe('TelegramTransport', () => {
       expect(api.sendMessage).toHaveBeenCalledWith(TEST_CONFIG.chatId, 'Hello world', {
         reply_markup: undefined,
       })
-      expect(messageId).toBe(123)
+      expect(messageId).toBe(1) // mockBot returns incrementing counter starting from 1
     })
 
     it('should pass reply_markup when keyboard is provided', async () => {
@@ -98,7 +99,11 @@ describe('TelegramTransport', () => {
     it('should call bot.api.pinChatMessage', async () => {
       await transport.pinMessage(TEST_CONFIG.chatId, TEST_CONFIG.messageId)
 
-      expect(api.pinChatMessage).toHaveBeenCalledWith(TEST_CONFIG.chatId, TEST_CONFIG.messageId)
+      expect(api.pinChatMessage).toHaveBeenCalledWith(
+        TEST_CONFIG.chatId,
+        TEST_CONFIG.messageId,
+        undefined // mockBot passes undefined for empty rest params
+      )
     })
   })
 
@@ -106,7 +111,11 @@ describe('TelegramTransport', () => {
     it('should call bot.api.unpinChatMessage', async () => {
       await transport.unpinMessage(TEST_CONFIG.chatId, TEST_CONFIG.messageId)
 
-      expect(api.unpinChatMessage).toHaveBeenCalledWith(TEST_CONFIG.chatId, TEST_CONFIG.messageId)
+      expect(api.unpinChatMessage).toHaveBeenCalledWith(
+        TEST_CONFIG.chatId,
+        TEST_CONFIG.messageId,
+        undefined // mockBot passes undefined for empty rest params
+      )
     })
   })
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mockContext, mockBotApi } from './grammy'
+import { mockContext } from './grammy'
 import { TEST_CONFIG, TEST_USER } from '@fixtures/config'
 
 describe('grammy mocks', () => {
@@ -42,46 +42,6 @@ describe('grammy mocks', () => {
 
       expect(ctx.message?.text).toBe('/event add')
       expect(ctx.message?.message_id).toBe(123)
-    })
-  })
-
-  describe('mockBotApi', () => {
-    it('should create bot.api mock with all methods', () => {
-      const api = mockBotApi()
-
-      expect(api.sendMessage).toBeDefined()
-      expect(api.editMessageText).toBeDefined()
-      expect(api.answerCallbackQuery).toBeDefined()
-      expect(api.pinChatMessage).toBeDefined()
-      expect(api.unpinChatMessage).toBeDefined()
-      expect(api.unpinAllChatMessages).toBeDefined()
-    })
-
-    it('should return successful responses by default', async () => {
-      const api = mockBotApi()
-
-      const result = await api.sendMessage(123, 'test')
-      expect(result.message_id).toBe(123)
-
-      await expect(api.editMessageText(123, 456, 'updated')).resolves.toBe(true)
-      await expect(api.answerCallbackQuery('cb_123')).resolves.toBe(true)
-    })
-
-    it('should track sent messages for later verification', async () => {
-      const api = mockBotApi()
-
-      await api.sendMessage(123, 'First message')
-      await api.sendMessage(456, 'Second message')
-
-      // Verify messages were tracked
-      expect(api.sendMessage).toHaveBeenCalledTimes(2)
-      expect(api.sendMessage).toHaveBeenNthCalledWith(1, 123, 'First message')
-      expect(api.sendMessage).toHaveBeenNthCalledWith(2, 456, 'Second message')
-
-      // Can also get all call arguments
-      const calls = api.sendMessage.mock.calls
-      expect(calls[0]).toEqual([123, 'First message'])
-      expect(calls[1]).toEqual([456, 'Second message'])
     })
   })
 })

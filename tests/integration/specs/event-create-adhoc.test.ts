@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { parseDate } from '~/utils/dateParser'
 import { setupFakeTime } from '@integration/helpers/timeHelpers'
 import dayjs from 'dayjs'
@@ -18,7 +18,7 @@ dayjs.extend(timezone)
 
 describe('event-create-adhoc', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
   let settingsRepository: SettingsRepo
@@ -36,7 +36,7 @@ describe('event-create-adhoc', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
@@ -59,7 +59,7 @@ describe('event-create-adhoc', () => {
   describe('/event add', () => {
     describe('event date parsing formats', () => {
       let bot: Bot
-      let sentMessages: SentMessage[] = []
+      let api: BotApiMock
       let container: TestContainer
       let eventRepository: EventRepo
 
@@ -85,7 +85,7 @@ describe('event-create-adhoc', () => {
         container.resolve('utilityBusiness').init()
 
         // Set up mock transformer to intercept all API requests
-        sentMessages = mockBot(bot)
+        api = mockBot(bot)
 
         // Resolve repositories
         eventRepository = container.resolve('eventRepository')
@@ -109,7 +109,8 @@ describe('event-create-adhoc', () => {
         expect(event.courts).toBe(2)
         expect(event.status).toBe('created')
         if (expectedDayOfWeek !== undefined) {
-          expect(event.datetime.getDay()).toBe(expectedDayOfWeek)
+          // Use timezone-aware day check (getDay() uses system tz, not Belgrade)
+          expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(expectedDayOfWeek)
         }
         return event
       }
@@ -131,15 +132,15 @@ describe('event-create-adhoc', () => {
         expect(event.datetime.getDate()).toBe(20)
 
         // Check success message format
-        const successMessage = sentMessages.find((msg) => msg.text.includes('✅ Created event'))
-        expect(successMessage).toBeDefined()
-        expect(successMessage?.text).toContain(`✅ Created event ${event.id}`)
-        expect(successMessage?.text).toContain('2 courts')
-        expect(successMessage?.text).toContain(`To announce: /event announce ${event.id}`)
+        const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('✅ Created event'))
+        expect(call).toBeDefined()
+        expect(call![1]).toContain(`✅ Created event ${event.id}`)
+        expect(call![1]).toContain('2 courts')
+        expect(call![1]).toContain(`To announce: /event announce ${event.id}`)
         // Check message format: should match pattern
         // Format: "✅ Created event ev_xxx (Day DD Mon HH:mm, N courts). To announce: /event announce ev_xxx"
         // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
-        expect(successMessage?.text).toMatch(
+        expect(call![1]).toMatch(
           /^✅ Created event ev_[\w-]+ \([A-Za-z]{3} \d{1,2} [A-Za-z]{3} \d{2}:\d{2}, \d+ courts\)\. To announce: \/event announce ev_[\w-]+$/
         )
       })
@@ -273,7 +274,7 @@ describe('event-create-adhoc', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
-        expect(event.datetime.getDay()).toBe(2)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(2)
 
         // Should be exactly 8 days from now (Monday Jan 15 -> next Tuesday Jan 23)
         // Compare calendar days, not time differences
@@ -298,7 +299,7 @@ describe('event-create-adhoc', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Saturday (6 = Saturday)
-        expect(event.datetime.getDay()).toBe(6)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(6)
 
         // Should be exactly 12 days from now (Monday Jan 15 -> next Saturday Jan 27)
         // Compare calendar days, not time differences
@@ -323,7 +324,7 @@ describe('event-create-adhoc', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Friday (5 = Friday)
-        expect(event.datetime.getDay()).toBe(5)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(5)
 
         // Should be exactly 11 days from now (Monday Jan 15 -> next Friday Jan 26)
         // Compare calendar days, not time differences
@@ -344,8 +345,11 @@ describe('event-create-adhoc', () => {
         await bot.handleUpdate(update)
 
         // Check error message
-        const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid date format'))
-        expect(errorMessage).toBeDefined()
+        expect(api.sendMessage).toHaveBeenCalledWith(
+          TEST_CHAT_ID,
+          expect.stringContaining('Invalid date format'),
+          expect.anything()
+        )
 
         // Check that event is NOT created
         const events = await eventRepository.getEvents()
@@ -361,8 +365,11 @@ describe('event-create-adhoc', () => {
         await bot.handleUpdate(update)
 
         // Check error message
-        const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid date format'))
-        expect(errorMessage).toBeDefined()
+        expect(api.sendMessage).toHaveBeenCalledWith(
+          TEST_CHAT_ID,
+          expect.stringContaining('Invalid date format'),
+          expect.anything()
+        )
 
         // Check that event is NOT created
         const events = await eventRepository.getEvents()
@@ -372,7 +379,8 @@ describe('event-create-adhoc', () => {
       it('should handle case-insensitive day names', async () => {
         // First verify that parseDate works with uppercase
         const parsedDate = parseDate('SAT')
-        expect(parsedDate.getDay()).toBe(6) // Saturday = 6
+        // Use timezone-aware day check (getDay() uses system tz, not Belgrade)
+        expect(dayjs.tz(parsedDate, config.timezone).day()).toBe(6) // Saturday = 6
 
         const update = createTextMessageUpdate('/event add SAT 19:00 2', {
           userId: ADMIN_ID,
@@ -385,13 +393,14 @@ describe('event-create-adhoc', () => {
         const events = await eventRepository.getEvents()
         expect(events.length).toBeGreaterThan(0)
         const event = events[0]
-        expect(event.datetime.getDay()).toBe(6) // Saturday = 6
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(6) // Saturday = 6
       })
 
       it('should handle case-insensitive next week format', async () => {
         // First verify that parseDate works with "NEXT TUE" (uppercase)
         const parsedDate = parseDate('NEXT TUE')
-        expect(parsedDate.getDay()).toBe(2) // Tuesday = 2
+        // Use timezone-aware day check (getDay() uses system tz, not Belgrade)
+        expect(dayjs.tz(parsedDate, config.timezone).day()).toBe(2) // Tuesday = 2
         // Normalize dates using timezone-aware dayjs to compare calendar days
         const now = dayjs.tz(FIXED_DATE, config.timezone).startOf('day')
         const parsedDateNormalized = dayjs.tz(parsedDate, config.timezone).startOf('day')
@@ -411,7 +420,7 @@ describe('event-create-adhoc', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
-        expect(event.datetime.getDay()).toBe(2)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(2)
 
         // Should be exactly 8 days from now
         const now2 = dayjs.tz(FIXED_DATE, config.timezone).startOf('day')
@@ -430,8 +439,11 @@ describe('event-create-adhoc', () => {
       await bot.handleUpdate(update)
 
       // Check error message
-      const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid date format'))
-      expect(errorMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Invalid date format'),
+        expect.anything()
+      )
 
       // Check that event is NOT created
       const events = await eventRepository.getEvents()
@@ -447,8 +459,11 @@ describe('event-create-adhoc', () => {
       await bot.handleUpdate(update)
 
       // Check error message
-      const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid time format'))
-      expect(errorMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Invalid time format'),
+        expect.anything()
+      )
 
       // Check that event is NOT created
       const events = await eventRepository.getEvents()
@@ -464,8 +479,11 @@ describe('event-create-adhoc', () => {
       await bot.handleUpdate(update)
 
       // Check usage message
-      const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /event add'))
-      expect(usageMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /event add'),
+        expect.anything()
+      )
 
       // Check that event is NOT created
       const events = await eventRepository.getEvents()
@@ -490,19 +508,19 @@ describe('event-create-adhoc', () => {
       expect(createdEvent.scaffoldId).toBeUndefined() // Manual event has no scaffoldId
 
       // Check that bot sent a response with correct format
-      expect(sentMessages.length).toBeGreaterThan(0)
-      const successMessage = sentMessages.find((msg) => msg.text.includes('✅ Created event'))
-      expect(successMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalled()
+      const successCall = api.sendMessage.mock.calls.find(([, text]) => text.includes('✅ Created event'))
+      expect(successCall).toBeDefined()
 
       // Verify message contains all required parts
-      expect(successMessage?.text).toContain(`✅ Created event ${createdEvent.id}`)
-      expect(successMessage?.text).toContain('2 courts')
-      expect(successMessage?.text).toContain(`To announce: /event announce ${createdEvent.id}`)
+      expect(successCall![1]).toContain(`✅ Created event ${createdEvent.id}`)
+      expect(successCall![1]).toContain('2 courts')
+      expect(successCall![1]).toContain(`To announce: /event announce ${createdEvent.id}`)
 
       // Check full message format matches expected pattern
       // Format: "✅ Created event ev_xxx (Day DD Mon HH:mm, N courts). To announce: /event announce ev_xxx"
       // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
-      expect(successMessage?.text).toMatch(
+      expect(successCall![1]).toMatch(
         /^✅ Created event ev_[\w-]+ \([A-Za-z]{3} \d{1,2} [A-Za-z]{3} \d{2}:\d{2}, \d+ courts\)\. To announce: \/event announce ev_[\w-]+$/
       )
     })

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { TEST_CHAT_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { EventRepo } from '~/storage/repo/event'
@@ -10,7 +10,7 @@ import type { EventBusiness } from '~/business/event'
 
 describe('event-add-by-scaffold-api', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let scaffoldRepository: ScaffoldRepo
   let eventRepository: EventRepo
@@ -30,7 +30,7 @@ describe('event-add-by-scaffold-api', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories and business
     scaffoldRepository = container.resolve('scaffoldRepository')
@@ -85,9 +85,16 @@ describe('event-add-by-scaffold-api', () => {
     expect(events[0].status).toBe('announced')
 
     // Verify announcement message was sent
-    const announcement = sentMessages.find((msg) => msg.text.includes('🎾 Squash'))
-    expect(announcement).toBeDefined()
-    expect(announcement?.text).toContain('Courts: 2')
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      expect.stringContaining('🎾 Squash'),
+      expect.anything()
+    )
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      expect.stringContaining('Courts: 2'),
+      expect.anything()
+    )
   })
 
   it('should skip inactive scaffolds', async () => {
@@ -186,7 +193,7 @@ describe('event-add-by-scaffold-api', () => {
     const count = await eventBusiness.checkAndCreateEventsFromScaffolds()
 
     expect(count).toBe(0)
-    expect(sentMessages).toHaveLength(0)
+    expect(api.sendMessage).not.toHaveBeenCalled()
 
     const events = await eventRepository.getEvents()
     expect(events).toHaveLength(0)

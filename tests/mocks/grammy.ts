@@ -86,24 +86,3 @@ export function mockContext(options: MockContextOptions = {}): Partial<Context> 
     reply: vi.fn(),
   } as Partial<Context>
 }
-
-/**
- * Creates mock for bot.api
- * All methods return successful results by default
- */
-export function mockBotApi() {
-  return {
-    sendMessage: vi.fn().mockResolvedValue({
-      message_id: 123,
-      date: Math.floor(Date.now() / 1000),
-      chat: { id: 123, type: 'group' },
-      text: 'test',
-      from: { id: 0, is_bot: true, first_name: 'Bot' },
-    }),
-    editMessageText: vi.fn().mockResolvedValue(true),
-    answerCallbackQuery: vi.fn().mockResolvedValue(true),
-    pinChatMessage: vi.fn().mockResolvedValue(true),
-    unpinChatMessage: vi.fn().mockResolvedValue(true),
-    unpinAllChatMessages: vi.fn().mockResolvedValue(true),
-  }
-}

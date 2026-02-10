@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
 describe('scaffold-remove', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let scaffoldRepository: ScaffoldRepo
 
@@ -25,7 +25,7 @@ describe('scaffold-remove', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     scaffoldRepository = container.resolve('scaffoldRepository')
@@ -45,10 +45,11 @@ describe('scaffold-remove', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Scaffold ${scaffold.id} removed`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Scaffold ${scaffold.id} removed`),
+        expect.anything()
       )
-      expect(response).toBeDefined()
     })
 
     it('should show usage when no id provided', async () => {
@@ -59,8 +60,11 @@ describe('scaffold-remove', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) => msg.text.includes('Usage: /scaffold remove'))
-      expect(response).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /scaffold remove'),
+        expect.anything()
+      )
     })
 
     it('should handle removing nonexistent scaffold', async () => {
@@ -73,10 +77,11 @@ describe('scaffold-remove', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) =>
-        msg.text.includes('✅ Scaffold sc_nonexistent removed')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('✅ Scaffold sc_nonexistent removed'),
+        expect.anything()
       )
-      expect(response).toBeDefined()
     })
   })
 })

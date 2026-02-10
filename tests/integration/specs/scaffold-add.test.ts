@@ -2,12 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot, type SentMessage } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 
 describe('scaffold-add', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
 
   beforeEach(async () => {
@@ -23,7 +23,7 @@ describe('scaffold-add', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = mockBot(bot)
+    api = mockBot(bot)
 
     // Initialize bot (needed for handleUpdate)
     await bot.init()
@@ -38,10 +38,16 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) => msg.text.includes('✅ Created scaffold'))
-      expect(response).toBeDefined()
-      expect(response?.text).toContain('Tue 21:00')
-      expect(response?.text).toContain('2 court(s)')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('✅ Created scaffold'),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringMatching(/Tue 21:00.*2 court\(s\)/s),
+        expect.anything()
+      )
     })
 
     it('should show usage when no args provided', async () => {
@@ -52,8 +58,11 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) => msg.text.includes('Usage: /scaffold add'))
-      expect(response).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /scaffold add'),
+        expect.anything()
+      )
     })
 
     it('should show error for invalid day', async () => {
@@ -64,9 +73,11 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) => msg.text.includes('Invalid day of week'))
-      expect(response).toBeDefined()
-      expect(response?.text).toContain('Xyz')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringMatching(/Invalid day of week.*Xyz/s),
+        expect.anything()
+      )
     })
 
     it('should show error for invalid courts number', async () => {
@@ -77,10 +88,11 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) =>
-        msg.text.includes('Number of courts must be a positive number')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Number of courts must be a positive number'),
+        expect.anything()
       )
-      expect(response).toBeDefined()
     })
 
     it('should reject non-admin user', async () => {
@@ -91,10 +103,11 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(update)
 
-      const response = sentMessages.find((msg) =>
-        msg.text.includes('only available to administrators')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('only available to administrators'),
+        expect.anything()
       )
-      expect(response).toBeDefined()
     })
   })
 
@@ -108,18 +121,20 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(addUpdate)
 
-      const addResponse = sentMessages.find((msg) => msg.text.includes('✅ Created scaffold'))
-      expect(addResponse).toBeDefined()
-      expect(addResponse?.text).toContain('Wed 19:00')
-      expect(addResponse?.text).toContain('3 court(s)')
+      const addCall = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes('✅ Created scaffold')
+      )
+      expect(addCall).toBeDefined()
+      expect(addCall![1]).toContain('Wed 19:00')
+      expect(addCall![1]).toContain('3 court(s)')
 
       // Extract scaffold ID from response
-      const idMatch = addResponse?.text.match(/sc_[\w-]+/)
+      const idMatch = addCall![1].match(/sc_[\w-]+/)
       expect(idMatch).toBeTruthy()
       const scaffoldId = idMatch![0]
 
       // Step 2: List scaffolds
-      sentMessages.length = 0
+      api.sendMessage.mockClear()
       const listUpdate = createTextMessageUpdate('/scaffold list', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -127,13 +142,15 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(listUpdate)
 
-      const listResponse = sentMessages.find((msg) => msg.text.includes('📋 Scaffold list'))
-      expect(listResponse).toBeDefined()
-      expect(listResponse?.text).toContain(scaffoldId)
-      expect(listResponse?.text).toContain('✅ active')
+      const listCall = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes('📋 Scaffold list')
+      )
+      expect(listCall).toBeDefined()
+      expect(listCall![1]).toContain(scaffoldId)
+      expect(listCall![1]).toContain('✅ active')
 
       // Step 3: Toggle scaffold
-      sentMessages.length = 0
+      api.sendMessage.mockClear()
       const toggleUpdate = createTextMessageUpdate(`/scaffold toggle ${scaffoldId}`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -141,20 +158,24 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(toggleUpdate)
 
-      const toggleResponse = sentMessages.find((msg) => msg.text.includes('is now inactive'))
-      expect(toggleResponse).toBeDefined()
-      expect(toggleResponse?.text).toContain(scaffoldId)
+      const toggleCall = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes('is now inactive')
+      )
+      expect(toggleCall).toBeDefined()
+      expect(toggleCall![1]).toContain(scaffoldId)
 
       // Step 4: Verify toggle in list
-      sentMessages.length = 0
+      api.sendMessage.mockClear()
       await bot.handleUpdate(listUpdate)
 
-      const listResponse2 = sentMessages.find((msg) => msg.text.includes('📋 Scaffold list'))
-      expect(listResponse2).toBeDefined()
-      expect(listResponse2?.text).toContain('❌ inactive')
+      const listCall2 = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes('📋 Scaffold list')
+      )
+      expect(listCall2).toBeDefined()
+      expect(listCall2![1]).toContain('❌ inactive')
 
       // Step 5: Remove scaffold
-      sentMessages.length = 0
+      api.sendMessage.mockClear()
       const removeUpdate = createTextMessageUpdate(`/scaffold remove ${scaffoldId}`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -162,19 +183,21 @@ describe('scaffold-add', () => {
 
       await bot.handleUpdate(removeUpdate)
 
-      const removeResponse = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Scaffold ${scaffoldId} removed`)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Scaffold ${scaffoldId} removed`),
+        expect.anything()
       )
-      expect(removeResponse).toBeDefined()
 
       // Step 6: Verify removal in list
-      sentMessages.length = 0
+      api.sendMessage.mockClear()
       await bot.handleUpdate(listUpdate)
 
-      const emptyListResponse = sentMessages.find((msg) =>
-        msg.text.includes('📋 No scaffolds found')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('📋 No scaffolds found'),
+        expect.anything()
       )
-      expect(emptyListResponse).toBeDefined()
     })
   })
 })
