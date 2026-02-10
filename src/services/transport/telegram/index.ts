@@ -86,10 +86,6 @@ export class TelegramTransport {
     await this.bot.api.unpinChatMessage(chatId, messageId)
   }
 
-  async unpinAllMessages(chatId: number): Promise<void> {
-    await this.bot.api.unpinAllChatMessages(chatId)
-  }
-
   // === Internal: Callback Handling ===
 
   private async handleCallback(ctx: Context): Promise<void> {

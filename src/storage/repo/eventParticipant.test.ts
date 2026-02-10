@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
-import { clearTestDb } from '@integration/setup'
+import { clearTestDb } from '@integration/database'
 import { createTestContainer, type TestContainer } from '@integration/helpers/container'
 import type { EventParticipantRepo } from './eventParticipant'
 import type { EventRepo } from './event'
@@ -191,18 +191,23 @@ describe('EventParticipantRepo', () => {
       const participants = await eventParticipantRepo.getEventParticipants(testEventId)
       expect(participants).toHaveLength(3)
 
-      expect(participants[0].eventId).toBe(testEventId)
-      expect(participants[0].participantId).toBe(testParticipantId)
-      expect(participants[0].participations).toBe(1)
-      expect(participants[0].participant.displayName).toBe('Test User')
+      // Find each participant (order not guaranteed)
+      const p1 = participants.find((p) => p.participantId === testParticipantId)
+      const p2 = participants.find((p) => p.participantId === participant2.id)
+      const p3 = participants.find((p) => p.participantId === participant3.id)
 
-      expect(participants[1].participantId).toBe(participant2.id)
-      expect(participants[1].participations).toBe(2)
-      expect(participants[1].participant.displayName).toBe('User Two')
+      expect(p1).toBeDefined()
+      expect(p1!.eventId).toBe(testEventId)
+      expect(p1!.participations).toBe(1)
+      expect(p1!.participant.displayName).toBe('Test User')
 
-      expect(participants[2].participantId).toBe(participant3.id)
-      expect(participants[2].participations).toBe(1)
-      expect(participants[2].participant.displayName).toBe('User Three')
+      expect(p2).toBeDefined()
+      expect(p2!.participations).toBe(2)
+      expect(p2!.participant.displayName).toBe('User Two')
+
+      expect(p3).toBeDefined()
+      expect(p3!.participations).toBe(1)
+      expect(p3!.participant.displayName).toBe('User Three')
     })
 
     it('should return empty array when no participants', async () => {

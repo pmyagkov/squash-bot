@@ -12,10 +12,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./tests/integration/config/setup.ts', './tests/integration/vitest.setup.ts'],
+    setupFiles: ['./tests/integration/vitest.setup.ts'],
     include: [
       'tests/integration/**/*.{test,spec}.{js,ts}',
       'tests/mocks/**/*.test.{js,ts}',
+      'tests/**/*.test.{js,ts}',
       'src/**/*.test.{js,ts}',
     ],
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
@@ -33,10 +34,10 @@ export default defineConfig({
       ],
       thresholds: {
         'src/storage/repo/**': {
-          statements: 91,
-          branches: 83,
-          functions: 90,
-          lines: 90,
+          statements: 95,
+          branches: 87,
+          functions: 97,
+          lines: 95,
         },
         'src/helpers/**': {
           statements: 100,
@@ -57,10 +58,10 @@ export default defineConfig({
           lines: 100,
         },
         'src/services/transport/**': {
-          statements: 26,
-          branches: 21,
-          functions: 25,
-          lines: 26,
+          statements: 77,
+          branches: 68,
+          functions: 88,
+          lines: 77,
         },
         'src/services/logger/**': {
           statements: 68,
@@ -69,10 +70,10 @@ export default defineConfig({
           lines: 68,
         },
         'src/business/**': {
-          statements: 36,
-          branches: 27,
-          functions: 36,
-          lines: 36,
+          statements: 90,
+          branches: 74,
+          functions: 95,
+          lines: 89,
         },
       },
     },

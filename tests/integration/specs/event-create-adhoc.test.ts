@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
+import { mockBot, type BotApiMock } from '@mocks'
 import { parseDate } from '~/utils/dateParser'
 import { setupFakeTime } from '@integration/helpers/timeHelpers'
 import dayjs from 'dayjs'
@@ -11,20 +11,16 @@ import timezone from 'dayjs/plugin/timezone'
 import { config } from '~/config'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
-import type { ScaffoldRepo } from '~/storage/repo/scaffold'
-import type { EventBusiness } from '~/business/event'
 import type { SettingsRepo } from '~/storage/repo/settings'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-describe('event commands', () => {
+describe('event-create-adhoc', () => {
   let bot: Bot
-  let sentMessages: SentMessage[] = []
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
-  let scaffoldRepository: ScaffoldRepo
-  let eventBusiness: EventBusiness
   let settingsRepository: SettingsRepo
 
   beforeEach(async () => {
@@ -40,12 +36,10 @@ describe('event commands', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    sentMessages = setupMockBotApi(bot)
+    api = mockBot(bot)
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
-    scaffoldRepository = container.resolve('scaffoldRepository')
-    eventBusiness = container.resolve('eventBusiness')
     settingsRepository = container.resolve('settingsRepository')
 
     // Set up chat_id for announceEvent to work
@@ -65,7 +59,7 @@ describe('event commands', () => {
   describe('/event add', () => {
     describe('event date parsing formats', () => {
       let bot: Bot
-      let sentMessages: SentMessage[] = []
+      let api: BotApiMock
       let container: TestContainer
       let eventRepository: EventRepo
 
@@ -91,7 +85,7 @@ describe('event commands', () => {
         container.resolve('utilityBusiness').init()
 
         // Set up mock transformer to intercept all API requests
-        sentMessages = setupMockBotApi(bot)
+        api = mockBot(bot)
 
         // Resolve repositories
         eventRepository = container.resolve('eventRepository')
@@ -115,7 +109,8 @@ describe('event commands', () => {
         expect(event.courts).toBe(2)
         expect(event.status).toBe('created')
         if (expectedDayOfWeek !== undefined) {
-          expect(event.datetime.getDay()).toBe(expectedDayOfWeek)
+          // Use timezone-aware day check (getDay() uses system tz, not Belgrade)
+          expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(expectedDayOfWeek)
         }
         return event
       }
@@ -137,15 +132,15 @@ describe('event commands', () => {
         expect(event.datetime.getDate()).toBe(20)
 
         // Check success message format
-        const successMessage = sentMessages.find((msg) => msg.text.includes('✅ Created event'))
-        expect(successMessage).toBeDefined()
-        expect(successMessage?.text).toContain(`✅ Created event ${event.id}`)
-        expect(successMessage?.text).toContain('2 courts')
-        expect(successMessage?.text).toContain(`To announce: /event announce ${event.id}`)
+        const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('✅ Created event'))
+        expect(call).toBeDefined()
+        expect(call![1]).toContain(`✅ Created event ${event.id}`)
+        expect(call![1]).toContain('2 courts')
+        expect(call![1]).toContain(`To announce: /event announce ${event.id}`)
         // Check message format: should match pattern
         // Format: "✅ Created event ev_xxx (Day DD Mon HH:mm, N courts). To announce: /event announce ev_xxx"
         // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
-        expect(successMessage?.text).toMatch(
+        expect(call![1]).toMatch(
           /^✅ Created event ev_[\w-]+ \([A-Za-z]{3} \d{1,2} [A-Za-z]{3} \d{2}:\d{2}, \d+ courts\)\. To announce: \/event announce ev_[\w-]+$/
         )
       })
@@ -279,7 +274,7 @@ describe('event commands', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
-        expect(event.datetime.getDay()).toBe(2)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(2)
 
         // Should be exactly 8 days from now (Monday Jan 15 -> next Tuesday Jan 23)
         // Compare calendar days, not time differences
@@ -304,7 +299,7 @@ describe('event commands', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Saturday (6 = Saturday)
-        expect(event.datetime.getDay()).toBe(6)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(6)
 
         // Should be exactly 12 days from now (Monday Jan 15 -> next Saturday Jan 27)
         // Compare calendar days, not time differences
@@ -329,7 +324,7 @@ describe('event commands', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Friday (5 = Friday)
-        expect(event.datetime.getDay()).toBe(5)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(5)
 
         // Should be exactly 11 days from now (Monday Jan 15 -> next Friday Jan 26)
         // Compare calendar days, not time differences
@@ -350,8 +345,11 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check error message
-        const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid date format'))
-        expect(errorMessage).toBeDefined()
+        expect(api.sendMessage).toHaveBeenCalledWith(
+          TEST_CHAT_ID,
+          expect.stringContaining('Invalid date format'),
+          expect.anything()
+        )
 
         // Check that event is NOT created
         const events = await eventRepository.getEvents()
@@ -367,8 +365,11 @@ describe('event commands', () => {
         await bot.handleUpdate(update)
 
         // Check error message
-        const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid date format'))
-        expect(errorMessage).toBeDefined()
+        expect(api.sendMessage).toHaveBeenCalledWith(
+          TEST_CHAT_ID,
+          expect.stringContaining('Invalid date format'),
+          expect.anything()
+        )
 
         // Check that event is NOT created
         const events = await eventRepository.getEvents()
@@ -378,7 +379,8 @@ describe('event commands', () => {
       it('should handle case-insensitive day names', async () => {
         // First verify that parseDate works with uppercase
         const parsedDate = parseDate('SAT')
-        expect(parsedDate.getDay()).toBe(6) // Saturday = 6
+        // Use timezone-aware day check (getDay() uses system tz, not Belgrade)
+        expect(dayjs.tz(parsedDate, config.timezone).day()).toBe(6) // Saturday = 6
 
         const update = createTextMessageUpdate('/event add SAT 19:00 2', {
           userId: ADMIN_ID,
@@ -391,13 +393,14 @@ describe('event commands', () => {
         const events = await eventRepository.getEvents()
         expect(events.length).toBeGreaterThan(0)
         const event = events[0]
-        expect(event.datetime.getDay()).toBe(6) // Saturday = 6
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(6) // Saturday = 6
       })
 
       it('should handle case-insensitive next week format', async () => {
         // First verify that parseDate works with "NEXT TUE" (uppercase)
         const parsedDate = parseDate('NEXT TUE')
-        expect(parsedDate.getDay()).toBe(2) // Tuesday = 2
+        // Use timezone-aware day check (getDay() uses system tz, not Belgrade)
+        expect(dayjs.tz(parsedDate, config.timezone).day()).toBe(2) // Tuesday = 2
         // Normalize dates using timezone-aware dayjs to compare calendar days
         const now = dayjs.tz(FIXED_DATE, config.timezone).startOf('day')
         const parsedDateNormalized = dayjs.tz(parsedDate, config.timezone).startOf('day')
@@ -417,7 +420,7 @@ describe('event commands', () => {
         expect(events).toHaveLength(1)
         const event = events[0]
         // Should be a Tuesday (2 = Tuesday)
-        expect(event.datetime.getDay()).toBe(2)
+        expect(dayjs.tz(event.datetime, config.timezone).day()).toBe(2)
 
         // Should be exactly 8 days from now
         const now2 = dayjs.tz(FIXED_DATE, config.timezone).startOf('day')
@@ -436,8 +439,11 @@ describe('event commands', () => {
       await bot.handleUpdate(update)
 
       // Check error message
-      const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid date format'))
-      expect(errorMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Invalid date format'),
+        expect.anything()
+      )
 
       // Check that event is NOT created
       const events = await eventRepository.getEvents()
@@ -453,8 +459,11 @@ describe('event commands', () => {
       await bot.handleUpdate(update)
 
       // Check error message
-      const errorMessage = sentMessages.find((msg) => msg.text.includes('Invalid time format'))
-      expect(errorMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Invalid time format'),
+        expect.anything()
+      )
 
       // Check that event is NOT created
       const events = await eventRepository.getEvents()
@@ -470,8 +479,11 @@ describe('event commands', () => {
       await bot.handleUpdate(update)
 
       // Check usage message
-      const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /event add'))
-      expect(usageMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /event add'),
+        expect.anything()
+      )
 
       // Check that event is NOT created
       const events = await eventRepository.getEvents()
@@ -496,405 +508,21 @@ describe('event commands', () => {
       expect(createdEvent.scaffoldId).toBeUndefined() // Manual event has no scaffoldId
 
       // Check that bot sent a response with correct format
-      expect(sentMessages.length).toBeGreaterThan(0)
-      const successMessage = sentMessages.find((msg) => msg.text.includes('✅ Created event'))
-      expect(successMessage).toBeDefined()
+      expect(api.sendMessage).toHaveBeenCalled()
+      const successCall = api.sendMessage.mock.calls.find(([, text]) => text.includes('✅ Created event'))
+      expect(successCall).toBeDefined()
 
       // Verify message contains all required parts
-      expect(successMessage?.text).toContain(`✅ Created event ${createdEvent.id}`)
-      expect(successMessage?.text).toContain('2 courts')
-      expect(successMessage?.text).toContain(`To announce: /event announce ${createdEvent.id}`)
+      expect(successCall![1]).toContain(`✅ Created event ${createdEvent.id}`)
+      expect(successCall![1]).toContain('2 courts')
+      expect(successCall![1]).toContain(`To announce: /event announce ${createdEvent.id}`)
 
       // Check full message format matches expected pattern
       // Format: "✅ Created event ev_xxx (Day DD Mon HH:mm, N courts). To announce: /event announce ev_xxx"
       // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
-      expect(successMessage?.text).toMatch(
+      expect(successCall![1]).toMatch(
         /^✅ Created event ev_[\w-]+ \([A-Za-z]{3} \d{1,2} [A-Za-z]{3} \d{2}:\d{2}, \d+ courts\)\. To announce: \/event announce ev_[\w-]+$/
       )
-    })
-  })
-
-  it('should list events via /event list', async () => {
-    // First create an event
-    const event = await eventRepository.createEvent({
-      datetime: new Date('2024-01-20T19:00:00'),
-      courts: 2,
-      status: 'created',
-    })
-
-    const update = createTextMessageUpdate('/event list', {
-      userId: ADMIN_ID,
-      chatId: TEST_CHAT_ID,
-    })
-
-    await bot.handleUpdate(update)
-
-    // Check that bot sent list
-    expect(sentMessages.length).toBeGreaterThan(0)
-    const listMessage = sentMessages.find((msg) => msg.text.includes('📋 Event list'))
-    expect(listMessage).toBeDefined()
-    expect(listMessage?.text).toContain(event.id)
-    expect(listMessage?.text).toContain('created')
-  })
-
-  describe('/event announce', () => {
-    it('should announce event successfully', async () => {
-      // Create event in 'created' status
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00'),
-        courts: 2,
-        status: 'created',
-      })
-
-      const update = createTextMessageUpdate(`/event announce ${event.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} announced`)
-      )
-      expect(successMessage).toBeDefined()
-
-      // Check that event status is updated to 'announced'
-      const updatedEvent = await eventRepository.findById(event.id)
-      expect(updatedEvent?.status).toBe('announced')
-
-      // Check that telegramMessageId is set
-      expect(updatedEvent?.telegramMessageId).toBeDefined()
-      expect(updatedEvent?.telegramMessageId).not.toBe('')
-
-      // Check that announcement message was sent to main chat
-      const announcementMessage = sentMessages.find(
-        (msg) => msg.text.includes('🎾 Squash') && msg.text.includes('Courts: 2')
-      )
-      expect(announcementMessage).toBeDefined()
-      expect(announcementMessage?.text).toContain('Participants:')
-      expect(announcementMessage?.text).toContain('(nobody yet)')
-
-      // Check that message has inline keyboard with "I'm in" and "I'm out" buttons
-      expect(announcementMessage?.reply_markup).toBeDefined()
-      expect(announcementMessage?.reply_markup?.inline_keyboard).toBeDefined()
-      const buttons = announcementMessage?.reply_markup?.inline_keyboard[0]
-      expect(buttons).toHaveLength(2)
-      expect(buttons[0].text).toBe("I'm in")
-      expect(buttons[1].text).toBe("I'm out")
-    })
-
-    it('should reject announce without event ID', async () => {
-      const update = createTextMessageUpdate('/event announce', {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check usage message
-      const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /event announce'))
-      expect(usageMessage).toBeDefined()
-    })
-
-    it('should reject announce for non-existent event', async () => {
-      const update = createTextMessageUpdate('/event announce ev_nonexistent', {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check error message
-      const errorMessage = sentMessages.find((msg) =>
-        msg.text.includes('❌ Event ev_nonexistent not found')
-      )
-      expect(errorMessage).toBeDefined()
-    })
-
-    it('should handle announce for already announced event', async () => {
-      // Create event in 'announced' status
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00'),
-        courts: 2,
-        status: 'created',
-      })
-
-      // Announce it first time
-      await eventBusiness.announceEvent(event.id)
-
-      // Clear sent messages from first announce
-      sentMessages.length = 0
-
-      // Try to announce again
-      const update = createTextMessageUpdate(`/event announce ${event.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check info message
-      const infoMessage = sentMessages.find((msg) =>
-        msg.text.includes(`ℹ️ Event ${event.id} is already announced`)
-      )
-      expect(infoMessage).toBeDefined()
-
-      // Should not send announcement again (only one message - the info message)
-      const announceMessages = sentMessages.filter((msg) => msg.text.includes('🎾 Squash'))
-      expect(announceMessages).toHaveLength(0)
-    })
-
-    it('should format announcement message correctly', async () => {
-      // Create event with specific date/time
-      const eventDateTime = new Date('2024-01-20T19:00:00Z')
-      const event = await eventRepository.createEvent({
-        datetime: eventDateTime,
-        courts: 3,
-        status: 'created',
-      })
-
-      const update = createTextMessageUpdate(`/event announce ${event.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check announcement message format
-      const announcementMessage = sentMessages.find((msg) => msg.text.includes('🎾 Squash'))
-      expect(announcementMessage).toBeDefined()
-
-      // Should include formatted date/time
-      expect(announcementMessage?.text).toMatch(/🎾 Squash: \w+, \d+ \w+, \d{2}:\d{2}/)
-
-      // Should include number of courts
-      expect(announcementMessage?.text).toContain('Courts: 3')
-
-      // Should include participants section
-      expect(announcementMessage?.text).toContain('Participants:')
-      expect(announcementMessage?.text).toContain('(nobody yet)')
-    })
-  })
-
-  describe('/event add-by-scaffold', () => {
-    it('should create event from scaffold without auto-announce', async () => {
-      // Create a scaffold first
-      const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 3)
-
-      const update = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check that event was created
-      const events = await eventRepository.getEvents()
-      expect(events.length).toBeGreaterThan(0)
-      const createdEvent = events.find((e) => e.scaffoldId === scaffold.id)
-      expect(createdEvent).toBeDefined()
-
-      // Verify event properties from scaffold
-      expect(createdEvent?.courts).toBe(3) // from scaffold.defaultCourts
-      expect(createdEvent?.status).toBe('created') // should NOT be announced automatically
-      expect(createdEvent?.scaffoldId).toBe(scaffold.id)
-
-      // Check success message includes announce instruction
-      const successMessage = sentMessages.find(
-        (msg) => msg.text.includes(`✅ Created event`) && msg.text.includes(scaffold.id)
-      )
-      expect(successMessage).toBeDefined()
-      expect(successMessage?.text).toContain('3 courts')
-      expect(successMessage?.text).toContain('To announce: /event announce')
-
-      // Check that NO announcement was sent (no 🎾 Squash message)
-      const announcementMessage = sentMessages.find((msg) => msg.text.includes('🎾 Squash'))
-      expect(announcementMessage).toBeUndefined()
-    })
-
-    it('should reject add-by-scaffold without scaffold ID', async () => {
-      const update = createTextMessageUpdate('/event add-by-scaffold', {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check usage message
-      const usageMessage = sentMessages.find((msg) =>
-        msg.text.includes('Usage: /event add-by-scaffold')
-      )
-      expect(usageMessage).toBeDefined()
-
-      // Check that no event was created
-      const events = await eventRepository.getEvents()
-      expect(events).toHaveLength(0)
-    })
-
-    it('should reject add-by-scaffold for non-existent scaffold', async () => {
-      const update = createTextMessageUpdate('/event add-by-scaffold sc_nonexistent', {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check error message
-      const errorMessage = sentMessages.find((msg) =>
-        msg.text.includes('❌ Scaffold sc_nonexistent not found')
-      )
-      expect(errorMessage).toBeDefined()
-
-      // Check that no event was created
-      const events = await eventRepository.getEvents()
-      expect(events).toHaveLength(0)
-    })
-
-    it('should reject duplicate event creation', async () => {
-      // Create a scaffold
-      const scaffold = await scaffoldRepository.createScaffold('Wed', '19:00', 2)
-
-      // Create event first time
-      const update1 = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update1)
-
-      // Verify first event was created
-      const events1 = await eventRepository.getEvents()
-      expect(events1).toHaveLength(1)
-
-      // Clear sent messages
-      sentMessages.length = 0
-
-      // Try to create the same event again
-      const update2 = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update2)
-
-      // Check error message about duplicate
-      const errorMessage = sentMessages.find((msg) => msg.text.includes('❌ Event already exists'))
-      expect(errorMessage).toBeDefined()
-      expect(errorMessage?.text).toContain(scaffold.id)
-
-      // Check that no additional event was created
-      const events2 = await eventRepository.getEvents()
-      expect(events2).toHaveLength(1)
-    })
-  })
-
-  describe('/event cancel', () => {
-    it('should cancel event successfully', async () => {
-      // Create event
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00'),
-        courts: 2,
-        status: 'created',
-      })
-
-      const update = createTextMessageUpdate(`/event cancel ${event.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} cancelled`)
-      )
-      expect(successMessage).toBeDefined()
-
-      // Check that event status is updated to 'cancelled'
-      const updatedEvent = await eventRepository.findById(event.id)
-      expect(updatedEvent?.status).toBe('cancelled')
-    })
-
-    it('should reject cancel without event ID', async () => {
-      const update = createTextMessageUpdate('/event cancel', {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check usage message
-      const usageMessage = sentMessages.find((msg) => msg.text.includes('Usage: /event cancel'))
-      expect(usageMessage).toBeDefined()
-    })
-
-    it('should send cancellation notification for announced event', async () => {
-      // Create and announce event
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00'),
-        courts: 2,
-        status: 'created',
-      })
-
-      await eventBusiness.announceEvent(event.id)
-
-      // Clear sent messages from announce
-      sentMessages.length = 0
-
-      // Cancel event
-      const update = createTextMessageUpdate(`/event cancel ${event.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} cancelled`)
-      )
-      expect(successMessage).toBeDefined()
-
-      // Check that cancellation notification was sent to main chat
-      const notificationMessage = sentMessages.find((msg) =>
-        msg.text.includes(`❌ Event ${event.id} has been cancelled.`)
-      )
-      expect(notificationMessage).toBeDefined()
-
-      // Verify event is cancelled
-      const updatedEvent = await eventRepository.findById(event.id)
-      expect(updatedEvent?.status).toBe('cancelled')
-    })
-
-    it('should not send notification for non-announced event', async () => {
-      // Create event without announcing
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00'),
-        courts: 2,
-        status: 'created',
-      })
-
-      const update = createTextMessageUpdate(`/event cancel ${event.id}`, {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check success message
-      const successMessage = sentMessages.find((msg) =>
-        msg.text.includes(`✅ Event ${event.id} cancelled`)
-      )
-      expect(successMessage).toBeDefined()
-
-      // Check that NO cancellation notification was sent (only success message)
-      const cancelMessages = sentMessages.filter((msg) => msg.text.includes('has been cancelled'))
-      expect(cancelMessages).toHaveLength(0)
-
-      // Verify event is cancelled
-      const updatedEvent = await eventRepository.findById(event.id)
-      expect(updatedEvent?.status).toBe('cancelled')
     })
   })
 })
