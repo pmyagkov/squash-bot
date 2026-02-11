@@ -12,6 +12,7 @@ export interface Scaffold {
   defaultCourts: number
   isActive: boolean
   announcementDeadline?: string
+  ownerId?: string
 }
 
 // Event
@@ -24,6 +25,7 @@ export interface Event {
   telegramMessageId?: string
   paymentMessageId?: string
   announcementDeadline?: string
+  ownerId?: string
 }
 
 // Participant

@@ -33,6 +33,7 @@ export const scaffolds = pgTable('scaffolds', {
     .default(sql`1`)
     .notNull(),
   announcementDeadline: text('announcement_deadline'),
+  ownerId: text('owner_id'),
 })
 
 // Events table
@@ -45,6 +46,7 @@ export const events = pgTable('events', {
   telegramMessageId: text('telegram_message_id'),
   paymentMessageId: text('payment_message_id'),
   announcementDeadline: text('announcement_deadline'),
+  ownerId: text('owner_id'),
 })
 
 // Participants table
