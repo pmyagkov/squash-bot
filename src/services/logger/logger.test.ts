@@ -19,7 +19,7 @@ describe('Logger', () => {
     const provider = createFakeProvider(['info', 'warn', 'error'])
     const logger = new Logger([provider])
 
-    await logger.log('test message', 'info')
+    await logger.log('test message')
 
     expect(provider.shouldLog).toHaveBeenCalledWith('info')
     expect(provider.log).toHaveBeenCalledWith('test message', 'info')
@@ -29,7 +29,7 @@ describe('Logger', () => {
     const provider = createFakeProvider(['error'])
     const logger = new Logger([provider])
 
-    await logger.log('test message', 'info')
+    await logger.log('test message')
 
     expect(provider.shouldLog).toHaveBeenCalledWith('info')
     expect(provider.log).not.toHaveBeenCalled()
@@ -40,7 +40,7 @@ describe('Logger', () => {
     const provider2 = createFakeProvider(['info', 'warn', 'error'])
     const logger = new Logger([provider1, provider2])
 
-    await logger.log('broadcast message', 'warn')
+    await logger.warn('broadcast message')
 
     expect(provider1.log).toHaveBeenCalledWith('broadcast message', 'warn')
     expect(provider2.log).toHaveBeenCalledWith('broadcast message', 'warn')
@@ -52,7 +52,7 @@ describe('Logger', () => {
     const errorProvider = createFakeProvider(['error'])
     const logger = new Logger([infoProvider, warnProvider, errorProvider])
 
-    await logger.log('info message', 'info')
+    await logger.log('info message')
 
     expect(infoProvider.log).toHaveBeenCalledWith('info message', 'info')
     expect(warnProvider.log).not.toHaveBeenCalled()
@@ -65,7 +65,7 @@ describe('Logger', () => {
     const errorProvider = createFakeProvider(['error'])
     const logger = new Logger([infoProvider, warnProvider, errorProvider])
 
-    await logger.log('warn message', 'warn')
+    await logger.warn('warn message')
 
     expect(infoProvider.log).not.toHaveBeenCalled()
     expect(warnProvider.log).toHaveBeenCalledWith('warn message', 'warn')
@@ -78,7 +78,7 @@ describe('Logger', () => {
     const errorProvider = createFakeProvider(['error'])
     const logger = new Logger([infoProvider, warnProvider, errorProvider])
 
-    await logger.log('error message', 'error')
+    await logger.error('error message')
 
     expect(infoProvider.log).not.toHaveBeenCalled()
     expect(warnProvider.log).not.toHaveBeenCalled()

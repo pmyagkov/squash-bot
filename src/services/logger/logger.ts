@@ -7,7 +7,19 @@ export class Logger {
     this.providers = providers
   }
 
-  async log(message: string, level: LogLevel = 'info'): Promise<void> {
+  async log(message: string): Promise<void> {
+    await this.dispatch(message, 'info')
+  }
+
+  async warn(message: string): Promise<void> {
+    await this.dispatch(message, 'warn')
+  }
+
+  async error(message: string): Promise<void> {
+    await this.dispatch(message, 'error')
+  }
+
+  private async dispatch(message: string, level: LogLevel): Promise<void> {
     const promises = this.providers
       .filter((p) => p.shouldLog(level))
       .map((p) => p.log(message, level))

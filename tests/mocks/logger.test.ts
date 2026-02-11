@@ -8,21 +8,51 @@ describe('mockLogger', () => {
     expect(logger.log).toBeDefined()
   })
 
-  it('should allow overriding log behavior', async () => {
+  it('should create mock with warn method', () => {
     const logger = mockLogger()
-    logger.log.mockResolvedValue(undefined)
 
-    await logger.log('test message', 'info')
-
-    expect(logger.log).toHaveBeenCalledWith('test message', 'info')
+    expect(logger.warn).toBeDefined()
   })
 
-  it('should track log calls', async () => {
+  it('should create mock with error method', () => {
     const logger = mockLogger()
 
-    await logger.log('error message', 'error')
-    await logger.log('info message', 'info')
+    expect(logger.error).toBeDefined()
+  })
 
-    expect(logger.log).toHaveBeenCalledTimes(2)
+  it('should allow calling log', async () => {
+    const logger = mockLogger()
+
+    await logger.log('test message')
+
+    expect(logger.log).toHaveBeenCalledWith('test message')
+  })
+
+  it('should allow calling warn', async () => {
+    const logger = mockLogger()
+
+    await logger.warn('warn message')
+
+    expect(logger.warn).toHaveBeenCalledWith('warn message')
+  })
+
+  it('should allow calling error', async () => {
+    const logger = mockLogger()
+
+    await logger.error('error message')
+
+    expect(logger.error).toHaveBeenCalledWith('error message')
+  })
+
+  it('should track calls across methods', async () => {
+    const logger = mockLogger()
+
+    await logger.log('info message')
+    await logger.warn('warn message')
+    await logger.error('error message')
+
+    expect(logger.log).toHaveBeenCalledTimes(1)
+    expect(logger.warn).toHaveBeenCalledTimes(1)
+    expect(logger.error).toHaveBeenCalledTimes(1)
   })
 })
