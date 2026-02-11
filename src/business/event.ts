@@ -15,7 +15,7 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { PaymentRepo } from '~/storage/repo/payment'
 import type { Logger } from '~/services/logger'
-import type { EventLock } from '~/utils/eventLock'
+import { EventLock } from '~/utils/eventLock'
 import {
   buildInlineKeyboard,
   formatAnnouncementText,
@@ -144,7 +144,7 @@ export class EventBusiness {
   private paymentRepository: PaymentRepo
   private transport: TelegramTransport
   private logger: Logger
-  private eventLock: EventLock
+  private eventLock = new EventLock()
 
   constructor(container: AppContainer) {
     this.eventRepository = container.resolve('eventRepository')
@@ -154,7 +154,6 @@ export class EventBusiness {
     this.paymentRepository = container.resolve('paymentRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
-    this.eventLock = container.resolve('eventLock')
   }
 
   /**
