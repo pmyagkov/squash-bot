@@ -12,24 +12,16 @@ export class ConsoleProvider implements LogProvider {
   }
 
   async log(message: string, level: LogLevel): Promise<void> {
-    if (!this.shouldLog(level)) {
-      return
-    }
+    const entry = JSON.stringify({
+      level,
+      ts: new Date().toISOString(),
+      msg: message,
+    })
 
-    const timestamp = new Date().toISOString()
-    const formattedMessage = `[${level.toUpperCase()}] ${timestamp} ${message}`
-
-    switch (level) {
-      case 'error':
-        console.error(formattedMessage)
-        break
-      case 'warn':
-        console.warn(formattedMessage)
-        break
-      case 'info':
-      default:
-        console.log(formattedMessage)
-        break
+    if (level === 'error') {
+      process.stderr.write(entry + '\n')
+    } else {
+      process.stdout.write(entry + '\n')
     }
   }
 }
