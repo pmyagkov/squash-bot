@@ -1,24 +1,26 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Bot } from 'grammy'
 import type { InlineKeyboardMarkup } from 'grammy/types'
 import { TelegramTransport } from './index'
 import { ParseError } from './parsers'
-import { mockBot } from '@mocks'
-import { mockLogger } from '@mocks'
+import { mockBot, mockLogger, mockConfig } from '@mocks'
 import { TEST_CONFIG } from '@fixtures/config'
+import type { LogEvent } from '~/types/logEvent'
 
 describe('TelegramTransport', () => {
   let transport: TelegramTransport
   let bot: Bot
   let api: ReturnType<typeof mockBot>
   let logger: ReturnType<typeof mockLogger>
+  let config: ReturnType<typeof mockConfig>
 
   beforeEach(() => {
     bot = new Bot('test-token')
     api = mockBot(bot)
     logger = mockLogger()
+    config = mockConfig()
 
-    transport = new TelegramTransport(bot, logger)
+    transport = new TelegramTransport(bot, logger, config)
   })
 
   describe('sendMessage', () => {
@@ -116,6 +118,33 @@ describe('TelegramTransport', () => {
         TEST_CONFIG.messageId,
         undefined // mockBot passes undefined for empty rest params
       )
+    })
+  })
+
+  describe('logEvent', () => {
+    it('should send formatted message to log chat', async () => {
+      const event: LogEvent = { type: 'bot_started', botUsername: 'squash_bot' }
+      await transport.logEvent(event)
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        config.telegram.logChatId,
+        '🟢 Bot started as @squash_bot',
+        undefined
+      )
+    })
+
+    it('should handle send failure gracefully', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      api.sendMessage.mockRejectedValueOnce(new Error('Network error'))
+
+      const event: LogEvent = { type: 'bot_stopped' }
+      await expect(transport.logEvent(event)).resolves.toBeUndefined()
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to send log event to Telegram:',
+        expect.any(Error)
+      )
+      consoleSpy.mockRestore()
     })
   })
 

@@ -3,6 +3,9 @@ import type { InlineKeyboardMarkup } from 'grammy/types'
 import type { CallbackTypes, CommandTypes, CallbackAction, CommandName } from './types'
 import { callbackParsers, commandParsers, ParseError } from './parsers'
 import type { Logger } from '~/services/logger'
+import type { LogEvent } from '~/types/logEvent'
+import { formatLogEvent } from '~/services/formatters/logEvent'
+import type { config as configType } from '~/config'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -18,7 +21,8 @@ export class TelegramTransport {
 
   constructor(
     private bot: Bot,
-    private logger: Logger
+    private logger: Logger,
+    private config: typeof configType
   ) {}
 
   // === Handler Registration ===
@@ -84,6 +88,15 @@ export class TelegramTransport {
 
   async unpinMessage(chatId: number, messageId: number): Promise<void> {
     await this.bot.api.unpinChatMessage(chatId, messageId)
+  }
+
+  async logEvent(event: LogEvent): Promise<void> {
+    const message = formatLogEvent(event)
+    try {
+      await this.bot.api.sendMessage(this.config.telegram.logChatId, message)
+    } catch (error) {
+      console.error('Failed to send log event to Telegram:', error)
+    }
   }
 
   // === Internal: Callback Handling ===
