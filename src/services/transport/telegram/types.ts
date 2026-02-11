@@ -30,6 +30,9 @@ export interface CallbackTypes {
   'event:finalize': CallbackBaseData
   'event:cancel': CallbackBaseData
   'event:restore': CallbackBaseData
+  'event:unfinalize': CallbackBaseData
+  'payment:mark': CallbackBaseData & { eventId: string }
+  'payment:cancel': CallbackBaseData & { eventId: string }
 }
 
 // === Command Types ===

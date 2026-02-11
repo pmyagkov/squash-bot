@@ -21,6 +21,7 @@ export interface BotApiMock {
   unpinAllChatMessages: Mock<ApiMethod<'unpinAllChatMessages'>>
   answerCallbackQuery: Mock<ApiMethod<'answerCallbackQuery'>>
   editMessageReplyMarkup: Mock<ApiMethod<'editMessageReplyMarkup'>>
+  deleteMessage: Mock<ApiMethod<'deleteMessage'>>
 }
 
 /** If rest object has keys, return it; otherwise undefined */
@@ -112,6 +113,7 @@ export function mockBot(bot: Bot): BotApiMock {
     unpinAllChatMessages: vi.fn().mockResolvedValue(true) as BotApiMock['unpinAllChatMessages'],
     answerCallbackQuery: vi.fn().mockResolvedValue(true) as BotApiMock['answerCallbackQuery'],
     editMessageReplyMarkup: vi.fn().mockResolvedValue(true) as BotApiMock['editMessageReplyMarkup'],
+    deleteMessage: vi.fn().mockResolvedValue(true) as BotApiMock['deleteMessage'],
   }
 
   // Grammy's Transformer type is generic over method M, but a switch-case
@@ -160,6 +162,11 @@ export function mockBot(bot: Bot): BotApiMock {
         return api
           .editMessageReplyMarkup(chat_id, message_id, restOrUndefined(rest))
           .then(apiResponse)
+      }
+
+      case 'deleteMessage': {
+        const { chat_id, message_id } = payload as ChatMessagePayload
+        return api.deleteMessage(chat_id, message_id).then(apiResponse)
       }
 
       default:
