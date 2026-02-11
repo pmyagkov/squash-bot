@@ -32,7 +32,11 @@ describe('ScaffoldBusiness', () => {
       })
 
       expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
-        'Tue', '18:00', 2, undefined, String(TEST_CONFIG.adminId)
+        'Tue',
+        '18:00',
+        2,
+        undefined,
+        String(TEST_CONFIG.adminId)
       )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
@@ -63,7 +67,11 @@ describe('ScaffoldBusiness', () => {
       })
 
       expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
-        'Tue', '18:00', 2, undefined, '999999'
+        'Tue',
+        '18:00',
+        2,
+        undefined,
+        '999999'
       )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,

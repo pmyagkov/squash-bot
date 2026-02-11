@@ -92,6 +92,7 @@ describe('event formatters', () => {
         datetime: new Date('2024-01-20T21:00:00+01:00'),
         courts: 2,
         status: 'created',
+        ownerId: '111111111',
       }
 
       const result = formatEventMessage(event)
@@ -111,6 +112,7 @@ describe('event formatters', () => {
       datetime: new Date('2024-01-20T21:00:00+01:00'),
       courts: 2,
       status: 'announced',
+      ownerId: '111111111',
     }
 
     it('should show "(nobody yet)" when no participants', () => {
@@ -213,6 +215,7 @@ describe('event formatters', () => {
       datetime: new Date('2024-01-20T21:00:00+01:00'),
       courts: 2,
       status: 'finalized',
+      ownerId: '111111111',
     }
 
     it('should calculate even split correctly (4000 / 4 = 1000 each)', () => {
