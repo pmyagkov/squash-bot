@@ -14,6 +14,7 @@ dayjs.extend(timezone)
  */
 export interface EventParticipantDisplay {
   participant: {
+    id?: string
     telegramUsername?: string
     displayName: string
   }
@@ -30,8 +31,7 @@ export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
   }
 
   if (status === 'finalized') {
-    // No buttons for finalized events
-    return new InlineKeyboard()
+    return new InlineKeyboard().text('↩️ Unfinalize', 'event:unfinalize')
   }
 
   // Active event (announced status)
@@ -69,7 +69,8 @@ export function formatAnnouncementText(
   event: Event,
   participants: EventParticipantDisplay[],
   finalized: boolean = false,
-  cancelled: boolean = false
+  cancelled: boolean = false,
+  paidParticipantIds: Set<string> = new Set()
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const dayName = eventDate.format('dddd')
@@ -90,7 +91,9 @@ export function formatAnnouncementText(
         const username = ep.participant.telegramUsername
           ? `@${ep.participant.telegramUsername}`
           : ep.participant.displayName
-        return ep.participations > 1 ? `${username} (×${ep.participations})` : username
+        const multiplier = ep.participations > 1 ? ` (×${ep.participations})` : ''
+        const paidMark = ep.participant.id && paidParticipantIds.has(ep.participant.id) ? ' ✓' : ''
+        return `${username}${multiplier}${paidMark}`
       })
       .join(', ')
 
@@ -139,4 +142,56 @@ export function formatPaymentText(
   }
 
   return messageText
+}
+
+/**
+ * Formats personal payment DM text for a participant
+ */
+export function formatPersonalPaymentText(
+  event: Event,
+  amount: number,
+  courts: number,
+  courtPrice: number,
+  totalParticipants: number,
+  chatId: number,
+  messageId: string
+): string {
+  const eventDate = dayjs.tz(event.datetime, config.timezone)
+  const dateStr = eventDate.format('DD.MM')
+  const timeStr = eventDate.format('HH:mm')
+  const totalCost = courts * courtPrice
+
+  // Convert chatId for t.me link (remove -100 prefix for supergroups)
+  const chatIdStr = String(chatId).replace(/^-100/, '')
+  const link = `https://t.me/c/${chatIdStr}/${messageId}`
+
+  let text = `💰 Payment for Squash ${dateStr} ${timeStr}\n\n`
+  text += `Courts: ${courts} × ${courtPrice} din = ${totalCost} din\n`
+  text += `Participants: ${totalParticipants}\n`
+  text += `Full details: ${link}\n\n`
+  text += `Your amount: ${amount} din`
+
+  return text
+}
+
+/**
+ * Formats the paid version of a personal payment DM
+ */
+export function formatPaidPersonalPaymentText(baseText: string, paidDate: Date): string {
+  const dateStr = dayjs.tz(paidDate, config.timezone).format('DD.MM')
+  const timeStr = dayjs.tz(paidDate, config.timezone).format('HH:mm')
+  return `${baseText}\n\n✓ Paid on ${dateStr} at ${timeStr}`
+}
+
+/**
+ * Formats fallback notification for participants who can't receive DMs
+ */
+export function formatFallbackNotificationText(
+  participantNames: string[],
+  botUsername: string
+): string {
+  const mentions = participantNames.join(', ')
+  const link = `https://t.me/${botUsername}?start`
+
+  return `⚠️ I can't reach you personally, guys\n\n${mentions}\n\nPlease start a chat with me: ${link}\n\n(Click the link and send /start)`
 }
