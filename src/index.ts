@@ -32,6 +32,8 @@ async function main() {
     bot.start({
       onStart: (botInfo) => {
         logger.log(`Telegram bot started as @${botInfo.username}`)
+        const transport = container.resolve('transport')
+        transport.logEvent({ type: 'bot_started', botUsername: botInfo.username })
       },
     })
 
@@ -42,6 +44,8 @@ async function main() {
 
     // 7. Graceful shutdown
     const shutdown = async () => {
+      const transport = container.resolve('transport')
+      await transport.logEvent({ type: 'bot_stopped' })
       await logger.log('Shutting down...')
       await bot.stop()
       await server.close()

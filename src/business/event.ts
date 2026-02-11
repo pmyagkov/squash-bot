@@ -281,6 +281,14 @@ export class EventBusiness {
 
     await this.transport.answerCallback(data.callbackId)
     await this.logger.log(`User ${data.userId} finalized event ${event.id}`)
+
+    const finalizedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    await this.transport.logEvent({
+      type: 'event_finalized',
+      eventId: event.id,
+      date: finalizedDate,
+      participantCount: participants.length,
+    })
   }
 
   private async handleCancel(data: CallbackTypes['event:cancel']): Promise<void> {
@@ -303,6 +311,13 @@ export class EventBusiness {
 
     await this.transport.answerCallback(data.callbackId)
     await this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
+
+    const cancelledDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    await this.transport.logEvent({
+      type: 'event_cancelled',
+      eventId: event.id,
+      date: cancelledDate,
+    })
   }
 
   private async handleRestore(data: CallbackTypes['event:restore']): Promise<void> {
@@ -630,6 +645,14 @@ export class EventBusiness {
         await this.logger.log(
           `Created and announced event ${event.id} from scaffold ${scaffold.id}`
         )
+
+        const createdDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+        await this.transport.logEvent({
+          type: 'event_created',
+          eventId: event.id,
+          date: createdDate,
+          courts: event.courts,
+        })
       } catch (error) {
         await this.logger.error(
           `Failed to create event from scaffold ${scaffold.id}: ${error instanceof Error ? error.message : String(error)}`
