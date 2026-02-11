@@ -316,7 +316,7 @@ Change court count for event.
 
 ---
 
-### event-finalize
+### event-finalize ✅
 
 Finalize session, create payment records, and send personal notifications.
 
@@ -397,7 +397,7 @@ Restore cancelled event.
 
 ---
 
-### event-unfinalize
+### event-unfinalize ✅
 
 Unfinalize session and clean up payment records.
 
@@ -426,7 +426,7 @@ Unfinalize session and clean up payment records.
 
 ## Payments
 
-### payment-personal-notifications
+### payment-personal-notifications ✅
 
 Send personal payment notification to each participant after finalization.
 
@@ -461,7 +461,7 @@ Your amount: 1000 din
 
 ---
 
-### fallback-notification
+### fallback-notification ✅
 
 Notify users in group chat who couldn't receive personal messages (general purpose).
 
@@ -492,7 +492,7 @@ Please start a chat with me: [Bot Name]
 
 ---
 
-### payment-mark-paid
+### payment-mark-paid ✅
 
 Mark payment as paid via personal message.
 
@@ -537,7 +537,7 @@ Participants (4):
 
 ---
 
-### payment-cancel
+### payment-cancel ✅
 
 Cancel payment mark via personal message.
 
@@ -580,36 +580,6 @@ Remind to finalize completed event.
 4. Repeats every 2 hours until finalized
 
 **Message:** "⚠️ Squash January 21 completed but not finalized. Press ✅ Finalize."
-
----
-
-### notify-payment-reminder
-
-Send payment reminder to debtor.
-
-**Actor:** System (n8n)
-**Trigger:** POST /check-payments (once a day at 12:00)
-**Chat:** Private → Main (fallback)
-
-**Flow:**
-1. n8n calls POST /check-payments
-2. Bot finds events in finalized status with unpaid participants
-3. For each unpaid participant:
-   - Check: reminders_sent < 3 AND 1+ day after finalize
-   - Try send to private message
-   - If failed → send to Main chat with @mention
-   - Increment reminders_sent
-
-**Private message:**
-```
-⏰ Payment reminder for squash (January 21)
-
-Amount: 1000 ₽
-
-After transfer mark payment in chat: [link to message]
-```
-
-**Main chat fallback:** "⏰ @vasya, payment reminder for squash (January 21) — 1000 ₽"
 
 ---
 
