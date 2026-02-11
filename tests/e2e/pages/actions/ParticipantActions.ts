@@ -179,33 +179,43 @@ export class ParticipantActions extends TelegramWebPage {
   }
 
   /**
-   * Get current announcement text
+   * Get current announcement text via browser evaluate (avoids Playwright auto-wait overhead)
    */
   private async getAnnouncementText(): Promise<string> {
-    const announcement = this.page
-      .locator(this.selectors.messageText, { hasText: 'Participants' })
-      .last()
-    await announcement.waitFor({ state: 'visible', timeout: 5000 })
-    return await announcement.innerText()
+    const selector = this.selectors.messageText
+    return await this.page.evaluate((sel) => {
+      const elements = document.querySelectorAll(sel)
+      for (let i = elements.length - 1; i >= 0; i--) {
+        const el = elements[i] as HTMLElement
+        if (el.innerText.includes('Participants')) {
+          return el.innerText
+        }
+      }
+      return ''
+    }, selector)
   }
 
   /**
-   * Wait for announcement text to change from a known previous value
+   * Wait for announcement text to change from a known previous value.
+   * Uses page.waitForFunction for efficient in-browser polling.
    */
-  private async waitForAnnouncementChange(previousText: string, timeout = 10000): Promise<string> {
-    const announcement = this.page
-      .locator(this.selectors.messageText, { hasText: 'Participants' })
-      .last()
-
-    const startTime = Date.now()
-    while (Date.now() - startTime < timeout) {
-      const currentText = await announcement.innerText()
-      if (currentText !== previousText) {
-        return currentText
-      }
-      await this.page.waitForTimeout(200)
-    }
-    throw new Error(`Timeout waiting for announcement to change (waited ${timeout}ms)`)
+  private async waitForAnnouncementChange(previousText: string, timeout = 15000): Promise<string> {
+    const selector = this.selectors.messageText
+    await this.page.waitForFunction(
+      ({ sel, prevText }) => {
+        const elements = document.querySelectorAll(sel)
+        for (let i = elements.length - 1; i >= 0; i--) {
+          const el = elements[i] as HTMLElement
+          if (el.innerText.includes('Participants') && el.innerText !== prevText) {
+            return true
+          }
+        }
+        return false
+      },
+      { sel: selector, prevText: previousText },
+      { timeout, polling: 250 }
+    )
+    return await this.getAnnouncementText()
   }
 
   /**
