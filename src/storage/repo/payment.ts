@@ -1,6 +1,6 @@
 import { db } from '~/storage/db'
 import { payments } from '~/storage/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import type { Payment } from '~/types'
 
 export class PaymentRepo {
@@ -56,6 +56,37 @@ export class PaymentRepo {
       .returning()
 
     return this.toDomain(updated)
+  }
+
+  async findByEventAndParticipant(eventId: string, participantId: string): Promise<Payment | undefined> {
+    const result = await db.query.payments.findFirst({
+      where: and(eq(payments.eventId, eventId), eq(payments.participantId, participantId)),
+    })
+    return result ? this.toDomain(result) : undefined
+  }
+
+  async markAsUnpaid(paymentId: number): Promise<Payment> {
+    const [payment] = await db
+      .update(payments)
+      .set({
+        isPaid: false,
+        paidAt: null,
+      })
+      .where(eq(payments.id, paymentId))
+      .returning()
+
+    return this.toDomain(payment)
+  }
+
+  async deleteByEvent(eventId: string): Promise<void> {
+    await db.delete(payments).where(eq(payments.eventId, eventId))
+  }
+
+  async updatePersonalMessageId(paymentId: number, personalMessageId: string): Promise<void> {
+    await db
+      .update(payments)
+      .set({ personalMessageId })
+      .where(eq(payments.id, paymentId))
   }
 
   private toDomain(row: typeof payments.$inferSelect): Payment {
