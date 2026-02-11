@@ -18,9 +18,9 @@ export class ParticipantActions extends TelegramWebPage {
    * "I'm in" — each click +1 to user's participations
    */
   async clickImIn(): Promise<void> {
+    const textBefore = await this.getAnnouncementText()
     await this.clickInlineButton("I'm in")
-    // Wait for message update
-    await this.page.waitForTimeout(500)
+    await this.waitForAnnouncementChange(textBefore)
   }
 
   /**
@@ -31,9 +31,9 @@ export class ParticipantActions extends TelegramWebPage {
    * "I'm out" — each click −1 (minimum 0, at 0 user disappears from list)
    */
   async clickImOut(): Promise<void> {
+    const textBefore = await this.getAnnouncementText()
     await this.clickInlineButton("I'm out")
-    // Wait for message update
-    await this.page.waitForTimeout(500)
+    await this.waitForAnnouncementChange(textBefore)
   }
 
   /**
@@ -43,9 +43,9 @@ export class ParticipantActions extends TelegramWebPage {
    * +🎾 — increase number of courts by 1
    */
   async addCourt(): Promise<void> {
+    const textBefore = await this.getAnnouncementText()
     await this.clickInlineButton('+court')
-    // Wait for message update
-    await this.page.waitForTimeout(500)
+    await this.waitForAnnouncementChange(textBefore)
   }
 
   /**
@@ -55,9 +55,9 @@ export class ParticipantActions extends TelegramWebPage {
    * -court — decrease number of courts by 1 (minimum 1)
    */
   async removeCourt(): Promise<void> {
+    const textBefore = await this.getAnnouncementText()
     await this.clickInlineButton('-court')
-    // Wait for message update
-    await this.page.waitForTimeout(500)
+    await this.waitForAnnouncementChange(textBefore)
   }
 
   /**
@@ -179,18 +179,42 @@ export class ParticipantActions extends TelegramWebPage {
   }
 
   /**
-   * Wait for announcement message to update
-   * @param timeout - Maximum time to wait
-   * @returns Updated announcement text
+   * Get current announcement text
    */
-  async waitForAnnouncementUpdate(): Promise<string> {
-    // Wait for the bot to process callback and edit the announcement
-    await this.page.waitForTimeout(1000)
-    // The announcement is edited in-place — it's NOT the last message.
-    // Find it by content among all messages. Use .last() for multiple events.
+  private async getAnnouncementText(): Promise<string> {
     const announcement = this.page
       .locator(this.selectors.messageText, { hasText: 'Participants' })
       .last()
+    await announcement.waitFor({ state: 'visible', timeout: 5000 })
     return await announcement.innerText()
+  }
+
+  /**
+   * Wait for announcement text to change from a known previous value
+   */
+  private async waitForAnnouncementChange(previousText: string, timeout = 10000): Promise<string> {
+    const announcement = this.page
+      .locator(this.selectors.messageText, { hasText: 'Participants' })
+      .last()
+
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      const currentText = await announcement.innerText()
+      if (currentText !== previousText) {
+        return currentText
+      }
+      await this.page.waitForTimeout(200)
+    }
+    throw new Error(`Timeout waiting for announcement to change (waited ${timeout}ms)`)
+  }
+
+  /**
+   * Wait for announcement message to update
+   * Actions (clickImIn, addCourt, etc.) already wait for the announcement to change,
+   * so this method just reads the current state.
+   * @returns Current announcement text
+   */
+  async waitForAnnouncementUpdate(): Promise<string> {
+    return await this.getAnnouncementText()
   }
 }
