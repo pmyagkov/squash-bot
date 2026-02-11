@@ -11,8 +11,9 @@ import { ChatPage } from '@e2e/pages/ChatPage'
  */
 
 type TestFixtures = {
-  // Test data from .env.test
-  chatId: string
+  // Chat IDs
+  groupChatId: string
+  botChatId: string
 
   // Page Objects
   chatPage: ChatPage
@@ -22,49 +23,70 @@ type TestFixtures = {
   paymentActions: PaymentActions
 }
 
+/**
+ * Extract bot user ID from TELEGRAM_BOT_TOKEN (format: "123456:ABC-DEF")
+ * In Telegram Web K, navigating to #<bot_user_id> opens the private chat with the bot
+ */
+function getBotChatId(): string {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token) {
+    throw new Error('TELEGRAM_BOT_TOKEN is not set. Required for E2E tests.')
+  }
+  return token.split(':')[0]
+}
+
 export const test = base.extend<TestFixtures>({
   /**
-   * Chat ID for the test chat where bot commands will be sent
+   * Group chat ID where announcements appear
    * This value matches the seed script in src/db-seed.ts
    */
   // eslint-disable-next-line no-empty-pattern
-  chatId: async ({}, use) => {
+  groupChatId: async ({}, use) => {
     await use('-5009884489')
   },
 
   /**
-   * ChatPage instance initialized with current page
-   * Automatically navigates to test chat
+   * Bot private chat ID (bot user ID extracted from token)
+   * Commands are sent here in private chat with the bot
    */
-  chatPage: async ({ page, chatId }, use) => {
+  // eslint-disable-next-line no-empty-pattern
+  botChatId: async ({}, use) => {
+    await use(getBotChatId())
+  },
+
+  /**
+   * ChatPage instance initialized with current page
+   * Navigates to group chat by default
+   */
+  chatPage: async ({ page, groupChatId }, use) => {
     const chatPage = new ChatPage(page)
-    await chatPage.navigateToChat(chatId)
+    await chatPage.navigateToChat(groupChatId)
     await use(chatPage)
   },
 
   /**
    * ScaffoldCommands instance initialized with current page
-   * Automatically navigates to test chat
+   * Navigates to private chat with bot (commands only work in DM)
    */
-  scaffoldCommands: async ({ page, chatId }, use) => {
+  scaffoldCommands: async ({ page, botChatId }, use) => {
     const scaffoldCommands = new ScaffoldCommands(page)
-    await scaffoldCommands.navigateToChat(chatId)
+    await scaffoldCommands.navigateToChat(botChatId)
     await use(scaffoldCommands)
   },
 
   /**
    * EventCommands instance initialized with current page
-   * Automatically navigates to test chat
+   * Navigates to private chat with bot (commands only work in DM)
    */
-  eventCommands: async ({ page, chatId }, use) => {
+  eventCommands: async ({ page, botChatId }, use) => {
     const eventCommands = new EventCommands(page)
-    await eventCommands.navigateToChat(chatId)
+    await eventCommands.navigateToChat(botChatId)
     await use(eventCommands)
   },
 
   /**
    * ParticipantActions instance initialized with current page
-   * Page should already be on the chat with event announcement
+   * Page should already be on the group chat with event announcement
    */
   participantActions: async ({ page }, use) => {
     const participantActions = new ParticipantActions(page)
@@ -73,7 +95,7 @@ export const test = base.extend<TestFixtures>({
 
   /**
    * PaymentActions instance initialized with current page
-   * Page should already be on the chat with payment message
+   * Page should already be on the group chat with payment message
    */
   paymentActions: async ({ page }, use) => {
     const paymentActions = new PaymentActions(page)
