@@ -30,6 +30,9 @@ export interface CallbackTypes {
   'event:finalize': CallbackBaseData
   'event:cancel': CallbackBaseData
   'event:restore': CallbackBaseData
+  'event:unfinalize': CallbackBaseData
+  'payment:mark': CallbackBaseData & { eventId: string }
+  'payment:cancel': CallbackBaseData & { eventId: string }
 }
 
 // === Command Types ===
@@ -47,6 +50,10 @@ export interface CommandTypes {
   'event:announce': BaseData & { eventId: string }
   'event:add-by-scaffold': BaseData & { scaffoldId: string }
   'event:cancel': BaseData & { eventId: string }
+
+  // Admin commands
+  'admin:pay': BaseData & { eventId: string; username: string }
+  'admin:unpay': BaseData & { eventId: string; username: string }
 
   // Scaffold subcommands
   'scaffold:add': BaseData & { day: string; time: string; courts: number }

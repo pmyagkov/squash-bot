@@ -43,6 +43,16 @@ const userCallbackParser = (ctx: Context) => {
   }
 }
 
+const paymentCallbackParser = (ctx: Context) => {
+  const base = baseCallbackParser(ctx)
+  const parts = ctx.callbackQuery?.data?.split(':') ?? []
+  const eventId = parts[2]
+  if (!eventId) {
+    throw new ParseError('Missing event ID in payment callback')
+  }
+  return { ...base, eventId }
+}
+
 export const callbackParsers: CallbackParsers = {
   'event:join': userCallbackParser,
   'event:leave': userCallbackParser,
@@ -51,6 +61,9 @@ export const callbackParsers: CallbackParsers = {
   'event:finalize': baseCallbackParser,
   'event:cancel': baseCallbackParser,
   'event:restore': baseCallbackParser,
+  'event:unfinalize': baseCallbackParser,
+  'payment:mark': paymentCallbackParser,
+  'payment:cancel': paymentCallbackParser,
 }
 
 // === Command Parsers ===
@@ -147,6 +160,28 @@ export const commandParsers: CommandParsers = {
     return {
       ...base,
       eventId: args[0],
+    }
+  },
+  'admin:pay': (ctx, args) => {
+    const base = baseCommandParser(ctx)
+    if (args.length < 2) {
+      throw new ParseError('Usage: /admin pay <event_id> @username')
+    }
+    return {
+      ...base,
+      eventId: args[0],
+      username: args[1].replace(/^@/, ''),
+    }
+  },
+  'admin:unpay': (ctx, args) => {
+    const base = baseCommandParser(ctx)
+    if (args.length < 2) {
+      throw new ParseError('Usage: /admin unpay <event_id> @username')
+    }
+    return {
+      ...base,
+      eventId: args[0],
+      username: args[1].replace(/^@/, ''),
     }
   },
   'scaffold:add': (ctx, args) => {

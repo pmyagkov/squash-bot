@@ -88,6 +88,7 @@ export const payments = pgTable('payments', {
     .notNull(),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   reminderCount: integer('reminder_count').default(0).notNull(),
+  personalMessageId: text('personal_message_id'),
 })
 
 // Settings table

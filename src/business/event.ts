@@ -1,7 +1,8 @@
+import { InlineKeyboard } from 'grammy'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-import type { Scaffold, DayOfWeek, Event } from '~/types'
+import type { Scaffold, DayOfWeek, Event, EventParticipant, EventStatus, Payment } from '~/types'
 import { config } from '~/config'
 import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
@@ -12,12 +13,16 @@ import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { PaymentRepo } from '~/storage/repo/payment'
 import type { Logger } from '~/services/logger'
+import { EventLock } from '~/utils/eventLock'
 import {
   buildInlineKeyboard,
   formatAnnouncementText,
   formatEventMessage,
-  formatPaymentText,
+  formatPersonalPaymentText,
+  formatPaidPersonalPaymentText,
+  formatFallbackNotificationText,
 } from '~/services/formatters/event'
 
 // Extend dayjs with plugins
@@ -136,14 +141,17 @@ export class EventBusiness {
   private scaffoldRepository: ScaffoldRepo
   private settingsRepository: SettingsRepo
   private participantRepository: ParticipantRepo
+  private paymentRepository: PaymentRepo
   private transport: TelegramTransport
   private logger: Logger
+  private eventLock = new EventLock()
 
   constructor(container: AppContainer) {
     this.eventRepository = container.resolve('eventRepository')
     this.scaffoldRepository = container.resolve('scaffoldRepository')
     this.settingsRepository = container.resolve('settingsRepository')
     this.participantRepository = container.resolve('participantRepository')
+    this.paymentRepository = container.resolve('paymentRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
   }
@@ -160,6 +168,9 @@ export class EventBusiness {
     this.transport.onCallback('event:finalize', (data) => this.handleFinalize(data))
     this.transport.onCallback('event:cancel', (data) => this.handleCancel(data))
     this.transport.onCallback('event:restore', (data) => this.handleRestore(data))
+    this.transport.onCallback('event:unfinalize', (data) => this.handleUnfinalize(data))
+    this.transport.onCallback('payment:mark', (data) => this.handlePaymentMark(data))
+    this.transport.onCallback('payment:cancel', (data) => this.handlePaymentCancel(data))
 
     // Register commands
     this.transport.onCommand('event:list', (data) => this.handleList(data))
@@ -169,6 +180,9 @@ export class EventBusiness {
     this.transport.onCommand('event:add-by-scaffold', (data) => this.handleAddByScaffold(data))
     this.transport.onCommand('event:cancel', (data) => this.handleCancelCommand(data))
     this.transport.onCommand('event:transfer', (data) => this.handleTransfer(data))
+
+    this.transport.onCommand('admin:pay', (data) => this.handleAdminPay(data))
+    this.transport.onCommand('admin:unpay', (data) => this.handleAdminUnpay(data))
   }
 
   // === Callback Handlers ===
@@ -285,24 +299,62 @@ export class EventBusiness {
       return
     }
 
-    await this.eventRepository.updateEvent(event.id, { status: 'finalized' })
+    // Acquire lock
+    if (!this.eventLock.acquire(event.id)) {
+      await this.transport.answerCallback(data.callbackId, '⏳ Operation already in progress')
+      return
+    }
 
-    // Update announcement
-    await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, true)
+    try {
+      // Create payment records
+      const courtPrice = await this.settingsRepository.getCourtPrice()
+      const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+      const totalCost = courtPrice * event.courts
 
-    // Send payment message
-    await this.sendPaymentMessage(event.id, data.chatId)
+      const paymentRecords: Payment[] = []
+      for (const ep of participants) {
+        const amount = Math.round((totalCost * ep.participations) / totalParticipations)
+        const payment = await this.paymentRepository.createPayment(
+          event.id,
+          ep.participant.id,
+          amount
+        )
+        paymentRecords.push(payment)
+      }
 
-    await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} finalized event ${event.id}`)
+      // Update event status
+      await this.eventRepository.updateEvent(event.id, { status: 'finalized' })
 
-    const finalizedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
-    void this.transport.logEvent({
-      type: 'event_finalized',
-      eventId: event.id,
-      date: finalizedDate,
-      participantCount: participants.length,
-    })
+      // Send personal DMs
+      const failedParticipants = await this.sendPersonalPaymentNotifications(
+        event,
+        participants,
+        paymentRecords,
+        courtPrice,
+        data.chatId
+      )
+
+      // Send fallback if needed
+      if (failedParticipants.length > 0) {
+        await this.sendFallbackNotification(data.chatId, failedParticipants)
+      }
+
+      // Update announcement message
+      await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, true)
+
+      await this.transport.answerCallback(data.callbackId)
+      await this.logger.log(`User ${data.userId} finalized event ${event.id}`)
+
+      const finalizedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+      void this.transport.logEvent({
+        type: 'event_finalized',
+        eventId: event.id,
+        date: finalizedDate,
+        participantCount: participants.length,
+      })
+    } finally {
+      this.eventLock.release(event.id)
+    }
   }
 
   private async handleCancel(data: CallbackTypes['event:cancel']): Promise<void> {
@@ -356,6 +408,357 @@ export class EventBusiness {
     await this.logger.log(`User ${data.userId} restored event ${event.id}`)
     const restoredDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
     void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
+  }
+
+  private async handleUnfinalize(data: CallbackTypes['event:unfinalize']): Promise<void> {
+    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    if (!event) {
+      await this.transport.answerCallback(data.callbackId, 'Event not found')
+      return
+    }
+
+    if (!this.eventLock.acquire(event.id)) {
+      await this.transport.answerCallback(data.callbackId, '⏳ Operation already in progress')
+      return
+    }
+
+    try {
+      // Try to delete personal DMs (best effort)
+      const payments = await this.paymentRepository.getPaymentsByEvent(event.id)
+      for (const payment of payments) {
+        if (payment.personalMessageId) {
+          const participant = await this.participantRepository.findById(payment.participantId)
+          if (participant?.telegramId) {
+            try {
+              await this.transport.deleteMessage(
+                parseInt(participant.telegramId, 10),
+                parseInt(payment.personalMessageId, 10)
+              )
+            } catch {
+              // Ignore — message may already be deleted
+            }
+          }
+        }
+      }
+
+      // Delete all payment records
+      await this.paymentRepository.deleteByEvent(event.id)
+
+      // Update event status
+      await this.eventRepository.updateEvent(event.id, { status: 'announced' })
+
+      // Restore announcement message
+      await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false)
+
+      await this.transport.answerCallback(data.callbackId)
+      await this.logger.log(`User ${data.userId} unfinalized event ${event.id}`)
+    } finally {
+      this.eventLock.release(event.id)
+    }
+  }
+
+  private async handlePaymentMark(data: CallbackTypes['payment:mark']): Promise<void> {
+    const eventId = data.eventId
+
+    if (!this.eventLock.acquire(eventId)) {
+      await this.transport.answerCallback(data.callbackId, '⏳ In progress')
+      return
+    }
+
+    try {
+      const participant = await this.participantRepository.findByTelegramId(String(data.userId))
+      if (!participant) {
+        await this.transport.answerCallback(data.callbackId, 'Participant not found')
+        return
+      }
+
+      const payment = await this.paymentRepository.findByEventAndParticipant(
+        eventId,
+        participant.id
+      )
+      if (!payment) {
+        await this.transport.answerCallback(data.callbackId, 'Payment not found')
+        return
+      }
+
+      const updatedPayment = await this.paymentRepository.markAsPaid(payment.id!)
+
+      // Update personal message
+      if (payment.personalMessageId) {
+        const event = await this.eventRepository.findById(eventId)
+        if (event) {
+          const courtPrice = await this.settingsRepository.getCourtPrice()
+          const participants = await this.participantRepository.getEventParticipants(eventId)
+          const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+          const chatId = await this.settingsRepository.getMainChatId()
+
+          const baseText = formatPersonalPaymentText(
+            event,
+            payment.amount,
+            event.courts,
+            courtPrice,
+            totalParticipations,
+            chatId!,
+            event.telegramMessageId!
+          )
+          const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
+          const undoKeyboard = new InlineKeyboard().text('↩️ Undo', `payment:cancel:${eventId}`)
+
+          try {
+            await this.transport.editMessage(
+              data.userId,
+              parseInt(payment.personalMessageId, 10),
+              paidText,
+              undoKeyboard
+            )
+          } catch {
+            // Best effort — message might be deleted
+          }
+        }
+      }
+
+      // Update announcement with checkmark
+      await this.updateAnnouncementWithPayments(eventId)
+
+      await this.transport.answerCallback(data.callbackId)
+
+      void this.transport.logEvent({
+        type: 'payment_received',
+        eventId,
+        userName: participant.telegramUsername ?? participant.displayName,
+        amount: payment.amount,
+      })
+    } finally {
+      this.eventLock.release(eventId)
+    }
+  }
+
+  private async handlePaymentCancel(data: CallbackTypes['payment:cancel']): Promise<void> {
+    const eventId = data.eventId
+
+    if (!this.eventLock.acquire(eventId)) {
+      await this.transport.answerCallback(data.callbackId, '⏳ Operation already in progress')
+      return
+    }
+
+    try {
+      const participant = await this.participantRepository.findByTelegramId(String(data.userId))
+      if (!participant) {
+        await this.transport.answerCallback(data.callbackId, 'Participant not found')
+        return
+      }
+
+      const payment = await this.paymentRepository.findByEventAndParticipant(
+        eventId,
+        participant.id
+      )
+      if (!payment) {
+        await this.transport.answerCallback(data.callbackId, 'Payment not found')
+        return
+      }
+
+      await this.paymentRepository.markAsUnpaid(payment.id!)
+
+      // Update personal message — revert to unpaid state
+      if (payment.personalMessageId) {
+        const event = await this.eventRepository.findById(eventId)
+        if (event) {
+          const courtPrice = await this.settingsRepository.getCourtPrice()
+          const participants = await this.participantRepository.getEventParticipants(eventId)
+          const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+          const chatId = await this.settingsRepository.getMainChatId()
+
+          const baseText = formatPersonalPaymentText(
+            event,
+            payment.amount,
+            event.courts,
+            courtPrice,
+            totalParticipations,
+            chatId!,
+            event.telegramMessageId!
+          )
+          const paidKeyboard = new InlineKeyboard().text('✅ I paid', `payment:mark:${eventId}`)
+
+          try {
+            await this.transport.editMessage(
+              data.userId,
+              parseInt(payment.personalMessageId, 10),
+              baseText,
+              paidKeyboard
+            )
+          } catch {
+            // Best effort
+          }
+        }
+      }
+
+      // Update announcement — remove checkmark
+      await this.updateAnnouncementWithPayments(eventId)
+
+      await this.transport.answerCallback(data.callbackId)
+    } finally {
+      this.eventLock.release(eventId)
+    }
+  }
+
+  // === Admin Command Handlers ===
+
+  private async handleAdminPay(data: CommandTypes['admin:pay']): Promise<void> {
+    const adminId = await this.settingsRepository.getAdminId()
+    if (String(data.userId) !== adminId) {
+      await this.transport.sendMessage(
+        data.chatId,
+        '❌ This command is only available to administrators'
+      )
+      return
+    }
+
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      return
+    }
+    if (event.status !== 'finalized') {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} is not finalized`)
+      return
+    }
+
+    const participant = await this.participantRepository.findByUsername(data.username)
+    if (!participant) {
+      await this.transport.sendMessage(data.chatId, `❌ Participant @${data.username} not found`)
+      return
+    }
+
+    const payment = await this.paymentRepository.findByEventAndParticipant(event.id, participant.id)
+    if (!payment) {
+      await this.transport.sendMessage(
+        data.chatId,
+        `❌ No payment found for @${data.username} in ${event.id}`
+      )
+      return
+    }
+
+    const updatedPayment = await this.paymentRepository.markAsPaid(payment.id!)
+
+    // Update personal DM if exists
+    if (payment.personalMessageId && participant.telegramId) {
+      const courtPrice = await this.settingsRepository.getCourtPrice()
+      const participants = await this.participantRepository.getEventParticipants(event.id)
+      const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+      const chatId = await this.settingsRepository.getMainChatId()
+
+      const baseText = formatPersonalPaymentText(
+        event,
+        payment.amount,
+        event.courts,
+        courtPrice,
+        totalParticipations,
+        chatId!,
+        event.telegramMessageId!
+      )
+      const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
+      const undoKeyboard = new InlineKeyboard().text('↩️ Undo', `payment:cancel:${event.id}`)
+
+      try {
+        await this.transport.editMessage(
+          parseInt(participant.telegramId, 10),
+          parseInt(payment.personalMessageId, 10),
+          paidText,
+          undoKeyboard
+        )
+      } catch {
+        // Best effort
+      }
+    }
+
+    await this.updateAnnouncementWithPayments(event.id)
+
+    await this.transport.sendMessage(
+      data.chatId,
+      `✅ @${data.username} marked as paid for ${event.id}`
+    )
+
+    void this.transport.logEvent({
+      type: 'payment_received',
+      eventId: event.id,
+      userName: participant.telegramUsername ?? participant.displayName,
+      amount: payment.amount,
+    })
+  }
+
+  private async handleAdminUnpay(data: CommandTypes['admin:unpay']): Promise<void> {
+    const adminId = await this.settingsRepository.getAdminId()
+    if (String(data.userId) !== adminId) {
+      await this.transport.sendMessage(
+        data.chatId,
+        '❌ This command is only available to administrators'
+      )
+      return
+    }
+
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      return
+    }
+    if (event.status !== 'finalized') {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} is not finalized`)
+      return
+    }
+
+    const participant = await this.participantRepository.findByUsername(data.username)
+    if (!participant) {
+      await this.transport.sendMessage(data.chatId, `❌ Participant @${data.username} not found`)
+      return
+    }
+
+    const payment = await this.paymentRepository.findByEventAndParticipant(event.id, participant.id)
+    if (!payment) {
+      await this.transport.sendMessage(
+        data.chatId,
+        `❌ No payment found for @${data.username} in ${event.id}`
+      )
+      return
+    }
+
+    await this.paymentRepository.markAsUnpaid(payment.id!)
+
+    // Update personal DM if exists
+    if (payment.personalMessageId && participant.telegramId) {
+      const courtPrice = await this.settingsRepository.getCourtPrice()
+      const participants = await this.participantRepository.getEventParticipants(event.id)
+      const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+      const chatId = await this.settingsRepository.getMainChatId()
+
+      const baseText = formatPersonalPaymentText(
+        event,
+        payment.amount,
+        event.courts,
+        courtPrice,
+        totalParticipations,
+        chatId!,
+        event.telegramMessageId!
+      )
+      const paidKeyboard = new InlineKeyboard().text('✅ I paid', `payment:mark:${event.id}`)
+
+      try {
+        await this.transport.editMessage(
+          parseInt(participant.telegramId, 10),
+          parseInt(payment.personalMessageId, 10),
+          baseText,
+          paidKeyboard
+        )
+      } catch {
+        // Best effort
+      }
+    }
+
+    await this.updateAnnouncementWithPayments(event.id)
+
+    await this.transport.sendMessage(
+      data.chatId,
+      `✅ @${data.username} marked as unpaid for ${event.id}`
+    )
   }
 
   // === Command Handlers ===
@@ -574,26 +977,94 @@ export class EventBusiness {
     }
   }
 
-  private async sendPaymentMessage(eventId: string, chatId: number): Promise<void> {
+  private async sendPersonalPaymentNotifications(
+    event: Event,
+    participants: EventParticipant[],
+    payments: Payment[],
+    courtPrice: number,
+    chatId: number
+  ): Promise<EventParticipant[]> {
+    const failedParticipants: EventParticipant[] = []
+    const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+
+    for (let i = 0; i < participants.length; i++) {
+      const ep = participants[i]
+      const payment = payments[i]
+
+      if (!ep.participant.telegramId) {
+        failedParticipants.push(ep)
+        continue
+      }
+
+      const telegramId = parseInt(ep.participant.telegramId, 10)
+      const messageText = formatPersonalPaymentText(
+        event,
+        payment.amount,
+        event.courts,
+        courtPrice,
+        totalParticipations,
+        chatId,
+        event.telegramMessageId!
+      )
+      const keyboard = new InlineKeyboard().text('✅ I paid', `payment:mark:${event.id}`)
+
+      try {
+        const msgId = await this.transport.sendMessage(telegramId, messageText, keyboard)
+        await this.paymentRepository.updatePersonalMessageId(payment.id!, String(msgId))
+      } catch {
+        failedParticipants.push(ep)
+      }
+    }
+
+    return failedParticipants
+  }
+
+  private async sendFallbackNotification(
+    chatId: number,
+    failedParticipants: EventParticipant[]
+  ): Promise<void> {
+    const names = failedParticipants.map((ep) =>
+      ep.participant.telegramUsername
+        ? `@${ep.participant.telegramUsername}`
+        : ep.participant.displayName
+    )
+    const botInfo = this.transport.getBotInfo()
+    const text = formatFallbackNotificationText(names, botInfo.username ?? '')
+    await this.transport.sendMessage(chatId, text)
+  }
+
+  private async updateAnnouncementWithPayments(eventId: string): Promise<void> {
     const event = await this.eventRepository.findById(eventId)
-    if (!event) {
-      return
-    }
+    if (!event?.telegramMessageId) return
 
-    const courtPrice = await this.settingsRepository.getCourtPrice()
+    const chatId = await this.settingsRepository.getMainChatId()
+    if (!chatId) return
+
     const participants = await this.participantRepository.getEventParticipants(eventId)
-    const totalParticipants = participants.reduce((sum, ep) => sum + ep.participations, 0)
+    const payments = await this.paymentRepository.getPaymentsByEvent(eventId)
+    const paidParticipantIds = new Set(payments.filter((p) => p.isPaid).map((p) => p.participantId))
 
-    if (totalParticipants === 0) {
-      return
+    const messageText = formatAnnouncementText(
+      event,
+      participants,
+      event.status === 'finalized',
+      false,
+      paidParticipantIds
+    )
+    const keyboard = buildInlineKeyboard(event.status as EventStatus)
+
+    try {
+      await this.transport.editMessage(
+        chatId,
+        parseInt(event.telegramMessageId, 10),
+        messageText,
+        keyboard
+      )
+    } catch (error) {
+      await this.logger.error(
+        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
-
-    const messageText = formatPaymentText(event, participants, courtPrice)
-    const paymentMessageId = await this.transport.sendMessage(chatId, messageText)
-
-    await this.eventRepository.updateEvent(eventId, {
-      paymentMessageId: String(paymentMessageId),
-    })
   }
 
   /**

@@ -90,6 +90,14 @@ export class TelegramTransport {
     await this.bot.api.unpinChatMessage(chatId, messageId)
   }
 
+  async deleteMessage(chatId: number, messageId: number): Promise<void> {
+    await this.bot.api.deleteMessage(chatId, messageId)
+  }
+
+  getBotInfo() {
+    return this.bot.botInfo
+  }
+
   async logEvent(event: LogEvent): Promise<void> {
     const message = formatLogEvent(event)
     try {
@@ -102,9 +110,23 @@ export class TelegramTransport {
   // === Internal: Callback Handling ===
 
   private async handleCallback(ctx: Context): Promise<void> {
-    const action = ctx.callbackQuery?.data as CallbackAction
-    const parser = callbackParsers[action]
-    const handler = this.callbackHandlers.get(action)
+    const rawAction = ctx.callbackQuery?.data ?? ''
+
+    // Try exact match first (existing behavior)
+    let action = rawAction as CallbackAction
+    let parser = callbackParsers[action]
+    let handler = this.callbackHandlers.get(action)
+
+    // If no exact match, try prefix match (e.g., "payment:mark:ev_15" → "payment:mark")
+    if (!parser || !handler) {
+      const parts = rawAction.split(':')
+      if (parts.length > 2) {
+        const prefix = `${parts[0]}:${parts[1]}` as CallbackAction
+        parser = callbackParsers[prefix]
+        handler = this.callbackHandlers.get(prefix)
+        action = prefix
+      }
+    }
 
     if (!parser || !handler) {
       await ctx.answerCallbackQuery({ text: 'Unknown action' })

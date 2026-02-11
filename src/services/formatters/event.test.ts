@@ -4,6 +4,9 @@ import {
   formatEventMessage,
   formatAnnouncementText,
   formatPaymentText,
+  formatPersonalPaymentText,
+  formatPaidPersonalPaymentText,
+  formatFallbackNotificationText,
   type EventParticipantDisplay,
 } from './event'
 import type { Event } from '~/types'
@@ -65,14 +68,16 @@ describe('event formatters', () => {
       )
     })
 
-    it('should show no buttons for finalized status', () => {
+    it('should show Unfinalize button for finalized status', () => {
       const keyboard = buildInlineKeyboard('finalized')
       const buttons = keyboard.inline_keyboard
 
-      // Should have no actual buttons (empty keyboard or single empty row)
-      // InlineKeyboard() creates [[]] - an array with one empty row
       expect(buttons).toHaveLength(1)
-      expect(buttons[0]).toHaveLength(0)
+      expect(buttons[0]).toHaveLength(1)
+      expect(buttons[0][0].text).toBe('↩️ Unfinalize')
+      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:unfinalize'
+      )
     })
 
     it('should show full button set for created status', () => {
@@ -418,6 +423,95 @@ describe('event formatters', () => {
       const result = formatPaymentText(event, participants, 3000)
 
       expect(result).toContain('@user1 — 3000 din (×3)')
+    })
+  })
+
+  describe('formatAnnouncementText with paid checkmarks', () => {
+    const baseEvent: Event = {
+      id: 'ev_test123',
+      datetime: new Date('2024-01-20T21:00:00+01:00'),
+      courts: 2,
+      status: 'finalized',
+      ownerId: '111111111',
+    }
+
+    it('should show checkmark next to paid participant', () => {
+      const participants: EventParticipantDisplay[] = [
+        {
+          participant: { id: 'p_1', telegramUsername: 'alice', displayName: 'Alice' },
+          participations: 1,
+        },
+        {
+          participant: { id: 'p_2', telegramUsername: 'bob', displayName: 'Bob' },
+          participations: 1,
+        },
+      ]
+
+      const paidIds = new Set(['p_1'])
+      const result = formatAnnouncementText(baseEvent, participants, true, false, paidIds)
+
+      expect(result).toContain('@alice ✓')
+      expect(result).not.toContain('@bob ✓')
+    })
+
+    it('should combine multiplier and checkmark', () => {
+      const participants: EventParticipantDisplay[] = [
+        {
+          participant: { id: 'p_1', telegramUsername: 'alice', displayName: 'Alice' },
+          participations: 2,
+        },
+      ]
+
+      const paidIds = new Set(['p_1'])
+      const result = formatAnnouncementText(baseEvent, participants, true, false, paidIds)
+
+      expect(result).toContain('@alice (×2) ✓')
+    })
+  })
+
+  describe('formatPersonalPaymentText', () => {
+    it('should format personal payment DM text', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'finalized',
+        telegramMessageId: '42',
+        ownerId: '111111111',
+      }
+
+      const result = formatPersonalPaymentText(event, 2000, 2, 2000, 4, -1001234567890, '42')
+
+      expect(result).toContain('💰 Payment for Squash')
+      expect(result).toContain('20.01')
+      expect(result).toContain('21:00')
+      expect(result).toContain('Courts: 2 × 2000 din = 4000 din')
+      expect(result).toContain('Participants: 4')
+      expect(result).toContain('Your amount: 2000 din')
+      expect(result).toContain('https://t.me/c/1234567890/42')
+    })
+  })
+
+  describe('formatPaidPersonalPaymentText', () => {
+    it('should append paid date to base text', () => {
+      const baseText = 'Your amount: 2000 din'
+      const paidDate = new Date('2024-01-21T15:30:00+01:00')
+
+      const result = formatPaidPersonalPaymentText(baseText, paidDate)
+
+      expect(result).toContain('Your amount: 2000 din')
+      expect(result).toContain('✓ Paid on 21.01 at 15:30')
+    })
+  })
+
+  describe('formatFallbackNotificationText', () => {
+    it('should format fallback message with participant names and bot link', () => {
+      const result = formatFallbackNotificationText(['@alice', '@bob'], 'test_bot')
+
+      expect(result).toContain("can't reach")
+      expect(result).toContain('@alice, @bob')
+      expect(result).toContain('https://t.me/test_bot?start')
+      expect(result).toContain('/start')
     })
   })
 })

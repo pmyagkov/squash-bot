@@ -23,7 +23,6 @@ import type { SettingsRepo } from './storage/repo/settings'
 import { SettingsRepo as SettingsRepoImpl } from './storage/repo/settings'
 import type { ParticipantRepo } from './storage/repo/participant'
 import { ParticipantRepo as ParticipantRepoImpl } from './storage/repo/participant'
-
 export interface Container {
   bot: Bot
   config: typeof config
