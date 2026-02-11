@@ -105,6 +105,10 @@ src/services/transport/telegram/
 
 **What to mock:** grammy API (for output tests).
 
+**logEvent — what to test:**
+- Calls `bot.api.sendMessage` with log chat ID and formatted message
+- Handles send failure gracefully (does not throw)
+
 ### services/transport/api
 
 Test REST API handlers.
@@ -122,19 +126,25 @@ src/services/transport/api/
 
 ### services/logger
 
-Test routing logic.
+Test routing logic and JSON output.
 
 ```
 src/services/logger/
-├── index.ts
-└── index.test.ts
+├── logger.ts
+├── logger.test.ts
+└── providers/
+    ├── console.ts
+    └── console.test.ts
 ```
 
 **What to test:**
-- `critical` → both providers (file + telegram)
-- `notice` → file only
+- `log()` routes to info-capable providers
+- `warn()` routes to warn-capable providers
+- `error()` routes to error-capable providers
+- ConsoleProvider outputs valid JSON to stdout
+- ConsoleProvider sends errors to stderr
 
-**What to mock:** Providers (file writer, telegram sender).
+**What to mock:** Providers (for Logger routing tests).
 
 ### business
 
@@ -486,9 +496,9 @@ test('should send telegram message', async ({ container }) => {
 test('should log errors', async ({ container }) => {
   const logger = container.resolve('logger')
 
-  await logger.log('Test error', { level: 'critical' })
+  await logger.error('Test error')
 
-  expect(logger.log).toHaveBeenCalledWith('Test error', { level: 'critical' })
+  expect(logger.error).toHaveBeenCalledWith('Test error')
 })
 ```
 

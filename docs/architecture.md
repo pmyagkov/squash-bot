@@ -58,9 +58,8 @@ src/
 │   │   └── api/
 │   │       └── index.ts           # REST API server (Fastify) for n8n webhooks
 │   └── logger/
-│       ├── logger.ts              # Logger class with provider pattern
-│       ├── providers/             # ConsoleProvider, FileProvider, TelegramProvider
-│       └── adapters/              # TelegramMessenger (adapter for logger)
+│       ├── logger.ts              # Logger class — log(), warn(), error()
+│       └── providers/             # ConsoleProvider (JSON stdout), TelegramProvider (errors)
 ├── storage/
 │   ├── db/                        # Drizzle ORM schema, migrations
 │   └── repo/                      # Repository layer (database operations only)
@@ -121,9 +120,9 @@ src/
                 ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  Repositories          Formatters              Logger                        │
-│  - EventRepo           - formatEventMessage    - log()                       │
-│  - ScaffoldRepo        - formatPaymentText     - providers                   │
-│  - ParticipantRepo     - buildInlineKeyboard                                 │
+│  - EventRepo           - formatEventMessage    - log() / warn() / error()   │
+│  - ScaffoldRepo        - formatPaymentText     - JSON stdout + Telegram     │
+│  - ParticipantRepo     - buildInlineKeyboard   - logEvent() for notifs      │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 API endpoint flow:
@@ -139,7 +138,7 @@ transport/api → business → repo + logger + formatter → transport/telegram
 | **services/transport/api/** | REST API server for n8n webhooks |
 | **storage/repo/** | Database operations only — CRUD, queries, toDomain() transformations |
 | **services/formatters/** | UI formatting — transform domain objects to formatted strings and keyboards |
-| **services/logger/** | Logging with provider pattern — routes logs to console, file, and Telegram |
+| **services/logger/** | Structured JSON logging to stdout. Per-level methods: `log()`, `warn()`, `error()`. TelegramProvider sends errors to log chat as safety net |
 | **storage/db/** | Drizzle ORM schema, migrations |
 | **helpers/** | Pure utility functions — date/time parsing, calculations |
 | **utils/** | Shared utilities — environment helpers, time offsets |
@@ -163,6 +162,11 @@ The `TelegramTransport` class provides:
    - `Context` type is isolated to transport layer only
    - Business layer receives clean, typed data (e.g., `CallbackTypes['event:join']`)
 
+4. **Event notifications:**
+   - `logEvent(event: LogEvent)` — send typed business/system event to Telegram log chat
+   - Uses `formatLogEvent()` for human-readable formatting
+   - Event types: `SystemEvent` (bot_started, bot_stopped, unhandled_error) and `BusinessEvent` (event_created, event_finalized, event_cancelled, payment_received, payment_check_completed)
+
 ### Dependency Injection
 
 All classes use IoC container (awilix) for dependency management:
@@ -170,7 +174,8 @@ All classes use IoC container (awilix) for dependency management:
 - **Container initialization:** Application startup creates container with all services registered as singletons
 - **Service Locator pattern:** Classes receive `AppContainer` in constructor and resolve their own dependencies
 - **No global state:** All dependencies are explicitly resolved from container
-- **Logger architecture:** Logger accepts providers array via constructor injection (avoids circular dependencies)
+- **Logger architecture:** Logger accepts providers array via constructor injection. Per-level methods (`log`/`warn`/`error`) dispatch to providers. ConsoleProvider outputs JSON to stdout/stderr. TelegramProvider sends errors to log chat
+- **Event notifications:** `TelegramTransport.logEvent()` sends typed `LogEvent` notifications to Telegram log chat — separate from logger (which handles operational logs)
 - **Test container:** Helper function `createTestContainer()` provides identical structure for tests
 
 **Container registration order:**
