@@ -14,7 +14,8 @@ CREATE TABLE "events" (
 	"status" varchar(20) NOT NULL,
 	"telegram_message_id" text,
 	"payment_message_id" text,
-	"announcement_deadline" text
+	"announcement_deadline" text,
+	"owner_id" text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "participants" (
@@ -31,7 +32,8 @@ CREATE TABLE "payments" (
 	"amount" integer NOT NULL,
 	"is_paid" integer DEFAULT 0 NOT NULL,
 	"paid_at" timestamp with time zone,
-	"reminder_count" integer DEFAULT 0 NOT NULL
+	"reminder_count" integer DEFAULT 0 NOT NULL,
+	"personal_message_id" text
 );
 --> statement-breakpoint
 CREATE TABLE "scaffolds" (
@@ -40,7 +42,8 @@ CREATE TABLE "scaffolds" (
 	"time" varchar(5) NOT NULL,
 	"default_courts" integer NOT NULL,
 	"is_active" integer DEFAULT 1 NOT NULL,
-	"announcement_deadline" text
+	"announcement_deadline" text,
+	"owner_id" text
 );
 --> statement-breakpoint
 CREATE TABLE "settings" (
