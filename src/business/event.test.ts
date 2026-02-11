@@ -1,5 +1,11 @@
 import { test, describe, expect } from '@tests/setup'
-import { buildEvent, buildScaffold, buildParticipant, buildEventParticipant } from '@fixtures'
+import {
+  buildEvent,
+  buildScaffold,
+  buildParticipant,
+  buildEventParticipant,
+  buildPayment,
+} from '@fixtures'
 import { TEST_CONFIG } from '@fixtures/config'
 import { EventBusiness, calculateNextOccurrence } from '~/business/event'
 
@@ -852,6 +858,7 @@ describe('EventBusiness', () => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const settingsRepo = container.resolve('settingsRepository')
+      const paymentRepo = container.resolve('paymentRepository')
       const transport = container.resolve('transport')
 
       const event = buildEvent({
@@ -861,7 +868,6 @@ describe('EventBusiness', () => {
         telegramMessageId: '500',
       })
       eventRepo.findByMessageId.mockResolvedValue(event)
-      // findById is called by updateAnnouncementMessage and sendPaymentMessage
       eventRepo.findById.mockResolvedValue(
         buildEvent({ id: 'ev_fin', status: 'finalized', courts: 2 })
       )
@@ -872,17 +878,20 @@ describe('EventBusiness', () => {
           eventId: 'ev_fin',
           participantId: 'p_1',
           participations: 1,
-          participant: buildParticipant({ id: 'p_1', displayName: 'Alice' }),
+          participant: buildParticipant({ id: 'p_1', displayName: 'Alice', telegramId: '101' }),
         }),
         buildEventParticipant({
           eventId: 'ev_fin',
           participantId: 'p_2',
           participations: 1,
-          participant: buildParticipant({ id: 'p_2', displayName: 'Bob' }),
+          participant: buildParticipant({ id: 'p_2', displayName: 'Bob', telegramId: '102' }),
         }),
       ]
       participantRepo.getEventParticipants.mockResolvedValue(participants)
       settingsRepo.getCourtPrice.mockResolvedValue(2000)
+      paymentRepo.createPayment.mockImplementation(async (_eventId, _participantId, amount) =>
+        buildPayment({ eventId: _eventId, participantId: _participantId, amount })
+      )
 
       const business = new EventBusiness(container)
       business.init()
@@ -897,6 +906,7 @@ describe('EventBusiness', () => {
       })
 
       expect(eventRepo.updateEvent).toHaveBeenCalledWith('ev_fin', { status: 'finalized' })
+      expect(paymentRepo.createPayment).toHaveBeenCalledTimes(2)
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_fin')
     })
 
@@ -904,6 +914,7 @@ describe('EventBusiness', () => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const settingsRepo = container.resolve('settingsRepository')
+      const paymentRepo = container.resolve('paymentRepository')
       const transport = container.resolve('transport')
 
       const event = buildEvent({
@@ -923,16 +934,23 @@ describe('EventBusiness', () => {
         buildEventParticipant({
           participantId: 'p_a',
           participations: 2,
-          participant: buildParticipant({ id: 'p_a', telegramUsername: 'alice' }),
+          participant: buildParticipant({
+            id: 'p_a',
+            telegramUsername: 'alice',
+            telegramId: '201',
+          }),
         }),
         buildEventParticipant({
           participantId: 'p_b',
           participations: 2,
-          participant: buildParticipant({ id: 'p_b', telegramUsername: 'bob' }),
+          participant: buildParticipant({ id: 'p_b', telegramUsername: 'bob', telegramId: '202' }),
         }),
       ]
       participantRepo.getEventParticipants.mockResolvedValue(participants)
       settingsRepo.getCourtPrice.mockResolvedValue(2000)
+      paymentRepo.createPayment.mockImplementation(async (_eventId, _participantId, amount) =>
+        buildPayment({ eventId: _eventId, participantId: _participantId, amount })
+      )
 
       const business = new EventBusiness(container)
       business.init()
@@ -946,14 +964,16 @@ describe('EventBusiness', () => {
         callbackId: 'cb_pay',
       })
 
-      // sendPaymentMessage sends a message with payment breakdown
-      // sendMessage is called for the payment message
-      const paymentCalls = transport.sendMessage.mock.calls
-      const paymentMessage = paymentCalls.find(
-        (c) => typeof c[1] === 'string' && c[1].includes('Payment')
+      // createPayment called with correct amounts (1000 each for 2 participations)
+      expect(paymentRepo.createPayment).toHaveBeenCalledWith('ev_pay', 'p_a', 2000)
+      expect(paymentRepo.createPayment).toHaveBeenCalledWith('ev_pay', 'p_b', 2000)
+
+      // Personal DMs sent to each participant
+      const dmCalls = transport.sendMessage.mock.calls.filter(
+        (c) => typeof c[1] === 'string' && c[1].includes('Your amount')
       )
-      expect(paymentMessage).toBeDefined()
-      expect(paymentMessage![1]).toContain('1000 din')
+      expect(dmCalls).toHaveLength(2)
+      expect(dmCalls[0][1]).toContain('2000 din')
     })
 
     test('no participants → sends error', async ({ container }) => {
@@ -984,10 +1004,11 @@ describe('EventBusiness', () => {
       expect(eventRepo.updateEvent).not.toHaveBeenCalled()
     })
 
-    test('sends payment messages', async ({ container }) => {
+    test('sends personal payment DMs', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const settingsRepo = container.resolve('settingsRepository')
+      const paymentRepo = container.resolve('paymentRepository')
       const transport = container.resolve('transport')
 
       const event = buildEvent({
@@ -1006,11 +1027,18 @@ describe('EventBusiness', () => {
         buildEventParticipant({
           participantId: 'p_x',
           participations: 1,
-          participant: buildParticipant({ id: 'p_x', telegramUsername: 'player1' }),
+          participant: buildParticipant({
+            id: 'p_x',
+            telegramUsername: 'player1',
+            telegramId: '301',
+          }),
         }),
       ]
       participantRepo.getEventParticipants.mockResolvedValue(participants)
       settingsRepo.getCourtPrice.mockResolvedValue(2000)
+      paymentRepo.createPayment.mockImplementation(async (_eventId, _participantId, amount) =>
+        buildPayment({ eventId: _eventId, participantId: _participantId, amount })
+      )
 
       const business = new EventBusiness(container)
       business.init()
@@ -1024,14 +1052,12 @@ describe('EventBusiness', () => {
         callbackId: 'cb_payMsg',
       })
 
-      // Payment message sent with court price info
-      const paymentCalls = transport.sendMessage.mock.calls
-      const paymentMsg = paymentCalls.find(
-        (c) => typeof c[1] === 'string' && c[1].includes('Payment')
+      // Personal DM sent to participant's telegramId
+      const dmCall = transport.sendMessage.mock.calls.find(
+        (c) => c[0] === 301 && typeof c[1] === 'string' && c[1].includes('Your amount')
       )
-      expect(paymentMsg).toBeDefined()
-      expect(paymentMsg![1]).toContain('@player1')
-      expect(paymentMsg![1]).toContain('2000 din')
+      expect(dmCall).toBeDefined()
+      expect(dmCall![1]).toContain('2000 din')
     })
   })
 

@@ -58,7 +58,10 @@ export class PaymentRepo {
     return this.toDomain(updated)
   }
 
-  async findByEventAndParticipant(eventId: string, participantId: string): Promise<Payment | undefined> {
+  async findByEventAndParticipant(
+    eventId: string,
+    participantId: string
+  ): Promise<Payment | undefined> {
     const result = await db.query.payments.findFirst({
       where: and(eq(payments.eventId, eventId), eq(payments.participantId, participantId)),
     })
@@ -83,10 +86,7 @@ export class PaymentRepo {
   }
 
   async updatePersonalMessageId(paymentId: number, personalMessageId: string): Promise<void> {
-    await db
-      .update(payments)
-      .set({ personalMessageId })
-      .where(eq(payments.id, paymentId))
+    await db.update(payments).set({ personalMessageId }).where(eq(payments.id, paymentId))
   }
 
   private toDomain(row: typeof payments.$inferSelect): Payment {
