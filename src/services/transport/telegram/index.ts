@@ -103,13 +103,12 @@ export class TelegramTransport {
       await handler(data)
     } catch (error) {
       if (error instanceof ParseError) {
-        await this.logger.log(`Parse error: ${error.message}`, 'warn')
+        await this.logger.warn(`Parse error: ${error.message}`)
         await ctx.answerCallbackQuery({ text: 'Invalid request' })
         return
       }
-      await this.logger.log(
-        `Callback error: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      await this.logger.error(
+        `Callback error: ${error instanceof Error ? error.message : String(error)}`
       )
       await ctx.answerCallbackQuery({ text: 'An error occurred' })
     }
@@ -150,13 +149,12 @@ export class TelegramTransport {
       await handler(data)
     } catch (error) {
       if (error instanceof ParseError) {
-        await this.logger.log(`Parse error: ${error.message}`, 'warn')
+        await this.logger.warn(`Parse error: ${error.message}`)
         await ctx.reply(error.message)
         return
       }
-      await this.logger.log(
-        `Command error: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      await this.logger.error(
+        `Command error: ${error instanceof Error ? error.message : String(error)}`
       )
       await ctx.reply('An error occurred')
     }

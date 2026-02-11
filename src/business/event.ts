@@ -197,7 +197,7 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(`User ${data.userId} joined event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} joined event ${event.id}`)
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
@@ -218,7 +218,7 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(`User ${data.userId} left event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} left event ${event.id}`)
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add_court']): Promise<void> {
@@ -234,10 +234,7 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(
-      `User ${data.userId} added court to ${event.id} (now ${newCourts})`,
-      'info'
-    )
+    await this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
   }
 
   private async handleRemoveCourt(data: CallbackTypes['event:rm_court']): Promise<void> {
@@ -258,10 +255,7 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(
-      `User ${data.userId} removed court from ${event.id} (now ${newCourts})`,
-      'info'
-    )
+    await this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
   }
 
   private async handleFinalize(data: CallbackTypes['event:finalize']): Promise<void> {
@@ -286,7 +280,7 @@ export class EventBusiness {
     await this.sendPaymentMessage(event.id, data.chatId)
 
     await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} finalized event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} finalized event ${event.id}`)
   }
 
   private async handleCancel(data: CallbackTypes['event:cancel']): Promise<void> {
@@ -308,7 +302,7 @@ export class EventBusiness {
     }
 
     await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} cancelled event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
   }
 
   private async handleRestore(data: CallbackTypes['event:restore']): Promise<void> {
@@ -330,7 +324,7 @@ export class EventBusiness {
     }
 
     await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} restored event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} restored event ${event.id}`)
   }
 
   // === Command Handlers ===
@@ -509,9 +503,8 @@ export class EventBusiness {
     try {
       await this.transport.editMessage(chatId, messageId, messageText, keyboard)
     } catch (error) {
-      await this.logger.log(
-        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      await this.logger.error(
+        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }
@@ -635,13 +628,11 @@ export class EventBusiness {
 
         createdCount++
         await this.logger.log(
-          `Created and announced event ${event.id} from scaffold ${scaffold.id}`,
-          'info'
+          `Created and announced event ${event.id} from scaffold ${scaffold.id}`
         )
       } catch (error) {
-        await this.logger.log(
-          `Failed to create event from scaffold ${scaffold.id}: ${error instanceof Error ? error.message : String(error)}`,
-          'error'
+        await this.logger.error(
+          `Failed to create event from scaffold ${scaffold.id}: ${error instanceof Error ? error.message : String(error)}`
         )
       }
     }

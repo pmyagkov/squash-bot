@@ -31,18 +31,18 @@ async function main() {
     // 5. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
     bot.start({
       onStart: (botInfo) => {
-        logger.log(`Telegram bot started as @${botInfo.username}`, 'info')
+        logger.log(`Telegram bot started as @${botInfo.username}`)
       },
     })
 
     // 6. Start API server
     const server = await createApiServer(bot, container)
     await server.listen({ port: config.server.port, host: '0.0.0.0' })
-    await logger.log(`API server started on port ${config.server.port}`, 'info')
+    await logger.log(`API server started on port ${config.server.port}`)
 
     // 7. Graceful shutdown
     const shutdown = async () => {
-      await logger.log('Shutting down...', 'info')
+      await logger.log('Shutting down...')
       await bot.stop()
       await server.close()
       process.exit(0)
