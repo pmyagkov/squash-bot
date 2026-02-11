@@ -6,6 +6,7 @@ import type { Scaffold, DayOfWeek, Event, EventParticipant, EventStatus, Payment
 import { config } from '~/config'
 import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
+import { isOwnerOrAdmin } from '~/utils/environment'
 import type { TelegramTransport, CallbackTypes, CommandTypes } from '~/services/transport/telegram'
 import type { AppContainer } from '../container'
 import type { EventRepo } from '~/storage/repo/event'
@@ -179,6 +180,8 @@ export class EventBusiness {
     this.transport.onCommand('event:announce', (data) => this.handleAnnounce(data))
     this.transport.onCommand('event:add-by-scaffold', (data) => this.handleAddByScaffold(data))
     this.transport.onCommand('event:cancel', (data) => this.handleCancelCommand(data))
+    this.transport.onCommand('event:transfer', (data) => this.handleTransfer(data))
+
     this.transport.onCommand('admin:pay', (data) => this.handleAdminPay(data))
     this.transport.onCommand('admin:unpay', (data) => this.handleAdminUnpay(data))
   }
@@ -771,29 +774,32 @@ export class EventBusiness {
       return
     }
 
-    const list = activeEvents
-      .map((e) => {
+    const list = await Promise.all(
+      activeEvents.map(async (e) => {
         const date = dayjs.tz(e.datetime, config.timezone).format('ddd DD MMM HH:mm')
-        return `• ${e.id} | ${date} | ${e.courts} courts | ${e.status}`
+        const ownerLabel = await this.resolveOwnerLabel(e.ownerId)
+        const ownerSuffix = ownerLabel ? ` | 👑 ${ownerLabel}` : ''
+        return `• ${e.id} | ${date} | ${e.courts} courts | ${e.status}${ownerSuffix}`
       })
-      .join('\n')
+    )
 
-    await this.transport.sendMessage(data.chatId, `📋 Event list\n\n${list}`)
+    await this.transport.sendMessage(data.chatId, `📋 Event list\n\n${list.join('\n')}`)
   }
 
   private async handleCreate(data: CommandTypes['event:create']): Promise<void> {
-    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts)
+    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts, data.userId)
   }
 
   private async handleAdd(data: CommandTypes['event:add']): Promise<void> {
-    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts)
+    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts, data.userId)
   }
 
   private async handleAddEvent(
     chatId: number,
     day: string,
     time: string,
-    courts: number
+    courts: number,
+    userId: number
   ): Promise<void> {
     // Validate time format (HH:mm)
     if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
@@ -822,6 +828,7 @@ export class EventBusiness {
       datetime: eventDate,
       courts,
       status: 'created',
+      ownerId: String(userId),
     })
 
     // Format success message
@@ -879,12 +886,23 @@ export class EventBusiness {
       return
     }
 
+    // Owner: inherit from scaffold, fallback to global admin
+    const ownerId = scaffold.ownerId ?? (await this.settingsRepository.getAdminId())
+    if (!ownerId) {
+      await this.transport.sendMessage(
+        data.chatId,
+        '❌ Cannot determine event owner. Set scaffold owner or global admin.'
+      )
+      return
+    }
+
     // Create event
     const event = await this.eventRepository.createEvent({
       scaffoldId: scaffold.id,
       datetime: nextOccurrence,
       courts: scaffold.defaultCourts,
       status: 'created',
+      ownerId,
     })
 
     // Format success message
@@ -1137,12 +1155,20 @@ export class EventBusiness {
           continue
         }
 
+        // Owner: inherit from scaffold, fallback to global admin
+        const ownerId = scaffold.ownerId ?? (await this.settingsRepository.getAdminId())
+        if (!ownerId) {
+          await this.logger.error(`Cannot determine owner for scaffold ${scaffold.id}, skipping`)
+          continue
+        }
+
         // Create event
         const event = await this.eventRepository.createEvent({
           scaffoldId: scaffold.id,
           datetime: nextOccurrence,
           courts: scaffold.defaultCourts,
           status: 'created',
+          ownerId,
         })
 
         // Immediately announce
@@ -1168,5 +1194,46 @@ export class EventBusiness {
     }
 
     return createdCount
+  }
+
+  private async handleTransfer(data: CommandTypes['event:transfer']): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.sendMessage(
+        data.chatId,
+        '❌ Only the owner or admin can transfer ownership'
+      )
+      return
+    }
+
+    const target = await this.participantRepository.findByUsername(data.targetUsername)
+    if (!target || !target.telegramId) {
+      await this.transport.sendMessage(
+        data.chatId,
+        `❌ User @${data.targetUsername} not found. They need to interact with the bot first.`
+      )
+      return
+    }
+
+    await this.eventRepository.updateEvent(event.id, { ownerId: target.telegramId })
+
+    await this.transport.sendMessage(
+      data.chatId,
+      `✅ Event ${event.id} transferred to @${data.targetUsername}`
+    )
+    await this.logger.log(
+      `User ${data.userId} transferred event ${event.id} to @${data.targetUsername}`
+    )
+  }
+
+  private async resolveOwnerLabel(ownerId: string): Promise<string | undefined> {
+    const owner = await this.participantRepository.findByTelegramId(ownerId)
+    if (!owner) return undefined
+    return owner.telegramUsername ? `@${owner.telegramUsername}` : owner.displayName
   }
 }

@@ -38,6 +38,7 @@ export class EventRepo {
     datetime: Date
     courts: number
     status?: EventStatus
+    ownerId: string
   }): Promise<Event> {
     const id = `ev_${nanoid(8)}`
     const status = data.status || 'created'
@@ -55,6 +56,7 @@ export class EventRepo {
         datetime: data.datetime,
         courts: data.courts,
         status,
+        ownerId: data.ownerId,
       })
       .returning()
 
@@ -68,6 +70,7 @@ export class EventRepo {
       telegramMessageId?: string
       paymentMessageId?: string
       courts?: number
+      ownerId?: string
     }
   ): Promise<Event> {
     // Validate status if provided
@@ -86,6 +89,7 @@ export class EventRepo {
           paymentMessageId: updates.paymentMessageId,
         }),
         ...(updates.courts !== undefined && { courts: updates.courts }),
+        ...(updates.ownerId !== undefined && { ownerId: updates.ownerId }),
       })
       .where(eq(events.id, id))
       .returning()
@@ -106,6 +110,7 @@ export class EventRepo {
       status: row.status as EventStatus,
       telegramMessageId: row.telegramMessageId ?? undefined,
       paymentMessageId: row.paymentMessageId ?? undefined,
+      ownerId: row.ownerId,
     }
   }
 }

@@ -8,8 +8,6 @@ describe('ScaffoldBusiness', () => {
 
   describe('handleAdd', () => {
     test('happy path: creates scaffold, sends success message', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -33,18 +31,25 @@ describe('ScaffoldBusiness', () => {
         courts: 2,
       })
 
-      expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith('Tue', '18:00', 2)
+      expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
+        'Tue',
+        '18:00',
+        2,
+        undefined,
+        String(TEST_CONFIG.adminId)
+      )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
         expect.stringContaining('Created scaffold')
       )
     })
 
-    test('not admin → sends admin-only error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
-      const transport = container.resolve('transport')
+    test('any user can create scaffold (no admin check)', async ({ container }) => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
+      const transport = container.resolve('transport')
+
+      const scaffold = buildScaffold({ id: 'sc_new456' })
+      scaffoldRepo.createScaffold.mockResolvedValue(scaffold)
 
       const business = new ScaffoldBusiness(container)
       business.init()
@@ -61,11 +66,17 @@ describe('ScaffoldBusiness', () => {
         courts: 2,
       })
 
+      expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
+        'Tue',
+        '18:00',
+        2,
+        undefined,
+        '999999'
+      )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('only available to administrators')
+        expect.stringContaining('Created scaffold')
       )
-      expect(scaffoldRepo.createScaffold).not.toHaveBeenCalled()
     })
 
     test('invalid day → sends error', async ({ container }) => {
@@ -202,10 +213,11 @@ describe('ScaffoldBusiness', () => {
       )
     })
 
-    test('not admin → sends admin-only error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
+    test('any user can list scaffolds (no admin check)', async ({ container }) => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
+
+      scaffoldRepo.getScaffolds.mockResolvedValue([])
 
       const business = new ScaffoldBusiness(container)
       business.init()
@@ -221,7 +233,7 @@ describe('ScaffoldBusiness', () => {
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('only available to administrators')
+        expect.stringContaining('No scaffolds found')
       )
     })
   })
@@ -288,10 +300,14 @@ describe('ScaffoldBusiness', () => {
       )
     })
 
-    test('not admin → sends admin-only error', async ({ container }) => {
+    test('not owner or admin → sends owner-only error', async ({ container }) => {
       const settingsRepo = container.resolve('settingsRepository')
       settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
+      const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
+
+      const scaffold = buildScaffold({ id: 'sc_test123', ownerId: '777777' })
+      scaffoldRepo.findById.mockResolvedValue(scaffold)
 
       const business = new ScaffoldBusiness(container)
       business.init()
@@ -308,7 +324,7 @@ describe('ScaffoldBusiness', () => {
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('only available to administrators')
+        expect.stringContaining('Only the owner or admin')
       )
     })
   })
@@ -322,6 +338,8 @@ describe('ScaffoldBusiness', () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
+      const scaffold = buildScaffold({ id: 'sc_remove' })
+      scaffoldRepo.findById.mockResolvedValue(scaffold)
       scaffoldRepo.remove.mockResolvedValue(undefined)
 
       const business = new ScaffoldBusiness(container)
@@ -345,12 +363,10 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('not found → sends error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
-      scaffoldRepo.remove.mockRejectedValue(new Error('Scaffold not found'))
+      scaffoldRepo.findById.mockResolvedValue(undefined)
 
       const business = new ScaffoldBusiness(container)
       business.init()
@@ -367,7 +383,7 @@ describe('ScaffoldBusiness', () => {
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('Error')
+        expect.stringContaining('not found')
       )
     })
   })

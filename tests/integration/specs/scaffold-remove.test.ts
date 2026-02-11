@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
-import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
+import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
@@ -52,6 +52,23 @@ describe('scaffold-remove', () => {
       )
     })
 
+    it('should reject non-owner non-admin', async () => {
+      const OWNER_ID = 222222222
+      const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2, undefined, String(OWNER_ID))
+
+      const update = createTextMessageUpdate(`/scaffold remove ${scaffold.id}`, {
+        userId: NON_ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(update)
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Only the owner or admin'),
+        expect.anything()
+      )
+    })
+
     it('should show usage when no id provided', async () => {
       const update = createTextMessageUpdate('/scaffold remove', {
         userId: ADMIN_ID,
@@ -68,8 +85,6 @@ describe('scaffold-remove', () => {
     })
 
     it('should handle removing nonexistent scaffold', async () => {
-      // The remove method does not throw for nonexistent IDs (DELETE WHERE id = ...)
-      // so it just succeeds silently
       const update = createTextMessageUpdate('/scaffold remove sc_nonexistent', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -79,7 +94,7 @@ describe('scaffold-remove', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Scaffold sc_nonexistent removed'),
+        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
         expect.anything()
       )
     })

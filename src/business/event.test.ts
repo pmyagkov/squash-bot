@@ -444,6 +444,7 @@ describe('EventBusiness', () => {
         dayOfWeek: 'Tue',
         time: '18:00',
         defaultCourts: 2,
+        ownerId: String(TEST_CONFIG.adminId),
       })
       scaffoldRepo.findById.mockResolvedValue(scaffold)
       eventRepo.getEvents.mockResolvedValue([]) // No existing events
@@ -1154,6 +1155,7 @@ describe('EventBusiness', () => {
         time: '18:00',
         defaultCourts: 2,
         isActive: true,
+        ownerId: String(TEST_CONFIG.adminId),
       })
       scaffoldRepo.getScaffolds.mockResolvedValue([scaffold])
       eventRepo.getEvents.mockResolvedValue([]) // No existing events

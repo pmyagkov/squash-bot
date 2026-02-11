@@ -1,6 +1,6 @@
 {
-  "id": "a1b2c3d4-2026-0211-event-owner000001",
-  "prevId": "632a583f-2025-44fb-9914-2e3eaae13d87",
+  "id": "da085872-64e4-4e8d-9517-cced817a7030",
+  "prevId": "a1b2c3d4-2026-0211-event-owner000001",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -243,6 +243,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "personal_message_id": {
+          "name": "personal_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},

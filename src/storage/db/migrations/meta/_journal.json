@@ -12,8 +12,15 @@
     {
       "idx": 1,
       "version": "7",
+      "when": 1770739200000,
+      "tag": "0001_add_owner_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
       "when": 1739310000000,
-      "tag": "0001_add_personal_message_id",
+      "tag": "0002_add_personal_message_id",
       "breakpoints": true
     }
   ]

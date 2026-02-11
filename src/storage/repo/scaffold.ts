@@ -21,7 +21,8 @@ export class ScaffoldRepo {
     dayOfWeek: DayOfWeek,
     time: string,
     courts: number,
-    announcementDeadline?: string
+    announcementDeadline?: string,
+    ownerId?: string
   ): Promise<Scaffold> {
     const id = `sc_${nanoid(8)}`
 
@@ -34,6 +35,7 @@ export class ScaffoldRepo {
         defaultCourts: courts,
         isActive: true,
         announcementDeadline,
+        ownerId,
       })
       .returning()
 
@@ -54,6 +56,16 @@ export class ScaffoldRepo {
     await db.delete(scaffolds).where(eq(scaffolds.id, id))
   }
 
+  async updateOwner(id: string, ownerId: string): Promise<Scaffold> {
+    const [scaffold] = await db
+      .update(scaffolds)
+      .set({ ownerId })
+      .where(eq(scaffolds.id, id))
+      .returning()
+
+    return this.toDomain(scaffold)
+  }
+
   private toDomain(row: typeof scaffolds.$inferSelect): Scaffold {
     return {
       id: row.id,
@@ -62,6 +74,7 @@ export class ScaffoldRepo {
       defaultCourts: row.defaultCourts,
       isActive: row.isActive,
       announcementDeadline: row.announcementDeadline ?? undefined,
+      ownerId: row.ownerId ?? undefined,
     }
   }
 }

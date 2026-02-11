@@ -31,6 +31,13 @@ export class ParticipantRepo {
     return result ? this.toDomain(result) : undefined
   }
 
+  async findByUsername(username: string): Promise<Participant | undefined> {
+    const result = await db.query.participants.findFirst({
+      where: eq(participants.telegramUsername, username),
+    })
+    return result ? this.toDomain(result) : undefined
+  }
+
   async findOrCreateParticipant(
     telegramId: string,
     username?: string,
@@ -57,13 +64,6 @@ export class ParticipantRepo {
       .returning()
 
     return this.toDomain(participant)
-  }
-
-  async findByUsername(username: string): Promise<Participant | undefined> {
-    const result = await db.query.participants.findFirst({
-      where: eq(participants.telegramUsername, username),
-    })
-    return result ? this.toDomain(result) : undefined
   }
 
   private toDomain(row: typeof participants.$inferSelect): Participant {

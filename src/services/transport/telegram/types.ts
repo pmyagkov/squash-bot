@@ -60,6 +60,10 @@ export interface CommandTypes {
   'scaffold:list': BaseData
   'scaffold:toggle': BaseData & { scaffoldId: string }
   'scaffold:remove': BaseData & { scaffoldId: string }
+  'scaffold:transfer': BaseData & { scaffoldId: string; targetUsername: string }
+
+  // Transfer commands
+  'event:transfer': BaseData & { eventId: string; targetUsername: string }
 }
 
 // === Type helpers ===

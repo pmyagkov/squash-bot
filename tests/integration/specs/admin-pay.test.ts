@@ -45,6 +45,7 @@ describe('admin-pay', () => {
       datetime: new Date('2024-01-20T19:00:00Z'),
       courts: 2,
       status: 'created',
+      ownerId: String(ADMIN_ID),
     })
     await eventBusiness.announceEvent(event.id)
 
@@ -164,6 +165,7 @@ describe('admin-pay', () => {
         datetime: new Date('2024-01-20T19:00:00Z'),
         courts: 2,
         status: 'created',
+        ownerId: String(ADMIN_ID),
       })
       await eventBusiness.announceEvent(event.id)
       const announcedEvent = await eventRepository.findById(event.id)

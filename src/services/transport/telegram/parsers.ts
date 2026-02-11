@@ -217,4 +217,28 @@ export const commandParsers: CommandParsers = {
       scaffoldId: args[0],
     }
   },
+  'scaffold:transfer': (ctx, args) => {
+    const base = baseCommandParser(ctx)
+    if (args.length < 2) {
+      throw new ParseError('Usage: /scaffold transfer <id> @username')
+    }
+    const targetUsername = args[1].startsWith('@') ? args[1].substring(1) : args[1]
+    return {
+      ...base,
+      scaffoldId: args[0],
+      targetUsername,
+    }
+  },
+  'event:transfer': (ctx, args) => {
+    const base = baseCommandParser(ctx)
+    if (args.length < 2) {
+      throw new ParseError('Usage: /event transfer <id> @username')
+    }
+    const targetUsername = args[1].startsWith('@') ? args[1].substring(1) : args[1]
+    return {
+      ...base,
+      eventId: args[0],
+      targetUsername,
+    }
+  },
 }

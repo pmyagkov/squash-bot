@@ -51,6 +51,7 @@ describe('event-announce', () => {
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
+        ownerId: String(ADMIN_ID),
       })
 
       const update = createTextMessageUpdate(`/event announce ${event.id}`, {
@@ -147,6 +148,7 @@ describe('event-announce', () => {
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
+        ownerId: String(ADMIN_ID),
       })
 
       // Announce it first time
@@ -183,6 +185,7 @@ describe('event-announce', () => {
         datetime: eventDateTime,
         courts: 3,
         status: 'created',
+        ownerId: String(ADMIN_ID),
       })
 
       const update = createTextMessageUpdate(`/event announce ${event.id}`, {

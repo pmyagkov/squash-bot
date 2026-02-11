@@ -51,6 +51,7 @@ describe('event-cancel', () => {
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
+        ownerId: String(ADMIN_ID),
       })
 
       const update = createTextMessageUpdate(`/event cancel ${event.id}`, {
@@ -94,6 +95,7 @@ describe('event-cancel', () => {
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
+        ownerId: String(ADMIN_ID),
       })
 
       await eventBusiness.announceEvent(event.id)
@@ -137,6 +139,7 @@ describe('event-cancel', () => {
         datetime: new Date('2024-01-20T19:00:00'),
         courts: 2,
         status: 'created',
+        ownerId: String(ADMIN_ID),
       })
 
       const update = createTextMessageUpdate(`/event cancel ${event.id}`, {
