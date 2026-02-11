@@ -5,7 +5,6 @@ import type { Container } from '~/container'
 import { TelegramTransport } from '~/services/transport/telegram'
 import { Logger } from '~/services/logger/logger'
 import { ConsoleProvider } from '~/services/logger/providers/console'
-import { FileProvider } from '~/services/logger/providers/file'
 import { TelegramProvider } from '~/services/logger/providers/telegram'
 import { EventBusiness } from '~/business/event'
 import { ScaffoldBusiness } from '~/business/scaffold'
@@ -38,8 +37,7 @@ export function createTestContainer(bot: Bot): TestContainer {
   // Create logger (TelegramProvider can now resolve bot and config)
   const logger = new Logger([
     new ConsoleProvider(['info', 'warn', 'error']),
-    new FileProvider('logs', ['info', 'warn', 'error']),
-    new TelegramProvider(container, ['warn', 'error']),
+    new TelegramProvider(container, ['error']),
   ])
 
   // Register services

@@ -3,7 +3,7 @@ import type { AwilixContainer } from 'awilix'
 import type { Bot } from 'grammy'
 import { config } from './config'
 import { TelegramTransport } from './services/transport/telegram'
-import { ConsoleProvider, FileProvider, TelegramProvider, type Logger } from './services/logger'
+import { ConsoleProvider, TelegramProvider, type Logger } from './services/logger'
 import { Logger as LoggerImpl } from './services/logger/logger'
 import type { EventBusiness } from './business/event'
 import { EventBusiness as EventBusinessImpl } from './business/event'
@@ -58,8 +58,7 @@ export function createAppContainer(bot: Bot): AppContainer {
   // Now create logger (TelegramProvider can resolve bot and config from container)
   const logger = new LoggerImpl([
     new ConsoleProvider(['info', 'warn', 'error']),
-    new FileProvider('logs', ['info', 'warn', 'error']),
-    new TelegramProvider(container, ['warn', 'error']),
+    new TelegramProvider(container, ['error']),
   ])
 
   // Register services

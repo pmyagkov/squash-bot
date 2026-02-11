@@ -1,5 +1,4 @@
 export { Logger } from './logger'
 export { ConsoleProvider } from './providers/console'
-export { FileProvider } from './providers/file'
 export { TelegramProvider } from './providers/telegram'
 export type { LogLevel, LogProvider } from './types'
