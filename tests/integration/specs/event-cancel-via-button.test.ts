@@ -2,13 +2,14 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { EventBusiness } from '~/business/event'
 
 describe('event-cancel-via-button', () => {
   let bot: Bot
+  let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
   let eventBusiness: EventBusiness
@@ -23,7 +24,7 @@ describe('event-cancel-via-button', () => {
     container.resolve('utilityBusiness').init()
 
     // Set up mock transformer to intercept all API requests
-    mockBot(bot)
+    api = mockBot(bot)
 
     // Resolve dependencies
     eventRepository = container.resolve('eventRepository')
@@ -67,6 +68,12 @@ describe('event-cancel-via-button', () => {
     // Verify event status changed to cancelled
     const updatedEvent = await eventRepository.findById(event.id)
     expect(updatedEvent?.status).toBe('cancelled')
+
+    // Verify logEvent notification was sent
+    const logEventCall = api.sendMessage.mock.calls.find(
+      ([, text]) => typeof text === 'string' && text.includes('❌ Event cancelled:')
+    )
+    expect(logEventCall).toBeDefined()
   })
 
   it('handles cancel on already cancelled event without crashing', async () => {

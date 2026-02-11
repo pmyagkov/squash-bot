@@ -105,6 +105,12 @@ describe('event-finalize', () => {
     // Verify event status is 'finalized'
     const updatedEvent = await eventRepository.findById(event.id)
     expect(updatedEvent?.status).toBe('finalized')
+
+    // Verify logEvent notification was sent
+    const logEventCall = api.sendMessage.mock.calls.find(
+      ([, text]) => typeof text === 'string' && text.includes('✅ Event finalized:')
+    )
+    expect(logEventCall).toBeDefined()
   })
 
   it('should calculate correct payment amounts (even split)', async () => {

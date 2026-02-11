@@ -92,6 +92,12 @@ describe('event-add-by-scaffold-api', () => {
       expect.stringContaining('Courts: 2'),
       expect.anything()
     )
+
+    // Verify logEvent notification was sent
+    const logEventCall = api.sendMessage.mock.calls.find(
+      ([, text]) => typeof text === 'string' && text.includes('📅 Event created:')
+    )
+    expect(logEventCall).toBeDefined()
   })
 
   it('should skip inactive scaffolds', async () => {
