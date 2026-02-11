@@ -379,18 +379,19 @@ export class EventBusiness {
   }
 
   private async handleCreate(data: CommandTypes['event:create']): Promise<void> {
-    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts)
+    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts, data.userId)
   }
 
   private async handleAdd(data: CommandTypes['event:add']): Promise<void> {
-    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts)
+    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts, data.userId)
   }
 
   private async handleAddEvent(
     chatId: number,
     day: string,
     time: string,
-    courts: number
+    courts: number,
+    userId?: number
   ): Promise<void> {
     // Validate time format (HH:mm)
     if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) {
@@ -419,6 +420,7 @@ export class EventBusiness {
       datetime: eventDate,
       courts,
       status: 'created',
+      ownerId: userId ? String(userId) : undefined,
     })
 
     // Format success message
@@ -476,12 +478,16 @@ export class EventBusiness {
       return
     }
 
+    // Owner: inherit from scaffold, fallback to global admin
+    const ownerId = scaffold.ownerId ?? (await this.settingsRepository.getAdminId()) ?? undefined
+
     // Create event
     const event = await this.eventRepository.createEvent({
       scaffoldId: scaffold.id,
       datetime: nextOccurrence,
       courts: scaffold.defaultCourts,
       status: 'created',
+      ownerId,
     })
 
     // Format success message
@@ -666,12 +672,16 @@ export class EventBusiness {
           continue
         }
 
+        // Owner: inherit from scaffold, fallback to global admin
+        const ownerId = scaffold.ownerId ?? (await this.settingsRepository.getAdminId()) ?? undefined
+
         // Create event
         const event = await this.eventRepository.createEvent({
           scaffoldId: scaffold.id,
           datetime: nextOccurrence,
           courts: scaffold.defaultCourts,
           status: 'created',
+          ownerId,
         })
 
         // Immediately announce
