@@ -68,8 +68,6 @@ describe('scaffold-remove', () => {
     })
 
     it('should handle removing nonexistent scaffold', async () => {
-      // The remove method does not throw for nonexistent IDs (DELETE WHERE id = ...)
-      // so it just succeeds silently
       const update = createTextMessageUpdate('/scaffold remove sc_nonexistent', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -79,7 +77,7 @@ describe('scaffold-remove', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Scaffold sc_nonexistent removed'),
+        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
         expect.anything()
       )
     })

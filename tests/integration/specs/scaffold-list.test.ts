@@ -73,7 +73,9 @@ describe('scaffold-list', () => {
       )
     })
 
-    it('should reject non-admin user', async () => {
+    it('should allow non-admin user to list scaffolds', async () => {
+      await scaffoldRepository.createScaffold('Tue', '21:00', 2)
+
       const update = createTextMessageUpdate('/scaffold list', {
         userId: NON_ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -83,7 +85,7 @@ describe('scaffold-list', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('only available to administrators'),
+        expect.stringContaining('📋 Scaffold list'),
         expect.anything()
       )
     })

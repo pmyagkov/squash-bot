@@ -95,7 +95,7 @@ describe('scaffold-add', () => {
       )
     })
 
-    it('should reject non-admin user', async () => {
+    it('should allow non-admin user to create scaffold', async () => {
       const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
         userId: NON_ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -105,7 +105,7 @@ describe('scaffold-add', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('only available to administrators'),
+        expect.stringContaining('✅ Created scaffold'),
         expect.anything()
       )
     })

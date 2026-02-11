@@ -4,7 +4,7 @@ import type { AppContainer } from '../container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { Logger } from '~/services/logger'
-import { isAdmin } from '~/utils/environment'
+import { isOwnerOrAdmin } from '~/utils/environment'
 import { parseDayOfWeek } from '~/helpers/dateTime'
 
 /**
@@ -36,14 +36,6 @@ export class ScaffoldBusiness {
   // === Command Handlers ===
 
   private async handleAdd(data: CommandTypes['scaffold:add']): Promise<void> {
-    if (!(await isAdmin(data.userId, this.settingsRepository))) {
-      await this.transport.sendMessage(
-        data.chatId,
-        '❌ This command is only available to administrators'
-      )
-      return
-    }
-
     const dayOfWeek = parseDayOfWeek(data.day)
     if (!dayOfWeek) {
       await this.transport.sendMessage(
@@ -62,7 +54,9 @@ export class ScaffoldBusiness {
       const scaffold = await this.scaffoldRepository.createScaffold(
         dayOfWeek,
         data.time,
-        data.courts
+        data.courts,
+        undefined,
+        String(data.userId)
       )
 
       await this.transport.sendMessage(
@@ -71,7 +65,7 @@ export class ScaffoldBusiness {
       )
 
       await this.logger.log(
-        `Admin ${data.userId} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
+        `User ${data.userId} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
       )
       void this.transport.logEvent({
         type: 'scaffold_created',
@@ -88,14 +82,6 @@ export class ScaffoldBusiness {
   }
 
   private async handleList(data: CommandTypes['scaffold:list']): Promise<void> {
-    if (!(await isAdmin(data.userId, this.settingsRepository))) {
-      await this.transport.sendMessage(
-        data.chatId,
-        '❌ This command is only available to administrators'
-      )
-      return
-    }
-
     try {
       const scaffolds = await this.scaffoldRepository.getScaffolds()
 
@@ -122,18 +108,18 @@ export class ScaffoldBusiness {
   }
 
   private async handleToggle(data: CommandTypes['scaffold:toggle']): Promise<void> {
-    if (!(await isAdmin(data.userId, this.settingsRepository))) {
-      await this.transport.sendMessage(
-        data.chatId,
-        '❌ This command is only available to administrators'
-      )
-      return
-    }
-
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
         await this.transport.sendMessage(data.chatId, `❌ Scaffold ${data.scaffoldId} not found`)
+        return
+      }
+
+      if (!(await isOwnerOrAdmin(data.userId, scaffold.ownerId, this.settingsRepository))) {
+        await this.transport.sendMessage(
+          data.chatId,
+          '❌ Only the owner or admin can toggle this scaffold'
+        )
         return
       }
 
@@ -162,19 +148,25 @@ export class ScaffoldBusiness {
   }
 
   private async handleRemove(data: CommandTypes['scaffold:remove']): Promise<void> {
-    if (!(await isAdmin(data.userId, this.settingsRepository))) {
-      await this.transport.sendMessage(
-        data.chatId,
-        '❌ This command is only available to administrators'
-      )
-      return
-    }
-
     try {
+      const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
+      if (!scaffold) {
+        await this.transport.sendMessage(data.chatId, `❌ Scaffold ${data.scaffoldId} not found`)
+        return
+      }
+
+      if (!(await isOwnerOrAdmin(data.userId, scaffold.ownerId, this.settingsRepository))) {
+        await this.transport.sendMessage(
+          data.chatId,
+          '❌ Only the owner or admin can remove this scaffold'
+        )
+        return
+      }
+
       await this.scaffoldRepository.remove(data.scaffoldId)
 
       await this.transport.sendMessage(data.chatId, `✅ Scaffold ${data.scaffoldId} removed`)
-      await this.logger.log(`Admin ${data.userId} removed scaffold ${data.scaffoldId}`)
+      await this.logger.log(`User ${data.userId} removed scaffold ${data.scaffoldId}`)
       void this.transport.logEvent({ type: 'scaffold_removed', scaffoldId: data.scaffoldId })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
