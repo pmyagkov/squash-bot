@@ -76,11 +76,11 @@ export function parseDate(dateStr: string, timezoneOverride?: string): Date {
       const currentDay = now.day()
       let daysUntil = dayOfWeek - currentDay
 
-      // Always get next week's occurrence (add 7 days minimum)
+      // Always get next week's occurrence (7+ days away)
       if (daysUntil <= 0) {
-        daysUntil += 7 // If day already passed this week, add 7 to get next week
+        daysUntil += 14 // Day already passed or is today — skip this week entirely
       } else {
-        daysUntil += 7 // If day is coming this week, add 7 to get next week
+        daysUntil += 7 // Day is coming this week — skip to next week
       }
 
       return now.add(daysUntil, 'day').startOf('day').toDate()
