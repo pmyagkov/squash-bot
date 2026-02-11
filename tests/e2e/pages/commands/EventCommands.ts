@@ -124,12 +124,12 @@ export class EventCommands extends ChatPage {
   }
 
   /**
-   * Verify event was announced successfully
-   * @param response - Bot response text
-   * @returns True if event was announced
+   * Verify announcement message has correct format
+   * @param announcement - Announcement message text from group chat
+   * @returns True if announcement has expected format
    */
-  isEventAnnounced(response: string): boolean {
-    return /Courts:\s*\d+/.test(response) && response.includes('Participants:')
+  isEventAnnounced(announcement: string): boolean {
+    return /Courts:\s*\d+/.test(announcement) && announcement.includes('Participants:')
   }
 
   /**

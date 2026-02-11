@@ -130,6 +130,13 @@ export class TelegramTransport {
   // === Internal: Command Handling ===
 
   private async handleCommand(ctx: Context, baseCommand: string): Promise<void> {
+    if (ctx.chat?.type !== 'private') {
+      await ctx.reply(
+        'This command is not supported in group chats. Please send it in a private message to the bot.'
+      )
+      return
+    }
+
     const args = ctx.message?.text?.split(/\s+/).slice(1) ?? []
     const subcommand = args[0]
 

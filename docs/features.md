@@ -949,6 +949,25 @@ To see your history: /my history
 
 ## Non-functional requirements
 
+### private-chat-commands ✅
+
+Commands only work in private chat with the bot. Group chat is reserved for announcements and inline buttons.
+
+**Scope:** All text commands (`/event`, `/scaffold`, `/start`, `/help`, `/myid`, `/getchatid`)
+
+**Group chat behavior:**
+- Text commands → bot replies: "This command is not supported in group chats. Please send it in a private message to the bot."
+- Inline button callbacks → work as before (join, leave, courts, finalize, cancel, restore)
+
+**Private chat behavior:**
+- All commands work normally
+- Command responses (confirmations, lists, errors) go to private chat
+- Announcements and payment messages still go to the group (main chat)
+
+**Implementation:** Single filter in `TelegramTransport.handleCommand()` — checks `ctx.chat.type !== 'private'`
+
+---
+
 ### logging
 
 Structured logging with JSON output and typed Telegram notifications.

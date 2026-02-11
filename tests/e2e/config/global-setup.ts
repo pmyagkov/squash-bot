@@ -27,7 +27,11 @@ async function globalSetup() {
   const useTestServer = process.env.TELEGRAM_TEST_SERVER === 'true'
   console.log(`[E2E Setup] Environment loaded successfully`)
   console.log(`[E2E Setup] Telegram server: ${useTestServer ? 'TEST' : 'PRODUCTION'}`)
-  console.log(`[E2E Setup] Test Chat ID: -5009884489 (hardcoded from seed)`)
+  console.log(`[E2E Setup] Group Chat ID: -5009884489 (hardcoded from seed)`)
+  const botToken = process.env.TELEGRAM_BOT_TOKEN
+  if (botToken) {
+    console.log(`[E2E Setup] Bot Chat ID: ${botToken.split(':')[0]} (from TELEGRAM_BOT_TOKEN)`)
+  }
 }
 
 export default globalSetup
