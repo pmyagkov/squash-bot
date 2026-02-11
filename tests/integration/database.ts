@@ -99,6 +99,7 @@ function createTables(db: ReturnType<typeof drizzle>) {
       is_paid INTEGER DEFAULT 0 NOT NULL,
       paid_at TEXT,
       reminder_count INTEGER DEFAULT 0 NOT NULL,
+      personal_message_id TEXT,
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
       FOREIGN KEY (participant_id) REFERENCES participants(id)
     )

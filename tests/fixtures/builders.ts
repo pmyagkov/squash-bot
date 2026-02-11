@@ -62,6 +62,7 @@ export function buildPayment(overrides?: Partial<Payment>): Payment {
     isPaid: false,
     paidAt: undefined,
     reminderCount: 0,
+    personalMessageId: undefined,
     ...overrides,
   }
 }

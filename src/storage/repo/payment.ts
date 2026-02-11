@@ -67,6 +67,7 @@ export class PaymentRepo {
       isPaid: row.isPaid,
       paidAt: row.paidAt ?? undefined,
       reminderCount: row.reminderCount,
+      personalMessageId: row.personalMessageId ?? undefined,
     }
   }
 }

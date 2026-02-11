@@ -52,6 +52,7 @@ export interface Payment {
   isPaid: boolean
   paidAt?: Date
   reminderCount: number
+  personalMessageId?: string
 }
 
 // Settings
