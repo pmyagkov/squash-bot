@@ -66,7 +66,7 @@ function createTables(db: ReturnType<typeof drizzle>) {
       telegram_message_id TEXT,
       payment_message_id TEXT,
       announcement_deadline TEXT,
-      owner_id TEXT,
+      owner_id TEXT NOT NULL,
       FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id)
     )
   `)

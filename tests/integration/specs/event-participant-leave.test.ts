@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
-import { TEST_CHAT_ID } from '@integration/fixtures/testFixtures'
+import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
@@ -45,6 +45,7 @@ describe('event-participant-leave', () => {
       datetime: new Date('2024-01-20T19:00:00Z'),
       courts,
       status: 'created',
+      ownerId: String(ADMIN_ID),
     })
 
     await eventBusiness.announceEvent(event.id)

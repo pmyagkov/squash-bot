@@ -25,7 +25,7 @@ export interface Event {
   telegramMessageId?: string
   paymentMessageId?: string
   announcementDeadline?: string
-  ownerId?: string
+  ownerId: string
 }
 
 // Participant

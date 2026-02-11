@@ -17,6 +17,7 @@ export function buildEvent(overrides?: Partial<Event>): Event {
     telegramMessageId: undefined,
     paymentMessageId: undefined,
     announcementDeadline: undefined,
+    ownerId: String(TEST_CONFIG.adminId),
     ...overrides,
   }
 }

@@ -47,6 +47,7 @@ describe('event-list', () => {
       datetime: new Date('2024-01-20T19:00:00'),
       courts: 2,
       status: 'created',
+      ownerId: String(ADMIN_ID),
     })
 
     const update = createTextMessageUpdate('/event list', {

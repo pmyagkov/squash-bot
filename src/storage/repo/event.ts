@@ -38,7 +38,7 @@ export class EventRepo {
     datetime: Date
     courts: number
     status?: EventStatus
-    ownerId?: string
+    ownerId: string
   }): Promise<Event> {
     const id = `ev_${nanoid(8)}`
     const status = data.status || 'created'
@@ -56,7 +56,7 @@ export class EventRepo {
         datetime: data.datetime,
         courts: data.courts,
         status,
-        ownerId: data.ownerId ?? null,
+        ownerId: data.ownerId,
       })
       .returning()
 
@@ -110,7 +110,7 @@ export class EventRepo {
       status: row.status as EventStatus,
       telegramMessageId: row.telegramMessageId ?? undefined,
       paymentMessageId: row.paymentMessageId ?? undefined,
-      ownerId: row.ownerId ?? undefined,
+      ownerId: row.ownerId,
     }
   }
 }
