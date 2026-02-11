@@ -179,6 +179,8 @@ export class EventBusiness {
     this.transport.onCommand('event:announce', (data) => this.handleAnnounce(data))
     this.transport.onCommand('event:add-by-scaffold', (data) => this.handleAddByScaffold(data))
     this.transport.onCommand('event:cancel', (data) => this.handleCancelCommand(data))
+    this.transport.onCommand('admin:pay', (data) => this.handleAdminPay(data))
+    this.transport.onCommand('admin:unpay', (data) => this.handleAdminUnpay(data))
   }
 
   // === Callback Handlers ===
@@ -595,6 +597,166 @@ export class EventBusiness {
     } finally {
       this.eventLock.release(eventId)
     }
+  }
+
+  // === Admin Command Handlers ===
+
+  private async handleAdminPay(data: CommandTypes['admin:pay']): Promise<void> {
+    const adminId = await this.settingsRepository.getAdminId()
+    if (String(data.userId) !== adminId) {
+      await this.transport.sendMessage(
+        data.chatId,
+        '❌ This command is only available to administrators'
+      )
+      return
+    }
+
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      return
+    }
+    if (event.status !== 'finalized') {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} is not finalized`)
+      return
+    }
+
+    const participant = await this.participantRepository.findByUsername(data.username)
+    if (!participant) {
+      await this.transport.sendMessage(data.chatId, `❌ Participant @${data.username} not found`)
+      return
+    }
+
+    const payment = await this.paymentRepository.findByEventAndParticipant(event.id, participant.id)
+    if (!payment) {
+      await this.transport.sendMessage(
+        data.chatId,
+        `❌ No payment found for @${data.username} in ${event.id}`
+      )
+      return
+    }
+
+    const updatedPayment = await this.paymentRepository.markAsPaid(payment.id!)
+
+    // Update personal DM if exists
+    if (payment.personalMessageId && participant.telegramId) {
+      const courtPrice = await this.settingsRepository.getCourtPrice()
+      const participants = await this.participantRepository.getEventParticipants(event.id)
+      const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+      const chatId = await this.settingsRepository.getMainChatId()
+
+      const baseText = formatPersonalPaymentText(
+        event,
+        payment.amount,
+        event.courts,
+        courtPrice,
+        totalParticipations,
+        chatId!,
+        event.telegramMessageId!
+      )
+      const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
+      const undoKeyboard = new InlineKeyboard().text('↩️ Undo', `payment:cancel:${event.id}`)
+
+      try {
+        await this.transport.editMessage(
+          parseInt(participant.telegramId, 10),
+          parseInt(payment.personalMessageId, 10),
+          paidText,
+          undoKeyboard
+        )
+      } catch {
+        // Best effort
+      }
+    }
+
+    await this.updateAnnouncementWithPayments(event.id)
+
+    await this.transport.sendMessage(
+      data.chatId,
+      `✅ @${data.username} marked as paid for ${event.id}`
+    )
+
+    void this.transport.logEvent({
+      type: 'payment_received',
+      eventId: event.id,
+      userName: participant.telegramUsername ?? participant.displayName,
+      amount: payment.amount,
+    })
+  }
+
+  private async handleAdminUnpay(data: CommandTypes['admin:unpay']): Promise<void> {
+    const adminId = await this.settingsRepository.getAdminId()
+    if (String(data.userId) !== adminId) {
+      await this.transport.sendMessage(
+        data.chatId,
+        '❌ This command is only available to administrators'
+      )
+      return
+    }
+
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      return
+    }
+    if (event.status !== 'finalized') {
+      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} is not finalized`)
+      return
+    }
+
+    const participant = await this.participantRepository.findByUsername(data.username)
+    if (!participant) {
+      await this.transport.sendMessage(data.chatId, `❌ Participant @${data.username} not found`)
+      return
+    }
+
+    const payment = await this.paymentRepository.findByEventAndParticipant(event.id, participant.id)
+    if (!payment) {
+      await this.transport.sendMessage(
+        data.chatId,
+        `❌ No payment found for @${data.username} in ${event.id}`
+      )
+      return
+    }
+
+    await this.paymentRepository.markAsUnpaid(payment.id!)
+
+    // Update personal DM if exists
+    if (payment.personalMessageId && participant.telegramId) {
+      const courtPrice = await this.settingsRepository.getCourtPrice()
+      const participants = await this.participantRepository.getEventParticipants(event.id)
+      const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+      const chatId = await this.settingsRepository.getMainChatId()
+
+      const baseText = formatPersonalPaymentText(
+        event,
+        payment.amount,
+        event.courts,
+        courtPrice,
+        totalParticipations,
+        chatId!,
+        event.telegramMessageId!
+      )
+      const paidKeyboard = new InlineKeyboard().text('✅ I paid', `payment:mark:${event.id}`)
+
+      try {
+        await this.transport.editMessage(
+          parseInt(participant.telegramId, 10),
+          parseInt(payment.personalMessageId, 10),
+          baseText,
+          paidKeyboard
+        )
+      } catch {
+        // Best effort
+      }
+    }
+
+    await this.updateAnnouncementWithPayments(event.id)
+
+    await this.transport.sendMessage(
+      data.chatId,
+      `✅ @${data.username} marked as unpaid for ${event.id}`
+    )
   }
 
   // === Command Handlers ===

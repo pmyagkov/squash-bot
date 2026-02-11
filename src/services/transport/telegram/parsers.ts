@@ -162,6 +162,28 @@ export const commandParsers: CommandParsers = {
       eventId: args[0],
     }
   },
+  'admin:pay': (ctx, args) => {
+    const base = baseCommandParser(ctx)
+    if (args.length < 2) {
+      throw new ParseError('Usage: /admin pay <event_id> @username')
+    }
+    return {
+      ...base,
+      eventId: args[0],
+      username: args[1].replace(/^@/, ''),
+    }
+  },
+  'admin:unpay': (ctx, args) => {
+    const base = baseCommandParser(ctx)
+    if (args.length < 2) {
+      throw new ParseError('Usage: /admin unpay <event_id> @username')
+    }
+    return {
+      ...base,
+      eventId: args[0],
+      username: args[1].replace(/^@/, ''),
+    }
+  },
   'scaffold:add': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 3) {

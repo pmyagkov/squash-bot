@@ -51,6 +51,10 @@ export interface CommandTypes {
   'event:add-by-scaffold': BaseData & { scaffoldId: string }
   'event:cancel': BaseData & { eventId: string }
 
+  // Admin commands
+  'admin:pay': BaseData & { eventId: string; username: string }
+  'admin:unpay': BaseData & { eventId: string; username: string }
+
   // Scaffold subcommands
   'scaffold:add': BaseData & { day: string; time: string; courts: number }
   'scaffold:list': BaseData
