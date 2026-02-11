@@ -73,6 +73,25 @@ describe('scaffold-list', () => {
       )
     })
 
+    it('should show owner in scaffold list', async () => {
+      const OWNER_ID = 222222222
+      const participantRepo = container.resolve('participantRepository')
+      await participantRepo.findOrCreateParticipant(String(OWNER_ID), 'pasha', 'Pasha')
+
+      await scaffoldRepository.createScaffold('Tue', '21:00', 2, undefined, String(OWNER_ID))
+
+      const update = createTextMessageUpdate('/scaffold list', {
+        userId: OWNER_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(update)
+
+      const listCall = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes('📋 Scaffold list')
+      )
+      expect(listCall![1]).toContain('👑 @pasha')
+    })
+
     it('should allow non-admin user to list scaffolds', async () => {
       await scaffoldRepository.createScaffold('Tue', '21:00', 2)
 
