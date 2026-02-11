@@ -965,7 +965,7 @@ Structured logging with JSON output and typed Telegram notifications.
 **Event notifications (`transport.logEvent()`):**
 - Typed events: `SystemEvent | BusinessEvent`
 - SystemEvent: `bot_started`, `bot_stopped`, `unhandled_error`
-- BusinessEvent: `event_created`, `event_finalized`, `event_cancelled`, `payment_received`, `payment_check_completed`
+- BusinessEvent: `event_created`, `event_announced`, `event_finalized`, `event_cancelled`, `event_restored`, `participant_joined`, `participant_left`, `court_added`, `court_removed`, `payment_received`, `payment_check_completed`, `scaffold_created`, `scaffold_toggled`, `scaffold_removed`
 - Formatted by `formatLogEvent()` and sent to Telegram log chat
 
 **Testing:**
