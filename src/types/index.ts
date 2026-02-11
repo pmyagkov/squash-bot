@@ -59,3 +59,6 @@ export interface Settings {
   key: string
   value: string
 }
+
+// Log events
+export type { SystemEvent, BusinessEvent, LogEvent } from './logEvent'

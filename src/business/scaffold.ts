@@ -71,16 +71,19 @@ export class ScaffoldBusiness {
       )
 
       await this.logger.log(
-        `Admin ${data.userId} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`,
-        'info'
+        `Admin ${data.userId} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
       )
+      void this.transport.logEvent({
+        type: 'scaffold_created',
+        scaffoldId: scaffold.id,
+        day: dayOfWeek,
+        time: data.time,
+        courts: data.courts,
+      })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.log(
-        `Error creating scaffold from user ${data.userId}: ${errorMessage}`,
-        'error'
-      )
+      await this.logger.error(`Error creating scaffold from user ${data.userId}: ${errorMessage}`)
     }
   }
 
@@ -114,10 +117,7 @@ export class ScaffoldBusiness {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.log(
-        `Error listing scaffolds from user ${data.userId}: ${errorMessage}`,
-        'error'
-      )
+      await this.logger.error(`Error listing scaffolds from user ${data.userId}: ${errorMessage}`)
     }
   }
 
@@ -147,16 +147,17 @@ export class ScaffoldBusiness {
         `✅ ${updatedScaffold.id} is now ${updatedScaffold.isActive ? 'active' : 'inactive'}`
       )
       await this.logger.log(
-        `Admin ${data.userId} toggled scaffold ${data.scaffoldId} to ${updatedScaffold.isActive ? 'active' : 'inactive'}`,
-        'info'
+        `Admin ${data.userId} toggled scaffold ${data.scaffoldId} to ${updatedScaffold.isActive ? 'active' : 'inactive'}`
       )
+      void this.transport.logEvent({
+        type: 'scaffold_toggled',
+        scaffoldId: data.scaffoldId,
+        active: updatedScaffold.isActive,
+      })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.log(
-        `Error toggling scaffold from user ${data.userId}: ${errorMessage}`,
-        'error'
-      )
+      await this.logger.error(`Error toggling scaffold from user ${data.userId}: ${errorMessage}`)
     }
   }
 
@@ -173,14 +174,12 @@ export class ScaffoldBusiness {
       await this.scaffoldRepository.remove(data.scaffoldId)
 
       await this.transport.sendMessage(data.chatId, `✅ Scaffold ${data.scaffoldId} removed`)
-      await this.logger.log(`Admin ${data.userId} removed scaffold ${data.scaffoldId}`, 'info')
+      await this.logger.log(`Admin ${data.userId} removed scaffold ${data.scaffoldId}`)
+      void this.transport.logEvent({ type: 'scaffold_removed', scaffoldId: data.scaffoldId })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.log(
-        `Error removing scaffold from user ${data.userId}: ${errorMessage}`,
-        'error'
-      )
+      await this.logger.error(`Error removing scaffold from user ${data.userId}: ${errorMessage}`)
     }
   }
 }

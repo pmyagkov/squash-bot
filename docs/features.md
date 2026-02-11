@@ -951,32 +951,23 @@ To see your history: /my history
 
 ### logging
 
-Centralized logging system with multiple providers.
+Structured logging with JSON output and typed Telegram notifications.
+
+**Logger (operational logs):**
+- `logger.log(msg)` — info level, stdout
+- `logger.warn(msg)` — warn level, stdout
+- `logger.error(msg)` — error level, stderr + Telegram log chat
 
 **Providers:**
-- File — writes to log file
-- Telegram — posts to technical chat
+- ConsoleProvider — JSON to stdout/stderr (`{"level":"info","ts":"...","msg":"..."}`)
+- TelegramProvider — errors only, sent to log chat as safety net
 
-**Log Levels:**
-- `critical` — writes to both providers (file + telegram)
-- `notice` — writes only to file
-
-**Flow:**
-1. Any module calls `logger.critical(message)` or `logger.notice(message)`
-2. Logger routes message to appropriate providers based on level
-3. File provider appends to log file
-4. Telegram provider sends message to technical chat (for critical only)
-
-**Usage:**
-```typescript
-import { logger } from '~/services/logger'
-
-logger.critical('Event finalization failed', { eventId, error })
-logger.notice('User joined event', { userId, eventId })
-```
-
-**Technical chat:** Configured via `TECHNICAL_CHAT_ID` env variable
+**Event notifications (`transport.logEvent()`):**
+- Typed events: `SystemEvent | BusinessEvent`
+- SystemEvent: `bot_started`, `bot_stopped`, `unhandled_error`
+- BusinessEvent: `event_created`, `event_announced`, `event_finalized`, `event_cancelled`, `event_restored`, `participant_joined`, `participant_left`, `court_added`, `court_removed`, `payment_received`, `payment_check_completed`, `scaffold_created`, `scaffold_toggled`, `scaffold_removed`
+- Formatted by `formatLogEvent()` and sent to Telegram log chat
 
 **Testing:**
-- Unit tests mock providers, verify routing logic
-- Other layers mock entire logger, verify it was called
+- Unit: formatLogEvent formatter tests, ConsoleProvider JSON output tests, Logger routing tests
+- Integration: verify `logEvent()` called with correct typed events for business operations

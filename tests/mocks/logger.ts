@@ -9,6 +9,8 @@ export function mockLogger() {
   const mock = mockClass<typeof Logger>()
 
   mock.log.mockResolvedValue(undefined)
+  mock.warn.mockResolvedValue(undefined)
+  mock.error.mockResolvedValue(undefined)
 
   return mock
 }

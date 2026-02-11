@@ -197,7 +197,12 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(`User ${data.userId} joined event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} joined event ${event.id}`)
+    void this.transport.logEvent({
+      type: 'participant_joined',
+      eventId: event.id,
+      userName: displayName,
+    })
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
@@ -218,7 +223,12 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(`User ${data.userId} left event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} left event ${event.id}`)
+    void this.transport.logEvent({
+      type: 'participant_left',
+      eventId: event.id,
+      userName: participant.displayName,
+    })
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add_court']): Promise<void> {
@@ -234,10 +244,8 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(
-      `User ${data.userId} added court to ${event.id} (now ${newCourts})`,
-      'info'
-    )
+    await this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
+    void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
   }
 
   private async handleRemoveCourt(data: CallbackTypes['event:rm_court']): Promise<void> {
@@ -258,10 +266,8 @@ export class EventBusiness {
     await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
     await this.transport.answerCallback(data.callbackId)
 
-    await this.logger.log(
-      `User ${data.userId} removed court from ${event.id} (now ${newCourts})`,
-      'info'
-    )
+    await this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
+    void this.transport.logEvent({ type: 'court_removed', eventId: event.id, courts: newCourts })
   }
 
   private async handleFinalize(data: CallbackTypes['event:finalize']): Promise<void> {
@@ -286,7 +292,15 @@ export class EventBusiness {
     await this.sendPaymentMessage(event.id, data.chatId)
 
     await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} finalized event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} finalized event ${event.id}`)
+
+    const finalizedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    void this.transport.logEvent({
+      type: 'event_finalized',
+      eventId: event.id,
+      date: finalizedDate,
+      participantCount: participants.length,
+    })
   }
 
   private async handleCancel(data: CallbackTypes['event:cancel']): Promise<void> {
@@ -308,7 +322,14 @@ export class EventBusiness {
     }
 
     await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} cancelled event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
+
+    const cancelledDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    void this.transport.logEvent({
+      type: 'event_cancelled',
+      eventId: event.id,
+      date: cancelledDate,
+    })
   }
 
   private async handleRestore(data: CallbackTypes['event:restore']): Promise<void> {
@@ -330,7 +351,9 @@ export class EventBusiness {
     }
 
     await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} restored event ${event.id}`, 'info')
+    await this.logger.log(`User ${data.userId} restored event ${event.id}`)
+    const restoredDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
   }
 
   // === Command Handlers ===
@@ -402,6 +425,12 @@ export class EventBusiness {
     const dateFormatted = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
     const message = `✅ Created event ${event.id} (${dateFormatted}, ${courts} courts). To announce: /event announce ${event.id}`
     await this.transport.sendMessage(chatId, message)
+    void this.transport.logEvent({
+      type: 'event_created',
+      eventId: event.id,
+      date: dateFormatted,
+      courts,
+    })
   }
 
   private async handleAnnounce(data: CommandTypes['event:announce']): Promise<void> {
@@ -459,6 +488,12 @@ export class EventBusiness {
     const dateFormatted = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
     const message = `✅ Created event ${event.id} from ${scaffold.id} (${dateFormatted}, ${scaffold.defaultCourts} courts). To announce: /event announce ${event.id}`
     await this.transport.sendMessage(data.chatId, message)
+    void this.transport.logEvent({
+      type: 'event_created',
+      eventId: event.id,
+      date: dateFormatted,
+      courts: scaffold.defaultCourts,
+    })
   }
 
   private async handleCancelCommand(data: CommandTypes['event:cancel']): Promise<void> {
@@ -480,6 +515,13 @@ export class EventBusiness {
         await this.transport.sendMessage(chatId, `❌ Event ${event.id} has been cancelled.`)
       }
     }
+
+    const cancelledDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    void this.transport.logEvent({
+      type: 'event_cancelled',
+      eventId: event.id,
+      date: cancelledDate,
+    })
   }
 
   // === Helper Methods ===
@@ -509,9 +551,8 @@ export class EventBusiness {
     try {
       await this.transport.editMessage(chatId, messageId, messageText, keyboard)
     } catch (error) {
-      await this.logger.log(
-        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      await this.logger.error(
+        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }
@@ -569,6 +610,9 @@ export class EventBusiness {
       telegramMessageId: String(messageId),
       status: 'announced',
     })
+
+    const announcedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    void this.transport.logEvent({ type: 'event_announced', eventId: id, date: announcedDate })
 
     return updatedEvent
   }
@@ -635,13 +679,19 @@ export class EventBusiness {
 
         createdCount++
         await this.logger.log(
-          `Created and announced event ${event.id} from scaffold ${scaffold.id}`,
-          'info'
+          `Created and announced event ${event.id} from scaffold ${scaffold.id}`
         )
+
+        const createdDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+        void this.transport.logEvent({
+          type: 'event_created',
+          eventId: event.id,
+          date: createdDate,
+          courts: event.courts,
+        })
       } catch (error) {
-        await this.logger.log(
-          `Failed to create event from scaffold ${scaffold.id}: ${error instanceof Error ? error.message : String(error)}`,
-          'error'
+        await this.logger.error(
+          `Failed to create event from scaffold ${scaffold.id}: ${error instanceof Error ? error.message : String(error)}`
         )
       }
     }

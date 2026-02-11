@@ -153,7 +153,7 @@ describe('API server', () => {
       })
 
       // Logger should have been called with error level
-      expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Something broke'), 'error')
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Something broke'))
     })
   })
 })

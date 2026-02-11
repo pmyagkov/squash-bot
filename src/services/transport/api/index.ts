@@ -32,15 +32,14 @@ export async function createApiServer(
 
   // Check events endpoint
   server.post('/check-events', async () => {
-    await logger.log('POST /check-events called', 'info')
+    await logger.log('POST /check-events called')
     try {
       const eventsCreated = await eventBusiness.checkAndCreateEventsFromScaffolds()
-      await logger.log(`POST /check-events completed: ${eventsCreated} events created`, 'info')
+      await logger.log(`POST /check-events completed: ${eventsCreated} events created`)
       return { message: 'Events checked', eventsCreated }
     } catch (error) {
-      await logger.log(
-        `POST /check-events failed: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      await logger.error(
+        `POST /check-events failed: ${error instanceof Error ? error.message : String(error)}`
       )
       return { message: 'Error checking events', eventsCreated: 0, error: String(error) }
     }
@@ -48,7 +47,7 @@ export async function createApiServer(
 
   // Check payments endpoint
   server.post('/check-payments', async () => {
-    await logger.log('POST /check-payments called', 'info')
+    await logger.log('POST /check-payments called')
     // TODO: Implement payment checking logic
     return { message: 'Payments checked', remindersSent: 0 }
   })

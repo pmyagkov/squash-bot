@@ -3,6 +3,9 @@ import type { InlineKeyboardMarkup } from 'grammy/types'
 import type { CallbackTypes, CommandTypes, CallbackAction, CommandName } from './types'
 import { callbackParsers, commandParsers, ParseError } from './parsers'
 import type { Logger } from '~/services/logger'
+import type { LogEvent } from '~/types/logEvent'
+import { formatLogEvent } from '~/services/formatters/logEvent'
+import type { config as configType } from '~/config'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -18,7 +21,8 @@ export class TelegramTransport {
 
   constructor(
     private bot: Bot,
-    private logger: Logger
+    private logger: Logger,
+    private config: typeof configType
   ) {}
 
   // === Handler Registration ===
@@ -86,6 +90,15 @@ export class TelegramTransport {
     await this.bot.api.unpinChatMessage(chatId, messageId)
   }
 
+  async logEvent(event: LogEvent): Promise<void> {
+    const message = formatLogEvent(event)
+    try {
+      await this.bot.api.sendMessage(this.config.telegram.logChatId, message)
+    } catch (error) {
+      console.error('Failed to send log event to Telegram:', error)
+    }
+  }
+
   // === Internal: Callback Handling ===
 
   private async handleCallback(ctx: Context): Promise<void> {
@@ -103,13 +116,12 @@ export class TelegramTransport {
       await handler(data)
     } catch (error) {
       if (error instanceof ParseError) {
-        await this.logger.log(`Parse error: ${error.message}`, 'warn')
+        await this.logger.warn(`Parse error: ${error.message}`)
         await ctx.answerCallbackQuery({ text: 'Invalid request' })
         return
       }
-      await this.logger.log(
-        `Callback error: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      await this.logger.error(
+        `Callback error: ${error instanceof Error ? error.message : String(error)}`
       )
       await ctx.answerCallbackQuery({ text: 'An error occurred' })
     }
@@ -150,13 +162,12 @@ export class TelegramTransport {
       await handler(data)
     } catch (error) {
       if (error instanceof ParseError) {
-        await this.logger.log(`Parse error: ${error.message}`, 'warn')
+        await this.logger.warn(`Parse error: ${error.message}`)
         await ctx.reply(error.message)
         return
       }
-      await this.logger.log(
-        `Command error: ${error instanceof Error ? error.message : String(error)}`,
-        'error'
+      await this.logger.error(
+        `Command error: ${error instanceof Error ? error.message : String(error)}`
       )
       await ctx.reply('An error occurred')
     }

@@ -14,6 +14,7 @@ export function mockTelegramTransport() {
   mock.answerCallback.mockResolvedValue(undefined)
   mock.pinMessage.mockResolvedValue(undefined)
   mock.unpinMessage.mockResolvedValue(undefined)
+  mock.logEvent.mockResolvedValue(undefined)
 
   return mock
 }
