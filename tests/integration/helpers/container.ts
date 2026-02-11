@@ -15,6 +15,7 @@ import { EventParticipantRepo } from '~/storage/repo/eventParticipant'
 import { PaymentRepo } from '~/storage/repo/payment'
 import { SettingsRepo } from '~/storage/repo/settings'
 import { ParticipantRepo } from '~/storage/repo/participant'
+import { EventLock } from '~/utils/eventLock'
 
 export type TestContainer = AwilixContainer<Container>
 
@@ -50,6 +51,7 @@ export function createTestContainer(bot: Bot): TestContainer {
     paymentRepository: asClass(PaymentRepo).singleton(),
     settingsRepository: asClass(SettingsRepo).singleton(),
     participantRepository: asClass(ParticipantRepo).singleton(),
+    eventLock: asClass(EventLock).singleton(),
     eventBusiness: asClass(EventBusiness).singleton(),
     scaffoldBusiness: asClass(ScaffoldBusiness).singleton(),
     utilityBusiness: asClass(UtilityBusiness).singleton(),

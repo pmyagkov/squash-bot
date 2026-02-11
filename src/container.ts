@@ -23,6 +23,7 @@ import type { SettingsRepo } from './storage/repo/settings'
 import { SettingsRepo as SettingsRepoImpl } from './storage/repo/settings'
 import type { ParticipantRepo } from './storage/repo/participant'
 import { ParticipantRepo as ParticipantRepoImpl } from './storage/repo/participant'
+import { EventLock } from './utils/eventLock'
 
 export interface Container {
   bot: Bot
@@ -36,6 +37,7 @@ export interface Container {
   paymentRepository: PaymentRepo
   settingsRepository: SettingsRepo
   participantRepository: ParticipantRepo
+  eventLock: EventLock
   eventBusiness: EventBusiness
   scaffoldBusiness: ScaffoldBusiness
   utilityBusiness: UtilityBusiness
@@ -71,6 +73,7 @@ export function createAppContainer(bot: Bot): AppContainer {
     paymentRepository: asClass(PaymentRepoImpl).singleton(),
     settingsRepository: asClass(SettingsRepoImpl).singleton(),
     participantRepository: asClass(ParticipantRepoImpl).singleton(),
+    eventLock: asClass(EventLock).singleton(),
     eventBusiness: asClass(EventBusinessImpl).singleton(),
     scaffoldBusiness: asClass(ScaffoldBusinessImpl).singleton(),
     utilityBusiness: asClass(UtilityBusinessImpl).singleton(),

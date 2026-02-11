@@ -18,6 +18,7 @@ import type { UtilityBusiness } from '~/business/utility'
 import type { TelegramTransport } from '~/services/transport/telegram'
 import type { Logger } from '~/services/logger'
 import { config } from '~/config'
+import { EventLock } from '~/utils/eventLock'
 
 /**
  * Mock versions of all container dependencies
@@ -35,6 +36,7 @@ export interface MockContainer {
   paymentRepository: MockProxy<InstanceType<typeof PaymentRepo>>
   settingsRepository: MockProxy<InstanceType<typeof SettingsRepo>>
   participantRepository: MockProxy<InstanceType<typeof ParticipantRepo>>
+  eventLock: EventLock
   eventBusiness: MockProxy<InstanceType<typeof EventBusiness>>
   scaffoldBusiness: MockProxy<InstanceType<typeof ScaffoldBusiness>>
   utilityBusiness: MockProxy<InstanceType<typeof UtilityBusiness>>
@@ -86,6 +88,7 @@ export function createMockContainer(overrides?: Partial<MockContainer>): MockApp
     paymentRepository: asValue(overrides?.paymentRepository ?? mockPaymentRepo()),
     settingsRepository: asValue(overrides?.settingsRepository ?? mockSettingsRepo()),
     participantRepository: asValue(overrides?.participantRepository ?? mockParticipantRepo()),
+    eventLock: asValue(overrides?.eventLock ?? new EventLock()),
     eventBusiness: asValue(overrides?.eventBusiness ?? mockEventBusiness()),
     scaffoldBusiness: asValue(overrides?.scaffoldBusiness ?? mockScaffoldBusiness()),
     utilityBusiness: asValue(overrides?.utilityBusiness ?? mockUtilityBusiness()),
