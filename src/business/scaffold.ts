@@ -5,8 +5,11 @@ import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { Logger } from '~/services/logger'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { SourceContext } from '~/services/command/types'
 import { isOwnerOrAdmin } from '~/utils/environment'
 import { parseDayOfWeek } from '~/helpers/dateTime'
+import { scaffoldCreateDef } from '~/commands/scaffold/create'
 
 /**
  * Business logic orchestrator for scaffolds
@@ -17,6 +20,7 @@ export class ScaffoldBusiness {
   private participantRepository: ParticipantRepo
   private transport: TelegramTransport
   private logger: Logger
+  private commandRegistry: CommandRegistry
 
   constructor(container: AppContainer) {
     this.scaffoldRepository = container.resolve('scaffoldRepository')
@@ -24,6 +28,7 @@ export class ScaffoldBusiness {
     this.participantRepository = container.resolve('participantRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
+    this.commandRegistry = container.resolve('commandRegistry')
   }
 
   /**
@@ -35,6 +40,10 @@ export class ScaffoldBusiness {
     this.transport.onCommand('scaffold:toggle', (data) => this.handleToggle(data))
     this.transport.onCommand('scaffold:remove', (data) => this.handleRemove(data))
     this.transport.onCommand('scaffold:transfer', (data) => this.handleTransfer(data))
+
+    this.commandRegistry.register('scaffold:create', scaffoldCreateDef, async (data, source) => {
+      await this.handleCreateFromDef(data as { day: string; time: string; courts: number }, source)
+    })
   }
 
   // === Command Handlers ===
@@ -83,6 +92,25 @@ export class ScaffoldBusiness {
       await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
       await this.logger.error(`Error creating scaffold from user ${data.userId}: ${errorMessage}`)
     }
+  }
+
+  private async handleCreateFromDef(
+    data: { day: string; time: string; courts: number },
+    source: SourceContext
+  ): Promise<void> {
+    // Stub: will be fully wired with reply routing in Phase 2-4 migration
+    const dayOfWeek = parseDayOfWeek(data.day)
+    if (!dayOfWeek) throw new Error(`Invalid day: ${data.day}`)
+
+    const scaffold = await this.scaffoldRepository.createScaffold(
+      dayOfWeek,
+      data.time,
+      data.courts,
+      undefined,
+      undefined
+    )
+
+    await this.logger.log(`Created scaffold ${scaffold.id} via ${source.type}`)
   }
 
   private async handleList(data: CommandTypes['scaffold:list']): Promise<void> {
