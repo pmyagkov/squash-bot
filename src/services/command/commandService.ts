@@ -46,7 +46,7 @@ export class CommandService {
     }
   }
 
-  private hydrateStep(step: WizardStep): HydratedStep {
+  private hydrateStep(step: WizardStep<unknown>): HydratedStep<unknown> {
     const { createLoader, ...rest } = step
     return {
       ...rest,

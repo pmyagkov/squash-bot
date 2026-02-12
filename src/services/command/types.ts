@@ -21,12 +21,12 @@ export type SourceContext = { type: 'command' } | { type: 'callback'; callbackId
 // Static command definition — what command files export (no handler)
 export interface CommandDef<T> {
   parser: (input: ParserInput) => ParseResult<T> | Promise<ParseResult<T>>
-  steps: WizardStep[]
+  steps: WizardStep<unknown>[]
 }
 
 // Runtime: what registry stores (with bound handler)
 export interface RegisteredCommand<T = unknown> {
   parser: (input: ParserInput) => ParseResult<T> | Promise<ParseResult<T>>
-  steps: WizardStep[]
+  steps: WizardStep<unknown>[]
   handler: (data: T, source: SourceContext) => Promise<void>
 }
