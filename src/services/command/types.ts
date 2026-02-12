@@ -16,9 +16,7 @@ export interface ParseResult<T> {
 }
 
 // Where the request came from (for reply routing)
-export type SourceContext =
-  | { type: 'command' }
-  | { type: 'callback'; callbackId: string }
+export type SourceContext = { type: 'command' } | { type: 'callback'; callbackId: string }
 
 // Static command definition — what command files export (no handler)
 export interface CommandDef<T> {
