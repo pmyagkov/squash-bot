@@ -6,6 +6,8 @@ import { ParseError } from './parsers'
 import { mockBot, mockLogger, mockConfig } from '@mocks'
 import { TEST_CONFIG } from '@fixtures/config'
 import type { LogEvent } from '~/types/logEvent'
+import type { WizardService } from '~/services/wizard/wizardService'
+import { mock } from 'vitest-mock-extended'
 
 describe('TelegramTransport', () => {
   let transport: TelegramTransport
@@ -13,14 +15,16 @@ describe('TelegramTransport', () => {
   let api: ReturnType<typeof mockBot>
   let logger: ReturnType<typeof mockLogger>
   let config: ReturnType<typeof mockConfig>
+  let wizardService: ReturnType<typeof mock<InstanceType<typeof WizardService>>>
 
   beforeEach(() => {
     bot = new Bot('test-token')
     api = mockBot(bot)
     logger = mockLogger()
     config = mockConfig()
+    wizardService = mock<InstanceType<typeof WizardService>>()
 
-    transport = new TelegramTransport(bot, logger, config)
+    transport = new TelegramTransport(bot, logger, config, wizardService)
   })
 
   describe('sendMessage', () => {

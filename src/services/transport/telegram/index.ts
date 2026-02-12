@@ -6,6 +6,7 @@ import type { Logger } from '~/services/logger'
 import type { LogEvent } from '~/types/logEvent'
 import { formatLogEvent } from '~/services/formatters/logEvent'
 import type { config as configType } from '~/config'
+import type { WizardService } from '~/services/wizard/wizardService'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -22,7 +23,8 @@ export class TelegramTransport {
   constructor(
     private bot: Bot,
     private logger: Logger,
-    private config: typeof configType
+    private config: typeof configType,
+    private wizardService: WizardService
   ) {}
 
   // === Handler Registration ===
@@ -112,6 +114,23 @@ export class TelegramTransport {
   private async handleCallback(ctx: Context): Promise<void> {
     const rawAction = ctx.callbackQuery?.data ?? ''
 
+    // Wizard routing: handle wizard-specific callbacks
+    if (rawAction === 'wizard:cancel') {
+      const userId = ctx.from?.id
+      if (userId) this.wizardService.cancel(userId, ctx)
+      await ctx.answerCallbackQuery()
+      return
+    }
+    if (rawAction.startsWith('wizard:select:')) {
+      const userId = ctx.from?.id
+      if (userId) {
+        const value = rawAction.slice('wizard:select:'.length)
+        this.wizardService.handleInput(ctx, value)
+      }
+      await ctx.answerCallbackQuery()
+      return
+    }
+
     // Try exact match first (existing behavior)
     let action = rawAction as CallbackAction
     let parser = callbackParsers[action]
@@ -152,6 +171,18 @@ export class TelegramTransport {
   // === Internal: Command Handling ===
 
   private async handleCommand(ctx: Context, baseCommand: string): Promise<void> {
+    // Wizard routing: intercept text input from users with active wizard
+    const userId = ctx.from?.id
+    if (userId && this.wizardService.isActive(userId)) {
+      const text = ctx.message?.text ?? ''
+      if (text === '/cancel') {
+        this.wizardService.cancel(userId, ctx)
+        return
+      }
+      this.wizardService.handleInput(ctx, text)
+      return
+    }
+
     const args = ctx.message?.text?.split(/\s+/).slice(1) ?? []
     const subcommand = args[0]
 
