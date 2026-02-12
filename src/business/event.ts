@@ -183,6 +183,9 @@ export class EventBusiness {
 
     this.transport.onCommand('admin:pay', (data) => this.handleAdminPay(data))
     this.transport.onCommand('admin:unpay', (data) => this.handleAdminUnpay(data))
+
+    // TODO: Wire to command handlers (Task 15)
+    void this.refreshAnnouncement
   }
 
   // === Callback Handlers ===
@@ -1049,6 +1052,44 @@ export class EventBusiness {
       participants,
       event.status === 'finalized',
       false,
+      paidParticipantIds
+    )
+    const keyboard = buildInlineKeyboard(event.status as EventStatus)
+
+    try {
+      await this.transport.editMessage(
+        chatId,
+        parseInt(event.telegramMessageId, 10),
+        messageText,
+        keyboard
+      )
+    } catch (error) {
+      await this.logger.error(
+        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
+  private async refreshAnnouncement(eventId: string): Promise<void> {
+    const event = await this.eventRepository.findById(eventId)
+    if (!event?.telegramMessageId) return
+
+    const chatId = await this.settingsRepository.getMainChatId()
+    if (!chatId) return
+
+    const participants = await this.participantRepository.getEventParticipants(eventId)
+
+    let paidParticipantIds: Set<string> | undefined
+    if (event.status === 'finalized') {
+      const payments = await this.paymentRepository.getPaymentsByEvent(eventId)
+      paidParticipantIds = new Set(payments.filter((p) => p.isPaid).map((p) => p.participantId))
+    }
+
+    const messageText = formatAnnouncementText(
+      event,
+      participants,
+      event.status === 'finalized',
+      event.status === 'cancelled',
       paidParticipantIds
     )
     const keyboard = buildInlineKeyboard(event.status as EventStatus)
