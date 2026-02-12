@@ -8,7 +8,7 @@ export interface StepRenderResult {
   keyboard: InlineKeyboard
 }
 
-export function renderStep(step: HydratedStep, options?: StepOption[]): StepRenderResult {
+export function renderStep(step: HydratedStep<unknown>, options?: StepOption[]): StepRenderResult {
   const keyboard = new InlineKeyboard()
 
   if (step.type === 'select' && options && options.length > 0) {
