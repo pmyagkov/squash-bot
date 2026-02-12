@@ -8,6 +8,8 @@ import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
 import { isOwnerOrAdmin } from '~/utils/environment'
 import type { TelegramTransport, CallbackTypes, CommandTypes } from '~/services/transport/telegram'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { SourceContext } from '~/services/command/types'
 import type { AppContainer } from '../container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
@@ -24,6 +26,8 @@ import {
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
 } from '~/services/formatters/event'
+import { eventJoinDef } from '~/commands/event/join'
+import { eventCreateDef } from '~/commands/event/create'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
@@ -144,6 +148,7 @@ export class EventBusiness {
   private paymentRepository: PaymentRepo
   private transport: TelegramTransport
   private logger: Logger
+  private commandRegistry: CommandRegistry
   private eventLock = new EventLock()
 
   constructor(container: AppContainer) {
@@ -154,6 +159,7 @@ export class EventBusiness {
     this.paymentRepository = container.resolve('paymentRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
+    this.commandRegistry = container.resolve('commandRegistry')
   }
 
   /**
@@ -184,7 +190,15 @@ export class EventBusiness {
     this.transport.onCommand('admin:pay', (data) => this.handleAdminPay(data))
     this.transport.onCommand('admin:unpay', (data) => this.handleAdminUnpay(data))
 
-    // TODO: Wire to command handlers (Task 15)
+    this.commandRegistry.register('event:join', eventJoinDef, async (data, source) => {
+      await this.handleJoinFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:create-wizard', eventCreateDef, async (data, source) => {
+      await this.handleCreateFromDef(data as { day: string; time: string; courts: number }, source)
+    })
+
+    // Suppress unused warning — refreshAnnouncement will be wired in Phase 4
     void this.refreshAnnouncement
   }
 
@@ -602,6 +616,23 @@ export class EventBusiness {
     } finally {
       this.eventLock.release(eventId)
     }
+  }
+
+  // === CommandDef Handlers (Phase 1 stubs) ===
+
+  private async handleJoinFromDef(data: { eventId: string }, source: SourceContext): Promise<void> {
+    // Stub: will be fully wired in Phase 4 migration
+    await this.logger.log(`event:join called via ${source.type} for ${data.eventId}`)
+  }
+
+  private async handleCreateFromDef(
+    data: { day: string; time: string; courts: number },
+    source: SourceContext
+  ): Promise<void> {
+    // Stub: will be fully wired in Phase 4 migration
+    await this.logger.log(
+      `event:create called via ${source.type}: ${data.day} ${data.time} ${data.courts}`
+    )
   }
 
   // === Admin Command Handlers ===
