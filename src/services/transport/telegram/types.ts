@@ -25,14 +25,14 @@ interface UserInfo {
 export interface CallbackTypes {
   'event:join': CallbackBaseData & UserInfo
   'event:leave': CallbackBaseData & UserInfo
-  'event:add_court': CallbackBaseData
-  'event:rm_court': CallbackBaseData
+  'event:add-court': CallbackBaseData
+  'event:remove-court': CallbackBaseData
   'event:finalize': CallbackBaseData
   'event:cancel': CallbackBaseData
-  'event:restore': CallbackBaseData
-  'event:unfinalize': CallbackBaseData
-  'payment:mark': CallbackBaseData & { eventId: string }
-  'payment:cancel': CallbackBaseData & { eventId: string }
+  'event:undo-cancel': CallbackBaseData
+  'event:undo-finalize': CallbackBaseData
+  'payment:mark-paid': CallbackBaseData & { eventId: string }
+  'payment:undo-mark-paid': CallbackBaseData & { eventId: string }
 }
 
 // === Command Types ===

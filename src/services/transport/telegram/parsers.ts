@@ -56,14 +56,14 @@ const paymentCallbackParser = (ctx: Context) => {
 export const callbackParsers: CallbackParsers = {
   'event:join': userCallbackParser,
   'event:leave': userCallbackParser,
-  'event:add_court': baseCallbackParser,
-  'event:rm_court': baseCallbackParser,
+  'event:add-court': baseCallbackParser,
+  'event:remove-court': baseCallbackParser,
   'event:finalize': baseCallbackParser,
   'event:cancel': baseCallbackParser,
-  'event:restore': baseCallbackParser,
-  'event:unfinalize': baseCallbackParser,
-  'payment:mark': paymentCallbackParser,
-  'payment:cancel': paymentCallbackParser,
+  'event:undo-cancel': baseCallbackParser,
+  'event:undo-finalize': baseCallbackParser,
+  'payment:mark-paid': paymentCallbackParser,
+  'payment:undo-mark-paid': paymentCallbackParser,
 }
 
 // === Command Parsers ===

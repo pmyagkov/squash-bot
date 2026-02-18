@@ -27,11 +27,11 @@ export interface EventParticipantDisplay {
 export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
   if (status === 'cancelled') {
     // Show only Restore button
-    return new InlineKeyboard().text('🔄 Restore', 'event:restore')
+    return new InlineKeyboard().text('🔄 Restore', 'event:undo-cancel')
   }
 
   if (status === 'finalized') {
-    return new InlineKeyboard().text('↩️ Unfinalize', 'event:unfinalize')
+    return new InlineKeyboard().text('↩️ Unfinalize', 'event:undo-finalize')
   }
 
   // Active event (announced status)
@@ -39,8 +39,8 @@ export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
     .text("I'm in", 'event:join')
     .text("I'm out", 'event:leave')
     .row()
-    .text('+court', 'event:add_court')
-    .text('-court', 'event:rm_court')
+    .text('+court', 'event:add-court')
+    .text('-court', 'event:remove-court')
     .row()
     .text('✅ Finalize', 'event:finalize')
     .text('❌ Cancel', 'event:cancel')

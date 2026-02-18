@@ -169,14 +169,14 @@ export class EventBusiness {
     // Register callbacks
     this.transport.onCallback('event:join', (data) => this.handleJoin(data))
     this.transport.onCallback('event:leave', (data) => this.handleLeave(data))
-    this.transport.onCallback('event:add_court', (data) => this.handleAddCourt(data))
-    this.transport.onCallback('event:rm_court', (data) => this.handleRemoveCourt(data))
+    this.transport.onCallback('event:add-court', (data) => this.handleAddCourt(data))
+    this.transport.onCallback('event:remove-court', (data) => this.handleRemoveCourt(data))
     this.transport.onCallback('event:finalize', (data) => this.handleFinalize(data))
     this.transport.onCallback('event:cancel', (data) => this.handleCancel(data))
-    this.transport.onCallback('event:restore', (data) => this.handleRestore(data))
-    this.transport.onCallback('event:unfinalize', (data) => this.handleUnfinalize(data))
-    this.transport.onCallback('payment:mark', (data) => this.handlePaymentMark(data))
-    this.transport.onCallback('payment:cancel', (data) => this.handlePaymentCancel(data))
+    this.transport.onCallback('event:undo-cancel', (data) => this.handleRestore(data))
+    this.transport.onCallback('event:undo-finalize', (data) => this.handleUnfinalize(data))
+    this.transport.onCallback('payment:mark-paid', (data) => this.handlePaymentMark(data))
+    this.transport.onCallback('payment:undo-mark-paid', (data) => this.handlePaymentCancel(data))
 
     // Register commands
     this.transport.onCommand('event:list', (data) => this.handleList(data))
@@ -261,7 +261,7 @@ export class EventBusiness {
     })
   }
 
-  private async handleAddCourt(data: CallbackTypes['event:add_court']): Promise<void> {
+  private async handleAddCourt(data: CallbackTypes['event:add-court']): Promise<void> {
     const event = await this.eventRepository.findByMessageId(String(data.messageId))
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
@@ -278,7 +278,7 @@ export class EventBusiness {
     void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
   }
 
-  private async handleRemoveCourt(data: CallbackTypes['event:rm_court']): Promise<void> {
+  private async handleRemoveCourt(data: CallbackTypes['event:remove-court']): Promise<void> {
     const event = await this.eventRepository.findByMessageId(String(data.messageId))
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
@@ -400,7 +400,7 @@ export class EventBusiness {
     })
   }
 
-  private async handleRestore(data: CallbackTypes['event:restore']): Promise<void> {
+  private async handleRestore(data: CallbackTypes['event:undo-cancel']): Promise<void> {
     const event = await this.eventRepository.findByMessageId(String(data.messageId))
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
@@ -424,7 +424,7 @@ export class EventBusiness {
     void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
   }
 
-  private async handleUnfinalize(data: CallbackTypes['event:unfinalize']): Promise<void> {
+  private async handleUnfinalize(data: CallbackTypes['event:undo-finalize']): Promise<void> {
     const event = await this.eventRepository.findByMessageId(String(data.messageId))
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
@@ -471,7 +471,7 @@ export class EventBusiness {
     }
   }
 
-  private async handlePaymentMark(data: CallbackTypes['payment:mark']): Promise<void> {
+  private async handlePaymentMark(data: CallbackTypes['payment:mark-paid']): Promise<void> {
     const eventId = data.eventId
 
     if (!this.eventLock.acquire(eventId)) {
@@ -516,7 +516,10 @@ export class EventBusiness {
             event.telegramMessageId!
           )
           const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
-          const undoKeyboard = new InlineKeyboard().text('↩️ Undo', `payment:cancel:${eventId}`)
+          const undoKeyboard = new InlineKeyboard().text(
+            '↩️ Undo',
+            `payment:undo-mark-paid:${eventId}`
+          )
 
           try {
             await this.transport.editMessage(
@@ -547,7 +550,7 @@ export class EventBusiness {
     }
   }
 
-  private async handlePaymentCancel(data: CallbackTypes['payment:cancel']): Promise<void> {
+  private async handlePaymentCancel(data: CallbackTypes['payment:undo-mark-paid']): Promise<void> {
     const eventId = data.eventId
 
     if (!this.eventLock.acquire(eventId)) {
@@ -591,7 +594,10 @@ export class EventBusiness {
             chatId!,
             event.telegramMessageId!
           )
-          const paidKeyboard = new InlineKeyboard().text('✅ I paid', `payment:mark:${eventId}`)
+          const paidKeyboard = new InlineKeyboard().text(
+            '✅ I paid',
+            `payment:mark-paid:${eventId}`
+          )
 
           try {
             await this.transport.editMessage(
@@ -763,7 +769,10 @@ export class EventBusiness {
         event.telegramMessageId!
       )
       const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
-      const undoKeyboard = new InlineKeyboard().text('↩️ Undo', `payment:cancel:${event.id}`)
+      const undoKeyboard = new InlineKeyboard().text(
+        '↩️ Undo',
+        `payment:undo-mark-paid:${event.id}`
+      )
 
       try {
         await this.transport.editMessage(
@@ -845,7 +854,7 @@ export class EventBusiness {
         chatId!,
         event.telegramMessageId!
       )
-      const paidKeyboard = new InlineKeyboard().text('✅ I paid', `payment:mark:${event.id}`)
+      const paidKeyboard = new InlineKeyboard().text('✅ I paid', `payment:mark-paid:${event.id}`)
 
       try {
         await this.transport.editMessage(
@@ -1108,7 +1117,7 @@ export class EventBusiness {
         chatId,
         event.telegramMessageId!
       )
-      const keyboard = new InlineKeyboard().text('✅ I paid', `payment:mark:${event.id}`)
+      const keyboard = new InlineKeyboard().text('✅ I paid', `payment:mark-paid:${event.id}`)
 
       try {
         const msgId = await this.transport.sendMessage(telegramId, messageText, keyboard)
