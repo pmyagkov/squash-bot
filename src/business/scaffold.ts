@@ -1,4 +1,4 @@
-import type { Scaffold } from '~/types'
+import type { Scaffold, DayOfWeek } from '~/types'
 import type { TelegramTransport, CommandTypes } from '~/services/transport/telegram'
 import type { AppContainer } from '../container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
@@ -8,7 +8,6 @@ import type { Logger } from '~/services/logger'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { parseDayOfWeek } from '~/helpers/dateTime'
 import { scaffoldCreateDef } from '~/commands/scaffold/create'
 
 /**
@@ -48,26 +47,12 @@ export class ScaffoldBusiness {
   // === Command Handlers ===
 
   private async handleCreateFromDef(
-    data: { day: string; time: string; courts: number },
+    data: { day: DayOfWeek; time: string; courts: number },
     source: SourceContext
   ): Promise<void> {
-    const dayOfWeek = parseDayOfWeek(data.day)
-    if (!dayOfWeek) {
-      await this.transport.sendMessage(
-        source.chat.id,
-        `Invalid day of week: ${data.day}\n\nValid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
-      )
-      return
-    }
-
-    if (isNaN(data.courts) || data.courts < 1) {
-      await this.transport.sendMessage(source.chat.id, 'Number of courts must be a positive number')
-      return
-    }
-
     try {
       const scaffold = await this.scaffoldRepository.createScaffold(
-        dayOfWeek,
+        data.day,
         data.time,
         data.courts,
         undefined,
@@ -76,16 +61,16 @@ export class ScaffoldBusiness {
 
       await this.transport.sendMessage(
         source.chat.id,
-        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} court(s)`
+        `✅ Created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} court(s)`
       )
 
       await this.logger.log(
-        `User ${source.user.id} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
+        `User ${source.user.id} created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} courts`
       )
       void this.transport.logEvent({
         type: 'scaffold_created',
         scaffoldId: scaffold.id,
-        day: dayOfWeek,
+        day: data.day,
         time: data.time,
         courts: data.courts,
       })

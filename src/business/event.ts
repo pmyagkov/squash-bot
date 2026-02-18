@@ -667,34 +667,21 @@ export class EventBusiness {
     data: { day: string; time: string; courts: number },
     source: SourceContext
   ): Promise<void> {
-    // Validate time format (HH:mm)
-    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(data.time)) {
-      await this.transport.sendMessage(
-        source.chat.id,
-        '❌ Invalid time format. Use HH:mm (e.g., 19:00)'
-      )
-      return
-    }
-
-    // Parse date
-    let eventDate: Date
-    try {
-      eventDate = parseDate(data.day)
-    } catch {
-      await this.transport.sendMessage(
-        source.chat.id,
-        '❌ Invalid date format. Use: YYYY-MM-DD, day name (sat, tue), today, tomorrow, or next <day>'
-      )
-      return
-    }
+    // Parser already validated day and time — parseDate won't throw
+    const eventDate = parseDate(data.day)
 
     // Apply time to date
     const [hours, minutes] = data.time.split(':').map(Number)
-    eventDate = dayjs.tz(eventDate, config.timezone).hour(hours).minute(minutes).second(0).toDate()
+    const datetime = dayjs
+      .tz(eventDate, config.timezone)
+      .hour(hours)
+      .minute(minutes)
+      .second(0)
+      .toDate()
 
     // Create event
     const event = await this.eventRepository.createEvent({
-      datetime: eventDate,
+      datetime,
       courts: data.courts,
       status: 'created',
       ownerId: String(source.user.id),
