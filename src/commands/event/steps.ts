@@ -1,5 +1,6 @@
 import type { WizardStep, StepOption } from '~/services/wizard/types'
 import { ParseError } from '~/services/wizard/types'
+import { parseDate } from '~/utils/dateParser'
 
 const DAY_OPTIONS: StepOption[] = [
   { value: 'Mon', label: 'Mon' },
@@ -19,6 +20,13 @@ export const eventDayStep: WizardStep<string> = {
   parse: (input: string): string => {
     const normalized = input.trim()
     if (!normalized) throw new ParseError('Day cannot be empty')
+    try {
+      parseDate(normalized)
+    } catch {
+      throw new ParseError(
+        'Invalid date format. Use: YYYY-MM-DD, day name (sat, tue), today, tomorrow, or next <day>'
+      )
+    }
     return normalized
   },
 }

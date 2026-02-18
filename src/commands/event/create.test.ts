@@ -52,4 +52,31 @@ describe('eventCreateDef parser', () => {
     expect(eventCreateDef.steps).toHaveLength(3)
     expect(eventCreateDef.steps.map((s) => s.param)).toEqual(['day', 'time', 'courts'])
   })
+
+  it('returns error for invalid date', () => {
+    const result = eventCreateDef.parser(dummyInput(['invalid-xyz', '19:00', '2']))
+    expect(result).toEqual({
+      parsed: {},
+      missing: [],
+      error: expect.stringContaining('Invalid date format'),
+    })
+  })
+
+  it('returns error for invalid time', () => {
+    const result = eventCreateDef.parser(dummyInput(['tomorrow', '25:00', '2']))
+    expect(result).toEqual({
+      parsed: {},
+      missing: [],
+      error: expect.stringContaining('Invalid time format'),
+    })
+  })
+
+  it('returns error for invalid courts', () => {
+    const result = eventCreateDef.parser(dummyInput(['tomorrow', '19:00', '0']))
+    expect(result).toEqual({
+      parsed: {},
+      missing: [],
+      error: expect.stringContaining('courts must be a positive number'),
+    })
+  })
 })
