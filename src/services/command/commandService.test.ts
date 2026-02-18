@@ -58,6 +58,26 @@ describe('CommandService', () => {
     expect(wizard.collect).not.toHaveBeenCalled()
   })
 
+  it('replies with error and skips handler when parser returns error', async () => {
+    const registered: RegisteredCommand = {
+      parser: () => ({
+        parsed: {},
+        missing: [],
+        error: 'Invalid day: Xyz. Use Mon, Tue, Wed, Thu, Fri, Sat, Sun',
+      }),
+      steps: [],
+      handler: vi.fn(),
+    }
+    const reply = vi.fn()
+    const ctx = mockCtx({ reply })
+
+    await service.run({ registered, args: ['Xyz', '21:00', '2'], ctx })
+
+    expect(reply).toHaveBeenCalledWith('Invalid day: Xyz. Use Mon, Tue, Wed, Thu, Fri, Sat, Sun')
+    expect(registered.handler).not.toHaveBeenCalled()
+    expect(wizard.collect).not.toHaveBeenCalled()
+  })
+
   it('uses wizard to collect missing params', async () => {
     const handler = vi.fn().mockResolvedValue(undefined)
     const step = { param: 'eventId', type: 'select' as const, prompt: 'Choose:' }

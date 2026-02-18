@@ -23,7 +23,13 @@ export class CommandService {
       const input = { args, ctx, container: this.container }
       const result = await registered.parser(input)
 
-      // 2. Collect missing params via wizard
+      // 2. Check for parse error
+      if (result.error) {
+        await ctx.reply(result.error)
+        return
+      }
+
+      // 3. Collect missing params via wizard
       for (const param of result.missing) {
         const step = registered.steps.find((s) => s.param === param)
         if (!step) throw new Error(`No wizard step defined for param "${String(param)}"`)
@@ -33,7 +39,7 @@ export class CommandService {
           await this.wizardService.collect(hydrated, ctx)
       }
 
-      // 3. Build source context
+      // 4. Build source context
       const chat = { id: ctx.chat?.id ?? 0 }
       const user = {
         id: ctx.from?.id ?? 0,
@@ -45,7 +51,7 @@ export class CommandService {
         ? { type: 'callback', callbackId: ctx.callbackQuery.id, chat, user }
         : { type: 'command', chat, user }
 
-      // 4. Call handler
+      // 5. Call handler
       await registered.handler(result.parsed, source)
     } catch (error) {
       if (error instanceof WizardCancelledError) return

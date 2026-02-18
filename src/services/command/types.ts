@@ -13,6 +13,7 @@ export interface ParserInput {
 export interface ParseResult<T> {
   parsed: Partial<T>
   missing: (keyof T)[]
+  error?: string
 }
 
 export interface ChatContext {
