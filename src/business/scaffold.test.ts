@@ -4,9 +4,28 @@ import { TEST_CONFIG } from '@fixtures/config'
 import { ScaffoldBusiness } from '~/business/scaffold'
 
 describe('ScaffoldBusiness', () => {
-  // ── handleAdd ──────────────────────────────────────────────────────
+  // ── handleCreateFromDef (via CommandRegistry) ────────────────────
 
-  describe('handleAdd', () => {
+  describe('handleCreateFromDef', () => {
+    const source = {
+      type: 'command' as const,
+      chat: { id: TEST_CONFIG.chatId },
+      user: { id: TEST_CONFIG.adminId },
+    }
+
+    function getCreateHandler(c: {
+      resolve(k: 'commandRegistry'): {
+        register: { mock: { calls: unknown[][] } }
+      }
+    }) {
+      const registry = c.resolve('commandRegistry')
+      const call = registry.register.mock.calls.find(
+        (args: unknown[]) => args[0] === 'scaffold:create'
+      )
+      expect(call).toBeDefined()
+      return call![2] as (data: unknown, source: unknown) => Promise<void>
+    }
+
     test('happy path: creates scaffold, sends success message', async ({ container }) => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
@@ -17,19 +36,8 @@ describe('ScaffoldBusiness', () => {
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      // Simulate the command handler directly
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
-      expect(addHandler).toBeDefined()
-
-      await addHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'Tue',
-        time: '18:00',
-        courts: 2,
-      })
+      const handler = getCreateHandler(container)
+      await handler({ day: 'Tue', time: '18:00', courts: 2 }, source)
 
       expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
         'Tue',
@@ -54,17 +62,9 @@ describe('ScaffoldBusiness', () => {
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
-
-      await addHandler![1]({
-        userId: 999999,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'Tue',
-        time: '18:00',
-        courts: 2,
-      })
+      const handler = getCreateHandler(container)
+      const userSource = { ...source, user: { id: 999999 } }
+      await handler({ day: 'Tue', time: '18:00', courts: 2 }, userSource)
 
       expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
         'Tue',
@@ -80,25 +80,14 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('invalid day → sends error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const transport = container.resolve('transport')
       const scaffoldRepo = container.resolve('scaffoldRepository')
 
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
-
-      await addHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'InvalidDay',
-        time: '18:00',
-        courts: 2,
-      })
+      const handler = getCreateHandler(container)
+      await handler({ day: 'InvalidDay', time: '18:00', courts: 2 }, source)
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
@@ -108,25 +97,14 @@ describe('ScaffoldBusiness', () => {
     })
 
     test('invalid courts → sends error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const transport = container.resolve('transport')
       const scaffoldRepo = container.resolve('scaffoldRepository')
 
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
-
-      await addHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'Tue',
-        time: '18:00',
-        courts: 0,
-      })
+      const handler = getCreateHandler(container)
+      await handler({ day: 'Tue', time: '18:00', courts: 0 }, source)
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
@@ -257,7 +235,7 @@ describe('ScaffoldBusiness', () => {
       business.init()
 
       const onCommandCalls = transport.onCommand.mock.calls
-      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:toggle')
+      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:update')
 
       await toggleHandler![1]({
         userId: TEST_CONFIG.adminId,
@@ -285,7 +263,7 @@ describe('ScaffoldBusiness', () => {
       business.init()
 
       const onCommandCalls = transport.onCommand.mock.calls
-      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:toggle')
+      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:update')
 
       await toggleHandler![1]({
         userId: TEST_CONFIG.adminId,
@@ -313,7 +291,7 @@ describe('ScaffoldBusiness', () => {
       business.init()
 
       const onCommandCalls = transport.onCommand.mock.calls
-      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:toggle')
+      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:update')
 
       await toggleHandler![1]({
         userId: 999999,
@@ -346,7 +324,7 @@ describe('ScaffoldBusiness', () => {
       business.init()
 
       const onCommandCalls = transport.onCommand.mock.calls
-      const removeHandler = onCommandCalls.find((c) => c[0] === 'scaffold:remove')
+      const removeHandler = onCommandCalls.find((c) => c[0] === 'scaffold:delete')
 
       await removeHandler![1]({
         userId: TEST_CONFIG.adminId,
@@ -372,7 +350,7 @@ describe('ScaffoldBusiness', () => {
       business.init()
 
       const onCommandCalls = transport.onCommand.mock.calls
-      const removeHandler = onCommandCalls.find((c) => c[0] === 'scaffold:remove')
+      const removeHandler = onCommandCalls.find((c) => c[0] === 'scaffold:delete')
 
       await removeHandler![1]({
         userId: TEST_CONFIG.adminId,

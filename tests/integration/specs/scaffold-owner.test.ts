@@ -23,7 +23,7 @@ describe('scaffold-owner', () => {
 
   describe('scaffold creation — any user becomes owner', () => {
     it('should allow non-admin to create scaffold', async () => {
-      const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
+      const update = createTextMessageUpdate('/scaffold create Tue 21:00 2', {
         userId: NON_ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -37,15 +37,15 @@ describe('scaffold-owner', () => {
     })
 
     it('should store creator as owner', async () => {
-      const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
+      const update = createTextMessageUpdate('/scaffold create Tue 21:00 2', {
         userId: OWNER_ID,
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
 
       // Extract scaffold ID
-      const addCall = api.sendMessage.mock.calls.find(
-        ([, text]) => text.includes('✅ Created scaffold')
+      const addCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('✅ Created scaffold')
       )
       const scaffoldId = addCall![1].match(/sc_[\w-]+/)![0]
 

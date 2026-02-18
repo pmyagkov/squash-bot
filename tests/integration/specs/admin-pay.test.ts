@@ -83,14 +83,14 @@ describe('admin-pay', () => {
     return { event: finalizedEvent!, messageId }
   }
 
-  describe('/admin pay', () => {
+  describe('/payment mark-paid', () => {
     it('should mark payment as paid by admin', async () => {
       const { event } = await setupFinalizedEvent()
 
       api.sendMessage.mockClear()
       api.editMessageText.mockClear()
 
-      const cmdUpdate = createTextMessageUpdate(`/admin pay ${event.id} @alice`, {
+      const cmdUpdate = createTextMessageUpdate(`/payment mark-paid ${event.id} @alice`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -106,9 +106,7 @@ describe('admin-pay', () => {
       // Confirmation message should be sent
       const confirmCall = api.sendMessage.mock.calls.find(
         ([chatId, text]) =>
-          chatId === TEST_CHAT_ID &&
-          typeof text === 'string' &&
-          text.includes('marked as paid')
+          chatId === TEST_CHAT_ID && typeof text === 'string' && text.includes('marked as paid')
       )
       expect(confirmCall).toBeDefined()
     })
@@ -118,7 +116,7 @@ describe('admin-pay', () => {
 
       api.editMessageText.mockClear()
 
-      const cmdUpdate = createTextMessageUpdate(`/admin pay ${event.id} @alice`, {
+      const cmdUpdate = createTextMessageUpdate(`/payment mark-paid ${event.id} @alice`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -137,7 +135,7 @@ describe('admin-pay', () => {
 
       api.sendMessage.mockClear()
 
-      const cmdUpdate = createTextMessageUpdate(`/admin pay ${event.id} @alice`, {
+      const cmdUpdate = createTextMessageUpdate(`/payment mark-paid ${event.id} @alice`, {
         userId: NON_ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -184,7 +182,7 @@ describe('admin-pay', () => {
 
       api.sendMessage.mockClear()
 
-      const cmdUpdate = createTextMessageUpdate(`/admin pay ${event.id} @alice`, {
+      const cmdUpdate = createTextMessageUpdate(`/payment mark-paid ${event.id} @alice`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -192,9 +190,7 @@ describe('admin-pay', () => {
 
       const errorCall = api.sendMessage.mock.calls.find(
         ([chatId, text]) =>
-          chatId === TEST_CHAT_ID &&
-          typeof text === 'string' &&
-          text.includes('is not finalized')
+          chatId === TEST_CHAT_ID && typeof text === 'string' && text.includes('is not finalized')
       )
       expect(errorCall).toBeDefined()
     })
@@ -204,7 +200,7 @@ describe('admin-pay', () => {
 
       api.sendMessage.mockClear()
 
-      const cmdUpdate = createTextMessageUpdate(`/admin pay ${event.id} @nonexistent`, {
+      const cmdUpdate = createTextMessageUpdate(`/payment mark-paid ${event.id} @nonexistent`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -222,7 +218,7 @@ describe('admin-pay', () => {
     it('should reject if event not found', async () => {
       api.sendMessage.mockClear()
 
-      const cmdUpdate = createTextMessageUpdate('/admin pay ev_nonexistent @alice', {
+      const cmdUpdate = createTextMessageUpdate('/payment mark-paid ev_nonexistent @alice', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -238,12 +234,12 @@ describe('admin-pay', () => {
     })
   })
 
-  describe('/admin unpay', () => {
+  describe('/payment undo-mark-paid', () => {
     it('should mark payment as unpaid by admin', async () => {
       const { event } = await setupFinalizedEvent()
 
       // First, mark alice as paid via admin
-      const payCmd = createTextMessageUpdate(`/admin pay ${event.id} @alice`, {
+      const payCmd = createTextMessageUpdate(`/payment mark-paid ${event.id} @alice`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -259,7 +255,7 @@ describe('admin-pay', () => {
       api.editMessageText.mockClear()
 
       // Now unpay
-      const unpayCmd = createTextMessageUpdate(`/admin unpay ${event.id} @alice`, {
+      const unpayCmd = createTextMessageUpdate(`/payment undo-mark-paid ${event.id} @alice`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -274,9 +270,7 @@ describe('admin-pay', () => {
       // Confirmation message
       const confirmCall = api.sendMessage.mock.calls.find(
         ([chatId, text]) =>
-          chatId === TEST_CHAT_ID &&
-          typeof text === 'string' &&
-          text.includes('marked as unpaid')
+          chatId === TEST_CHAT_ID && typeof text === 'string' && text.includes('marked as unpaid')
       )
       expect(confirmCall).toBeDefined()
     })
@@ -286,7 +280,7 @@ describe('admin-pay', () => {
 
       api.sendMessage.mockClear()
 
-      const cmdUpdate = createTextMessageUpdate(`/admin unpay ${event.id} @alice`, {
+      const cmdUpdate = createTextMessageUpdate(`/payment undo-mark-paid ${event.id} @alice`, {
         userId: NON_ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -305,7 +299,7 @@ describe('admin-pay', () => {
       const { event, messageId } = await setupFinalizedEvent()
 
       // Pay first
-      const payCmd = createTextMessageUpdate(`/admin pay ${event.id} @alice`, {
+      const payCmd = createTextMessageUpdate(`/payment mark-paid ${event.id} @alice`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -314,7 +308,7 @@ describe('admin-pay', () => {
       api.editMessageText.mockClear()
 
       // Unpay
-      const unpayCmd = createTextMessageUpdate(`/admin unpay ${event.id} @alice`, {
+      const unpayCmd = createTextMessageUpdate(`/payment undo-mark-paid ${event.id} @alice`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })

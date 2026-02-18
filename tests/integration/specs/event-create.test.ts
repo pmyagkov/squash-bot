@@ -50,7 +50,7 @@ describe('event-create', () => {
     // No cleanup needed
   })
 
-  describe('/event add', () => {
+  describe('/event create', () => {
     describe('event date parsing formats', () => {
       let bot: Bot
       let api: BotApiMock
@@ -110,7 +110,7 @@ describe('event-create', () => {
       }
 
       it('should parse absolute date format: 2024-01-20', async () => {
-        const update = createTextMessageUpdate('/event add 2024-01-20 19:00 2', {
+        const update = createTextMessageUpdate('/event create 2024-01-20 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -126,7 +126,9 @@ describe('event-create', () => {
         expect(event.datetime.getDate()).toBe(20)
 
         // Check success message format
-        const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('✅ Created event'))
+        const call = api.sendMessage.mock.calls.find(([, text]) =>
+          text.includes('✅ Created event')
+        )
         expect(call).toBeDefined()
         expect(call![1]).toContain(`✅ Created event ${event.id}`)
         expect(call![1]).toContain('2 courts')
@@ -140,7 +142,7 @@ describe('event-create', () => {
       })
 
       it('should parse relative date: tomorrow', async () => {
-        const update = createTextMessageUpdate('/event add tomorrow 19:00 2', {
+        const update = createTextMessageUpdate('/event create tomorrow 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -168,7 +170,7 @@ describe('event-create', () => {
       })
 
       it('should parse relative date: today', async () => {
-        const update = createTextMessageUpdate('/event add today 19:00 2', {
+        const update = createTextMessageUpdate('/event create today 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -191,7 +193,7 @@ describe('event-create', () => {
       })
 
       it('should parse day name: sat (next Saturday)', async () => {
-        const update = createTextMessageUpdate('/event add sat 19:00 2', {
+        const update = createTextMessageUpdate('/event create sat 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -204,7 +206,7 @@ describe('event-create', () => {
       })
 
       it('should parse day name: tue (next Tuesday)', async () => {
-        const update = createTextMessageUpdate('/event add tue 19:00 2', {
+        const update = createTextMessageUpdate('/event create tue 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -217,7 +219,7 @@ describe('event-create', () => {
       })
 
       it('should parse day name: mon (next Monday)', async () => {
-        const update = createTextMessageUpdate('/event add mon 19:00 2', {
+        const update = createTextMessageUpdate('/event create mon 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -230,7 +232,7 @@ describe('event-create', () => {
       })
 
       it('should parse full day name: monday (next Monday)', async () => {
-        const update = createTextMessageUpdate('/event add monday 19:00 2', {
+        const update = createTextMessageUpdate('/event create monday 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -243,7 +245,7 @@ describe('event-create', () => {
       })
 
       it('should parse day name: sunday (next Sunday)', async () => {
-        const update = createTextMessageUpdate('/event add sun 19:00 2', {
+        const update = createTextMessageUpdate('/event create sun 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -256,7 +258,7 @@ describe('event-create', () => {
       })
 
       it('should parse next week format: next tue', async () => {
-        const update = createTextMessageUpdate('/event add next tue 19:00 2', {
+        const update = createTextMessageUpdate('/event create next tue 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -281,7 +283,7 @@ describe('event-create', () => {
       })
 
       it('should parse next week format: next sat', async () => {
-        const update = createTextMessageUpdate('/event add next sat 19:00 2', {
+        const update = createTextMessageUpdate('/event create next sat 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -306,7 +308,7 @@ describe('event-create', () => {
       })
 
       it('should parse next week format: next friday', async () => {
-        const update = createTextMessageUpdate('/event add next friday 19:00 2', {
+        const update = createTextMessageUpdate('/event create next friday 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -331,7 +333,7 @@ describe('event-create', () => {
       })
 
       it('should reject invalid date format', async () => {
-        const update = createTextMessageUpdate('/event add invalid-date-format 19:00 2', {
+        const update = createTextMessageUpdate('/event create invalid-date-format 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -351,7 +353,7 @@ describe('event-create', () => {
       })
 
       it('should reject invalid day name', async () => {
-        const update = createTextMessageUpdate('/event add invalidday 19:00 2', {
+        const update = createTextMessageUpdate('/event create invalidday 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -376,7 +378,7 @@ describe('event-create', () => {
         // Use timezone-aware day check (getDay() uses system tz, not Belgrade)
         expect(dayjs.tz(parsedDate, config.timezone).day()).toBe(6) // Saturday = 6
 
-        const update = createTextMessageUpdate('/event add SAT 19:00 2', {
+        const update = createTextMessageUpdate('/event create SAT 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -402,7 +404,7 @@ describe('event-create', () => {
         // Should be exactly 8 days from now
         expect(daysDiff).toBe(8)
 
-        const update = createTextMessageUpdate('/event add NEXT TUE 19:00 2', {
+        const update = createTextMessageUpdate('/event create NEXT TUE 19:00 2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -424,8 +426,8 @@ describe('event-create', () => {
       })
     })
 
-    it('should validate date format in /event add', async () => {
-      const update = createTextMessageUpdate('/event add invalid-date 19:00 2', {
+    it('should validate date format in /event create', async () => {
+      const update = createTextMessageUpdate('/event create invalid-date 19:00 2', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -444,8 +446,8 @@ describe('event-create', () => {
       expect(events).toHaveLength(0)
     })
 
-    it('should validate time format in /event add', async () => {
-      const update = createTextMessageUpdate('/event add 2024-01-20 25:00 2', {
+    it('should validate time format in /event create', async () => {
+      const update = createTextMessageUpdate('/event create 2024-01-20 25:00 2', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -464,28 +466,8 @@ describe('event-create', () => {
       expect(events).toHaveLength(0)
     })
 
-    it('should require all parameters in /event add', async () => {
-      const update = createTextMessageUpdate('/event add 2024-01-20 19:00', {
-        userId: ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-
-      await bot.handleUpdate(update)
-
-      // Check usage message
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('Usage: /event add'),
-        expect.anything()
-      )
-
-      // Check that event is NOT created
-      const events = await eventRepository.getEvents()
-      expect(events).toHaveLength(0)
-    })
-
-    it('should create event manually via /event add', async () => {
-      const update = createTextMessageUpdate('/event add 2024-01-20 19:00 2', {
+    it('should create event manually via /event create', async () => {
+      const update = createTextMessageUpdate('/event create 2024-01-20 19:00 2', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
         username: 'testadmin',
@@ -503,7 +485,9 @@ describe('event-create', () => {
 
       // Check that bot sent a response with correct format
       expect(api.sendMessage).toHaveBeenCalled()
-      const successCall = api.sendMessage.mock.calls.find(([, text]) => text.includes('✅ Created event'))
+      const successCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('✅ Created event')
+      )
       expect(successCall).toBeDefined()
 
       // Verify message contains all required parts

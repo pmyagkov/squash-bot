@@ -35,71 +35,35 @@ export class ScaffoldBusiness {
    * Initialize transport handlers
    */
   init(): void {
-    this.transport.onCommand('scaffold:create', (data) => this.handleAdd(data))
     this.transport.onCommand('scaffold:list', (data) => this.handleList(data))
     this.transport.onCommand('scaffold:update', (data) => this.handleToggle(data))
     this.transport.onCommand('scaffold:delete', (data) => this.handleRemove(data))
     this.transport.onCommand('scaffold:transfer', (data) => this.handleTransfer(data))
 
     this.commandRegistry.register('scaffold:create', scaffoldCreateDef, async (data, source) => {
-      await this.handleCreateFromDef(data as { day: string; time: string; courts: number }, source)
+      await this.handleCreateFromDef(data, source)
     })
   }
 
   // === Command Handlers ===
-
-  private async handleAdd(data: CommandTypes['scaffold:create']): Promise<void> {
-    const dayOfWeek = parseDayOfWeek(data.day)
-    if (!dayOfWeek) {
-      await this.transport.sendMessage(
-        data.chatId,
-        `Invalid day of week: ${data.day}\n\nValid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
-      )
-      return
-    }
-
-    if (isNaN(data.courts) || data.courts < 1) {
-      await this.transport.sendMessage(data.chatId, 'Number of courts must be a positive number')
-      return
-    }
-
-    try {
-      const scaffold = await this.scaffoldRepository.createScaffold(
-        dayOfWeek,
-        data.time,
-        data.courts,
-        undefined,
-        String(data.userId)
-      )
-
-      await this.transport.sendMessage(
-        data.chatId,
-        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} court(s), announcement ${scaffold.announcementDeadline ?? 'default'}`
-      )
-
-      await this.logger.log(
-        `User ${data.userId} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
-      )
-      void this.transport.logEvent({
-        type: 'scaffold_created',
-        scaffoldId: scaffold.id,
-        day: dayOfWeek,
-        time: data.time,
-        courts: data.courts,
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.error(`Error creating scaffold from user ${data.userId}: ${errorMessage}`)
-    }
-  }
 
   private async handleCreateFromDef(
     data: { day: string; time: string; courts: number },
     source: SourceContext
   ): Promise<void> {
     const dayOfWeek = parseDayOfWeek(data.day)
-    if (!dayOfWeek) throw new Error(`Invalid day: ${data.day}`)
+    if (!dayOfWeek) {
+      await this.transport.sendMessage(
+        source.chat.id,
+        `Invalid day of week: ${data.day}\n\nValid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
+      )
+      return
+    }
+
+    if (isNaN(data.courts) || data.courts < 1) {
+      await this.transport.sendMessage(source.chat.id, 'Number of courts must be a positive number')
+      return
+    }
 
     try {
       const scaffold = await this.scaffoldRepository.createScaffold(
