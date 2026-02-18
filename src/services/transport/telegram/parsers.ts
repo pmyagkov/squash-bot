@@ -115,23 +115,6 @@ export const commandParsers: CommandParsers = {
       courts: parseInt(args[2], 10),
     }
   },
-  'event:add': (ctx, args) => {
-    const base = baseCommandParser(ctx)
-    if (args.length < 3) {
-      throw new ParseError('Usage: /event add <day> <time> <courts>')
-    }
-    // Handle "next day" format (e.g., "next tue" becomes 2 args)
-    // Join all args except last two (time and courts) as day
-    const courts = parseInt(args[args.length - 1], 10)
-    const time = args[args.length - 2]
-    const day = args.slice(0, args.length - 2).join(' ')
-    return {
-      ...base,
-      day,
-      time,
-      courts,
-    }
-  },
   'event:announce': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 1) {
@@ -142,10 +125,10 @@ export const commandParsers: CommandParsers = {
       eventId: args[0],
     }
   },
-  'event:add-by-scaffold': (ctx, args) => {
+  'event:spawn': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 1) {
-      throw new ParseError('Usage: /event add-by-scaffold <scaffoldId>')
+      throw new ParseError('Usage: /event spawn <scaffoldId>')
     }
     return {
       ...base,
@@ -162,10 +145,10 @@ export const commandParsers: CommandParsers = {
       eventId: args[0],
     }
   },
-  'admin:pay': (ctx, args) => {
+  'payment:mark-paid': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 2) {
-      throw new ParseError('Usage: /admin pay <event_id> @username')
+      throw new ParseError('Usage: /payment mark-paid <event_id> @username')
     }
     return {
       ...base,
@@ -173,10 +156,10 @@ export const commandParsers: CommandParsers = {
       username: args[1].replace(/^@/, ''),
     }
   },
-  'admin:unpay': (ctx, args) => {
+  'payment:undo-mark-paid': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 2) {
-      throw new ParseError('Usage: /admin unpay <event_id> @username')
+      throw new ParseError('Usage: /payment undo-mark-paid <event_id> @username')
     }
     return {
       ...base,
@@ -184,10 +167,10 @@ export const commandParsers: CommandParsers = {
       username: args[1].replace(/^@/, ''),
     }
   },
-  'scaffold:add': (ctx, args) => {
+  'scaffold:create': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 3) {
-      throw new ParseError('Usage: /scaffold add <day> <time> <courts>')
+      throw new ParseError('Usage: /scaffold create <day> <time> <courts>')
     }
     return {
       ...base,
@@ -197,20 +180,20 @@ export const commandParsers: CommandParsers = {
     }
   },
   'scaffold:list': baseCommandParser,
-  'scaffold:toggle': (ctx, args) => {
+  'scaffold:update': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 1) {
-      throw new ParseError('Usage: /scaffold toggle <id>')
+      throw new ParseError('Usage: /scaffold update <id>')
     }
     return {
       ...base,
       scaffoldId: args[0],
     }
   },
-  'scaffold:remove': (ctx, args) => {
+  'scaffold:delete': (ctx, args) => {
     const base = baseCommandParser(ctx)
     if (args.length < 1) {
-      throw new ParseError('Usage: /scaffold remove <id>')
+      throw new ParseError('Usage: /scaffold delete <id>')
     }
     return {
       ...base,

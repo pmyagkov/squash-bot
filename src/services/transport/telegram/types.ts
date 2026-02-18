@@ -46,20 +46,19 @@ export interface CommandTypes {
   // Event subcommands
   'event:list': BaseData
   'event:create': BaseData & { day: string; time: string; courts: number }
-  'event:add': BaseData & { day: string; time: string; courts: number }
   'event:announce': BaseData & { eventId: string }
-  'event:add-by-scaffold': BaseData & { scaffoldId: string }
+  'event:spawn': BaseData & { scaffoldId: string }
   'event:cancel': BaseData & { eventId: string }
 
-  // Admin commands
-  'admin:pay': BaseData & { eventId: string; username: string }
-  'admin:unpay': BaseData & { eventId: string; username: string }
+  // Payment commands
+  'payment:mark-paid': BaseData & { eventId: string; username: string }
+  'payment:undo-mark-paid': BaseData & { eventId: string; username: string }
 
   // Scaffold subcommands
-  'scaffold:add': BaseData & { day: string; time: string; courts: number }
+  'scaffold:create': BaseData & { day: string; time: string; courts: number }
   'scaffold:list': BaseData
-  'scaffold:toggle': BaseData & { scaffoldId: string }
-  'scaffold:remove': BaseData & { scaffoldId: string }
+  'scaffold:update': BaseData & { scaffoldId: string }
+  'scaffold:delete': BaseData & { scaffoldId: string }
   'scaffold:transfer': BaseData & { scaffoldId: string; targetUsername: string }
 
   // Transfer commands

@@ -35,10 +35,10 @@ export class ScaffoldBusiness {
    * Initialize transport handlers
    */
   init(): void {
-    this.transport.onCommand('scaffold:add', (data) => this.handleAdd(data))
+    this.transport.onCommand('scaffold:create', (data) => this.handleAdd(data))
     this.transport.onCommand('scaffold:list', (data) => this.handleList(data))
-    this.transport.onCommand('scaffold:toggle', (data) => this.handleToggle(data))
-    this.transport.onCommand('scaffold:remove', (data) => this.handleRemove(data))
+    this.transport.onCommand('scaffold:update', (data) => this.handleToggle(data))
+    this.transport.onCommand('scaffold:delete', (data) => this.handleRemove(data))
     this.transport.onCommand('scaffold:transfer', (data) => this.handleTransfer(data))
 
     this.commandRegistry.register('scaffold:create', scaffoldCreateDef, async (data, source) => {
@@ -48,7 +48,7 @@ export class ScaffoldBusiness {
 
   // === Command Handlers ===
 
-  private async handleAdd(data: CommandTypes['scaffold:add']): Promise<void> {
+  private async handleAdd(data: CommandTypes['scaffold:create']): Promise<void> {
     const dayOfWeek = parseDayOfWeek(data.day)
     if (!dayOfWeek) {
       await this.transport.sendMessage(
@@ -166,7 +166,7 @@ export class ScaffoldBusiness {
     }
   }
 
-  private async handleToggle(data: CommandTypes['scaffold:toggle']): Promise<void> {
+  private async handleToggle(data: CommandTypes['scaffold:update']): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
@@ -206,7 +206,7 @@ export class ScaffoldBusiness {
     }
   }
 
-  private async handleRemove(data: CommandTypes['scaffold:remove']): Promise<void> {
+  private async handleRemove(data: CommandTypes['scaffold:delete']): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
