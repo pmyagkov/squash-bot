@@ -40,11 +40,11 @@ describe('payment-cancel', () => {
    * Helper: create event, announce, add participants, finalize, mark one as paid.
    */
   async function setupFinalizedEventWithPaidUser(
-    participantData: Array<{
+    participantData: {
       userId: number
       username?: string
       firstName: string
-    }>,
+    }[],
     paidUserId: number
   ) {
     const event = await eventRepository.createEvent({
@@ -90,7 +90,7 @@ describe('payment-cancel', () => {
       userId: paidUserId,
       chatId: paidUserId,
       messageId: parseInt(paidPayment.personalMessageId!, 10),
-      data: `payment:mark:${event.id}`,
+      data: `payment:mark-paid:${event.id}`,
     })
     await bot.handleUpdate(markUpdate)
 
@@ -122,7 +122,7 @@ describe('payment-cancel', () => {
       userId: 111,
       chatId: 111,
       messageId: parseInt(paidPayment.personalMessageId!, 10),
-      data: `payment:cancel:${event.id}`,
+      data: `payment:undo-mark-paid:${event.id}`,
     })
     await bot.handleUpdate(cancelUpdate)
 
@@ -148,7 +148,7 @@ describe('payment-cancel', () => {
       userId: 111,
       chatId: 111,
       messageId: parseInt(paidPayment.personalMessageId!, 10),
-      data: `payment:cancel:${event.id}`,
+      data: `payment:undo-mark-paid:${event.id}`,
     })
     await bot.handleUpdate(cancelUpdate)
 
@@ -177,7 +177,7 @@ describe('payment-cancel', () => {
       userId: 111,
       chatId: 111,
       messageId: personalMsgId,
-      data: `payment:cancel:${event.id}`,
+      data: `payment:undo-mark-paid:${event.id}`,
     })
     await bot.handleUpdate(cancelUpdate)
 

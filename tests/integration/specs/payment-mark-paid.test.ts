@@ -41,11 +41,11 @@ describe('payment-mark-paid', () => {
    * Returns event, messageId, and created payments.
    */
   async function setupFinalizedEvent(
-    participantData: Array<{
+    participantData: {
       userId: number
       username?: string
       firstName: string
-    }>
+    }[]
   ) {
     const event = await eventRepository.createEvent({
       datetime: new Date('2024-01-20T19:00:00Z'),
@@ -95,7 +95,7 @@ describe('payment-mark-paid', () => {
       userId: 111,
       chatId: 111,
       messageId: parseInt(payments[0].personalMessageId!, 10),
-      data: `payment:mark:${event.id}`,
+      data: `payment:mark-paid:${event.id}`,
     })
     await bot.handleUpdate(markUpdate)
 
@@ -118,7 +118,7 @@ describe('payment-mark-paid', () => {
       userId: 111,
       chatId: 111,
       messageId: parseInt(payments[0].personalMessageId!, 10),
-      data: `payment:mark:${event.id}`,
+      data: `payment:mark-paid:${event.id}`,
     })
     await bot.handleUpdate(markUpdate)
 
@@ -143,7 +143,7 @@ describe('payment-mark-paid', () => {
       userId: 111,
       chatId: 111,
       messageId: personalMsgId,
-      data: `payment:mark:${event.id}`,
+      data: `payment:mark-paid:${event.id}`,
     })
     await bot.handleUpdate(markUpdate)
 
@@ -167,7 +167,7 @@ describe('payment-mark-paid', () => {
       userId: 111,
       chatId: 111,
       messageId: parseInt(payments[0].personalMessageId!, 10),
-      data: `payment:mark:${event.id}`,
+      data: `payment:mark-paid:${event.id}`,
     })
     await bot.handleUpdate(markUpdate)
 

@@ -75,7 +75,7 @@ describe('event-restore', () => {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
       messageId,
-      data: 'event:restore',
+      data: 'event:undo-cancel',
       username: 'admin',
     })
 
@@ -113,7 +113,7 @@ describe('event-restore', () => {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
       messageId,
-      data: 'event:restore',
+      data: 'event:undo-cancel',
       username: 'admin',
     })
 

@@ -36,11 +36,11 @@ describe('event formatters', () => {
       expect(buttons[1]).toHaveLength(2)
       expect(buttons[1][0].text).toBe('+court')
       expect((buttons[1][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:add_court'
+        'event:add-court'
       )
       expect(buttons[1][1].text).toBe('-court')
       expect((buttons[1][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:rm_court'
+        'event:remove-court'
       )
 
       // Third row: Finalize, Cancel
@@ -64,7 +64,7 @@ describe('event formatters', () => {
       expect(buttons[0]).toHaveLength(1)
       expect(buttons[0][0].text).toBe('🔄 Restore')
       expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:restore'
+        'event:undo-cancel'
       )
     })
 
@@ -76,7 +76,7 @@ describe('event formatters', () => {
       expect(buttons[0]).toHaveLength(1)
       expect(buttons[0][0].text).toBe('↩️ Unfinalize')
       expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:unfinalize'
+        'event:undo-finalize'
       )
     })
 

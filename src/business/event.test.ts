@@ -769,7 +769,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:add_court')
+      const handler = getCallbackHandler(transport, 'event:add-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -807,7 +807,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:rm_court')
+      const handler = getCallbackHandler(transport, 'event:remove-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -835,7 +835,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:rm_court')
+      const handler = getCallbackHandler(transport, 'event:remove-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -1119,7 +1119,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:restore')
+      const handler = getCallbackHandler(transport, 'event:undo-cancel')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -1251,11 +1251,11 @@ describe('EventBusiness', () => {
     const callbackActions = [
       'event:join',
       'event:leave',
-      'event:add_court',
-      'event:rm_court',
+      'event:add-court',
+      'event:remove-court',
       'event:finalize',
       'event:cancel',
-      'event:restore',
+      'event:undo-cancel',
     ] as const
 
     for (const action of callbackActions) {

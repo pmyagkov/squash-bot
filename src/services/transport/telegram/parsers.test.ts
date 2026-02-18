@@ -42,11 +42,11 @@ describe('parsers', () => {
         chatId: TEST_CONFIG.chatId,
         chatType: 'group',
         callbackQueryId: TEST_CONFIG.callbackQueryId,
-        callbackQueryData: 'event:add_court',
+        callbackQueryData: 'event:add-court',
         messageId: TEST_CONFIG.messageId,
       })
 
-      const result = callbackParsers['event:add_court'](ctx as Context)
+      const result = callbackParsers['event:add-court'](ctx as Context)
 
       expect(result).toEqual({
         userId: TEST_CONFIG.userId,
@@ -62,8 +62,8 @@ describe('parsers', () => {
         // No callbackQueryId → callbackQuery will be undefined
       })
 
-      expect(() => callbackParsers['event:add_court'](ctx as Context)).toThrow(ParseError)
-      expect(() => callbackParsers['event:add_court'](ctx as Context)).toThrow(
+      expect(() => callbackParsers['event:add-court'](ctx as Context)).toThrow(ParseError)
+      expect(() => callbackParsers['event:add-court'](ctx as Context)).toThrow(
         'Invalid callback context'
       )
     })
@@ -137,15 +137,15 @@ describe('parsers', () => {
       expect(result).toHaveProperty('lastName')
     })
 
-    it('event:add_court should use baseCallbackParser (no user info)', () => {
-      const result = callbackParsers['event:add_court'](callbackCtx as Context)
+    it('event:add-court should use baseCallbackParser (no user info)', () => {
+      const result = callbackParsers['event:add-court'](callbackCtx as Context)
       expect(result).not.toHaveProperty('username')
       expect(result).not.toHaveProperty('firstName')
       expect(result).not.toHaveProperty('lastName')
     })
 
-    it('event:rm_court should use baseCallbackParser (no user info)', () => {
-      const result = callbackParsers['event:rm_court'](callbackCtx as Context)
+    it('event:remove-court should use baseCallbackParser (no user info)', () => {
+      const result = callbackParsers['event:remove-court'](callbackCtx as Context)
       expect(result).not.toHaveProperty('username')
       expect(result).not.toHaveProperty('firstName')
       expect(result).not.toHaveProperty('lastName')
@@ -165,8 +165,8 @@ describe('parsers', () => {
       expect(result).not.toHaveProperty('lastName')
     })
 
-    it('event:restore should use baseCallbackParser (no user info)', () => {
-      const result = callbackParsers['event:restore'](callbackCtx as Context)
+    it('event:undo-cancel should use baseCallbackParser (no user info)', () => {
+      const result = callbackParsers['event:undo-cancel'](callbackCtx as Context)
       expect(result).not.toHaveProperty('username')
       expect(result).not.toHaveProperty('firstName')
       expect(result).not.toHaveProperty('lastName')
