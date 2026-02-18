@@ -27,6 +27,7 @@ import {
   formatFallbackNotificationText,
 } from '~/services/formatters/event'
 import { eventJoinDef } from '~/commands/event/join'
+import { eventActionDef } from '~/commands/event/eventAction'
 import { eventCreateDef } from '~/commands/event/create'
 
 // Extend dayjs with plugins
@@ -195,6 +196,30 @@ export class EventBusiness {
 
     this.commandRegistry.register('event:create', eventCreateDef, async (data, source) => {
       await this.handleCreateFromDef(data as { day: string; time: string; courts: number }, source)
+    })
+
+    this.commandRegistry.register('event:leave', eventActionDef, async (data, source) => {
+      await this.handleLeaveFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:add-court', eventActionDef, async (data, source) => {
+      await this.handleAddCourtFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:remove-court', eventActionDef, async (data, source) => {
+      await this.handleRemoveCourtFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:finalize', eventActionDef, async (data, source) => {
+      await this.handleFinalizeFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:undo-cancel', eventActionDef, async (data, source) => {
+      await this.handleRestoreFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:undo-finalize', eventActionDef, async (data, source) => {
+      await this.handleUnfinalizeFromDef(data as { eventId: string }, source)
     })
   }
 
@@ -661,6 +686,278 @@ export class EventBusiness {
       eventId: event.id,
       userName: displayName,
     })
+  }
+
+  private async handleLeaveFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+    if (!participant) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'You are not registered')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ You are not registered')
+      }
+      return
+    }
+
+    await this.participantRepository.removeFromEvent(event.id, participant.id)
+    await this.refreshAnnouncement(event.id)
+
+    if (source.type === 'callback') {
+      await this.transport.answerCallback(source.callbackId)
+    } else {
+      await this.transport.sendMessage(source.chat.id, `✅ Left event ${event.id}`)
+    }
+
+    await this.logger.log(`User ${source.user.id} left event ${event.id}`)
+    void this.transport.logEvent({
+      type: 'participant_left',
+      eventId: event.id,
+      userName: participant.displayName,
+    })
+  }
+
+  private async handleAddCourtFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    const newCourts = event.courts + 1
+    await this.eventRepository.updateEvent(event.id, { courts: newCourts })
+    await this.refreshAnnouncement(event.id)
+
+    if (source.type === 'callback') {
+      await this.transport.answerCallback(source.callbackId)
+    } else {
+      await this.transport.sendMessage(
+        source.chat.id,
+        `✅ Added court to ${event.id} (now ${newCourts})`
+      )
+    }
+
+    await this.logger.log(`User ${source.user.id} added court to ${event.id} (now ${newCourts})`)
+    void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
+  }
+
+  private async handleRemoveCourtFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    if (event.courts <= 1) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'Cannot remove last court')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ Cannot remove last court')
+      }
+      return
+    }
+
+    const newCourts = event.courts - 1
+    await this.eventRepository.updateEvent(event.id, { courts: newCourts })
+    await this.refreshAnnouncement(event.id)
+
+    if (source.type === 'callback') {
+      await this.transport.answerCallback(source.callbackId)
+    } else {
+      await this.transport.sendMessage(
+        source.chat.id,
+        `✅ Removed court from ${event.id} (now ${newCourts})`
+      )
+    }
+
+    await this.logger.log(
+      `User ${source.user.id} removed court from ${event.id} (now ${newCourts})`
+    )
+    void this.transport.logEvent({ type: 'court_removed', eventId: event.id, courts: newCourts })
+  }
+
+  private async handleFinalizeFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    const participants = await this.participantRepository.getEventParticipants(event.id)
+    if (participants.length === 0) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'No participants to finalize')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ No participants to finalize')
+      }
+      return
+    }
+
+    if (!this.eventLock.acquire(event.id)) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, '⏳ Operation already in progress')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '⏳ Operation already in progress')
+      }
+      return
+    }
+
+    try {
+      const courtPrice = await this.settingsRepository.getCourtPrice()
+      const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+      const totalCost = courtPrice * event.courts
+
+      const paymentRecords: Payment[] = []
+      for (const ep of participants) {
+        const amount = Math.round((totalCost * ep.participations) / totalParticipations)
+        const payment = await this.paymentRepository.createPayment(
+          event.id,
+          ep.participant.id,
+          amount
+        )
+        paymentRecords.push(payment)
+      }
+
+      await this.eventRepository.updateEvent(event.id, { status: 'finalized' })
+
+      const chatId = await this.settingsRepository.getMainChatId()
+      const failedParticipants = await this.sendPersonalPaymentNotifications(
+        event,
+        participants,
+        paymentRecords,
+        courtPrice,
+        chatId ?? source.chat.id
+      )
+
+      if (failedParticipants.length > 0) {
+        await this.sendFallbackNotification(source.chat.id, failedParticipants)
+      }
+
+      await this.refreshAnnouncement(event.id)
+
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId)
+      } else {
+        await this.transport.sendMessage(source.chat.id, `✅ Finalized event ${event.id}`)
+      }
+
+      await this.logger.log(`User ${source.user.id} finalized event ${event.id}`)
+
+      const finalizedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+      void this.transport.logEvent({
+        type: 'event_finalized',
+        eventId: event.id,
+        date: finalizedDate,
+        participantCount: participants.length,
+      })
+    } finally {
+      this.eventLock.release(event.id)
+    }
+  }
+
+  private async handleRestoreFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    await this.eventRepository.updateEvent(event.id, { status: 'announced' })
+    await this.refreshAnnouncement(event.id)
+
+    // Re-pin if possible
+    const mainChatId = await this.settingsRepository.getMainChatId()
+    if (mainChatId && event.telegramMessageId) {
+      try {
+        await this.transport.pinMessage(mainChatId, parseInt(event.telegramMessageId, 10))
+      } catch {
+        // Ignore pin errors
+      }
+    }
+
+    if (source.type === 'callback') {
+      await this.transport.answerCallback(source.callbackId)
+    } else {
+      await this.transport.sendMessage(source.chat.id, `✅ Restored event ${event.id}`)
+    }
+
+    await this.logger.log(`User ${source.user.id} restored event ${event.id}`)
+    const restoredDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
+  }
+
+  private async handleUnfinalizeFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    if (!this.eventLock.acquire(event.id)) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, '⏳ Operation already in progress')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '⏳ Operation already in progress')
+      }
+      return
+    }
+
+    try {
+      // Try to delete personal DMs (best effort)
+      const payments = await this.paymentRepository.getPaymentsByEvent(event.id)
+      for (const payment of payments) {
+        if (payment.personalMessageId) {
+          const participant = await this.participantRepository.findById(payment.participantId)
+          if (participant?.telegramId) {
+            try {
+              await this.transport.deleteMessage(
+                parseInt(participant.telegramId, 10),
+                parseInt(payment.personalMessageId, 10)
+              )
+            } catch {
+              // Ignore — message may already be deleted
+            }
+          }
+        }
+      }
+
+      await this.paymentRepository.deleteByEvent(event.id)
+      await this.eventRepository.updateEvent(event.id, { status: 'announced' })
+      await this.refreshAnnouncement(event.id)
+
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId)
+      } else {
+        await this.transport.sendMessage(source.chat.id, `✅ Unfinalized event ${event.id}`)
+      }
+
+      await this.logger.log(`User ${source.user.id} unfinalized event ${event.id}`)
+    } finally {
+      this.eventLock.release(event.id)
+    }
   }
 
   private async handleCreateFromDef(
