@@ -68,7 +68,7 @@ export class TelegramTransport {
   ): void {
     this.commandHandlers.set(command, handler as (data: CommandTypes[CommandName]) => Promise<void>)
 
-    // Extract base command: 'event:add' -> 'event', 'start' -> 'start'
+    // Extract base command: 'event:create' -> 'event', 'start' -> 'start'
     const baseCommand = command.includes(':') ? command.split(':')[0] : command
 
     // Register base command in bot only once
@@ -154,7 +154,7 @@ export class TelegramTransport {
     let parser = callbackParsers[action]
     let handler = this.callbackHandlers.get(action)
 
-    // If no exact match, try prefix match (e.g., "payment:mark:ev_15" → "payment:mark")
+    // If no exact match, try prefix match (e.g., "payment:mark-paid:ev_15" → "payment:mark-paid")
     if (!parser || !handler) {
       const parts = rawAction.split(':')
       if (parts.length > 2) {
