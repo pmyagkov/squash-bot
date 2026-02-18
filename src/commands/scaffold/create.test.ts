@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { scaffoldCreateDef } from './create'
 import type { ParserInput } from '~/services/command/types'
+import type { Context } from 'grammy'
+import type { AppContainer } from '~/container'
 
 const dummyInput = (args: string[]): ParserInput => ({
   args,
@@ -35,5 +37,44 @@ describe('scaffoldCreateDef parser', () => {
   it('has three steps: day, time, courts', () => {
     expect(scaffoldCreateDef.steps).toHaveLength(3)
     expect(scaffoldCreateDef.steps.map((s) => s.param)).toEqual(['day', 'time', 'courts'])
+  })
+
+  it('returns error for invalid day', () => {
+    const result = scaffoldCreateDef.parser({
+      args: ['Xyz', '21:00', '2'],
+      ctx: {} as Context,
+      container: {} as AppContainer,
+    })
+    expect(result).toEqual({
+      parsed: {},
+      missing: [],
+      error: expect.stringContaining('Invalid day'),
+    })
+  })
+
+  it('returns error for invalid time', () => {
+    const result = scaffoldCreateDef.parser({
+      args: ['Tue', '25:00', '2'],
+      ctx: {} as Context,
+      container: {} as AppContainer,
+    })
+    expect(result).toEqual({
+      parsed: {},
+      missing: [],
+      error: expect.stringContaining('Invalid time format'),
+    })
+  })
+
+  it('returns error for invalid courts', () => {
+    const result = scaffoldCreateDef.parser({
+      args: ['Tue', '21:00', '0'],
+      ctx: {} as Context,
+      container: {} as AppContainer,
+    })
+    expect(result).toEqual({
+      parsed: {},
+      missing: [],
+      error: expect.stringContaining('courts must be a positive number'),
+    })
   })
 })

@@ -54,7 +54,7 @@ describe('scaffold-create', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringMatching(/Invalid day of week.*Xyz/s),
+        expect.stringContaining('Invalid day: Xyz'),
         expect.anything()
       )
     })
