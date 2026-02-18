@@ -109,6 +109,10 @@ Auto-create event from scaffold on schedule.
 
 **Edge case:** Uses `shouldTrigger` with time offset notation to determine creation time
 
+### event-scaffold-private
+
+эту фичу нужно декомпозировать и разнести в соответствующие фичи. Это про приватый ивент, который не аннаунсится в чат, а только админу.
+
 ---
 
 ### event-create ✅
