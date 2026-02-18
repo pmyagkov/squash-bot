@@ -7,6 +7,8 @@ import { mockBot, mockLogger, mockConfig } from '@mocks'
 import { TEST_CONFIG } from '@fixtures/config'
 import type { LogEvent } from '~/types/logEvent'
 import type { WizardService } from '~/services/wizard/wizardService'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { CommandService } from '~/services/command/commandService'
 import { mock } from 'vitest-mock-extended'
 
 describe('TelegramTransport', () => {
@@ -16,6 +18,8 @@ describe('TelegramTransport', () => {
   let logger: ReturnType<typeof mockLogger>
   let config: ReturnType<typeof mockConfig>
   let wizardService: ReturnType<typeof mock<InstanceType<typeof WizardService>>>
+  let commandRegistry: ReturnType<typeof mock<InstanceType<typeof CommandRegistry>>>
+  let commandService: ReturnType<typeof mock<InstanceType<typeof CommandService>>>
 
   beforeEach(() => {
     bot = new Bot('test-token')
@@ -23,8 +27,17 @@ describe('TelegramTransport', () => {
     logger = mockLogger()
     config = mockConfig()
     wizardService = mock<InstanceType<typeof WizardService>>()
+    commandRegistry = mock<InstanceType<typeof CommandRegistry>>()
+    commandService = mock<InstanceType<typeof CommandService>>()
 
-    transport = new TelegramTransport(bot, logger, config, wizardService)
+    transport = new TelegramTransport(
+      bot,
+      logger,
+      config,
+      wizardService,
+      commandRegistry,
+      commandService
+    )
   })
 
   describe('sendMessage', () => {

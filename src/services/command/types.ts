@@ -15,8 +15,30 @@ export interface ParseResult<T> {
   missing: (keyof T)[]
 }
 
+export interface ChatContext {
+  id: number
+}
+
+export interface UserContext {
+  id: number
+  username?: string
+  firstName?: string
+  lastName?: string
+}
+
 // Where the request came from (for reply routing)
-export type SourceContext = { type: 'command' } | { type: 'callback'; callbackId: string }
+export type SourceContext =
+  | {
+      type: 'command'
+      chat: ChatContext
+      user: UserContext
+    }
+  | {
+      type: 'callback'
+      callbackId: string
+      chat: ChatContext
+      user: UserContext
+    }
 
 // Static command definition — what command files export (no handler)
 export interface CommandDef<T> {

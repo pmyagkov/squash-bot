@@ -15,7 +15,7 @@ import type { EventRepo } from '~/storage/repo/event'
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-describe('event-create-adhoc', () => {
+describe('event-create', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer

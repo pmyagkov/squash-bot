@@ -127,6 +127,90 @@ export class ChatPage extends TelegramWebPage {
   }
 
   /**
+   * Send a message and wait for a NEW bot response containing expected text.
+   * Unlike waitForBotResponse, this ignores historical messages by counting
+   * existing matches before sending and waiting for one more to appear.
+   */
+  async sendAndExpect(message: string, expectedText: string, timeout = 10000): Promise<string> {
+    // Count existing messages matching the expected text
+    const beforeCount = await this.countMessagesContaining(expectedText)
+
+    // Send the message
+    await this.sendMessage(message)
+
+    // Wait for a NEW message matching the expected text (count increases)
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      const messages = await this.getAllMessages().all()
+      let matchCount = 0
+      let lastMatch = ''
+
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const text = await messages[i].innerText()
+        if (text && text.includes(expectedText)) {
+          matchCount++
+          if (!lastMatch) lastMatch = text
+        }
+      }
+
+      if (matchCount > beforeCount) {
+        return lastMatch
+      }
+
+      await this.page.waitForTimeout(200)
+    }
+
+    throw new Error(
+      `Timeout waiting for new message containing "${expectedText}" after ${timeout}ms`
+    )
+  }
+
+  /**
+   * Wait for a NEW bot response after an action (e.g., clicking inline button).
+   * Counts existing matches and waits for one more to appear.
+   */
+  async expectNewResponse(expectedText: string, timeout = 10000): Promise<string> {
+    // Count existing messages matching the expected text
+    const beforeCount = await this.countMessagesContaining(expectedText)
+
+    // Wait for a NEW message matching the expected text
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      const messages = await this.getAllMessages().all()
+      let matchCount = 0
+      let lastMatch = ''
+
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const text = await messages[i].innerText()
+        if (text && text.includes(expectedText)) {
+          matchCount++
+          if (!lastMatch) lastMatch = text
+        }
+      }
+
+      if (matchCount > beforeCount) {
+        return lastMatch
+      }
+
+      await this.page.waitForTimeout(200)
+    }
+
+    throw new Error(
+      `Timeout waiting for new message containing "${expectedText}" after ${timeout}ms`
+    )
+  }
+
+  private async countMessagesContaining(text: string): Promise<number> {
+    const messages = await this.getAllMessages().all()
+    let count = 0
+    for (const msg of messages) {
+      const content = await msg.innerText()
+      if (content && content.includes(text)) count++
+    }
+    return count
+  }
+
+  /**
    * Clear the message input
    */
   async clearMessageInput(): Promise<void> {

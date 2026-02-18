@@ -98,19 +98,38 @@ export class ScaffoldBusiness {
     data: { day: string; time: string; courts: number },
     source: SourceContext
   ): Promise<void> {
-    // Stub: will be fully wired with reply routing in Phase 2-4 migration
     const dayOfWeek = parseDayOfWeek(data.day)
     if (!dayOfWeek) throw new Error(`Invalid day: ${data.day}`)
 
-    const scaffold = await this.scaffoldRepository.createScaffold(
-      dayOfWeek,
-      data.time,
-      data.courts,
-      undefined,
-      undefined
-    )
+    try {
+      const scaffold = await this.scaffoldRepository.createScaffold(
+        dayOfWeek,
+        data.time,
+        data.courts,
+        undefined,
+        String(source.user.id)
+      )
 
-    await this.logger.log(`Created scaffold ${scaffold.id} via ${source.type}`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} court(s)`
+      )
+
+      await this.logger.log(
+        `User ${source.user.id} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
+      )
+      void this.transport.logEvent({
+        type: 'scaffold_created',
+        scaffoldId: scaffold.id,
+        day: dayOfWeek,
+        time: data.time,
+        courts: data.courts,
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(`Error creating scaffold: ${errorMessage}`)
+    }
   }
 
   private async handleList(data: CommandTypes['scaffold:list']): Promise<void> {

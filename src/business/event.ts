@@ -180,7 +180,7 @@ export class EventBusiness {
 
     // Register commands
     this.transport.onCommand('event:list', (data) => this.handleList(data))
-    this.transport.onCommand('event:create', (data) => this.handleCreate(data))
+    // event:create now handled via CommandRegistry (wizard-enabled)
     this.transport.onCommand('event:add', (data) => this.handleAdd(data))
     this.transport.onCommand('event:announce', (data) => this.handleAnnounce(data))
     this.transport.onCommand('event:add-by-scaffold', (data) => this.handleAddByScaffold(data))
@@ -194,12 +194,9 @@ export class EventBusiness {
       await this.handleJoinFromDef(data as { eventId: string }, source)
     })
 
-    this.commandRegistry.register('event:create-wizard', eventCreateDef, async (data, source) => {
+    this.commandRegistry.register('event:create', eventCreateDef, async (data, source) => {
       await this.handleCreateFromDef(data as { day: string; time: string; courts: number }, source)
     })
-
-    // Suppress unused warning — refreshAnnouncement will be wired in Phase 4
-    void this.refreshAnnouncement
   }
 
   // === Callback Handlers ===
@@ -621,18 +618,93 @@ export class EventBusiness {
   // === CommandDef Handlers (Phase 1 stubs) ===
 
   private async handleJoinFromDef(data: { eventId: string }, source: SourceContext): Promise<void> {
-    // Stub: will be fully wired in Phase 4 migration
-    await this.logger.log(`event:join called via ${source.type} for ${data.eventId}`)
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+
+    // Build display name from SourceContext
+    const firstName = source.user.firstName || ''
+    const lastName = source.user.lastName || ''
+    const displayName =
+      `${firstName} ${lastName}`.trim() || source.user.username || `User ${source.user.id}`
+
+    // Find or create participant
+    const participant = await this.participantRepository.findOrCreateParticipant(
+      String(source.user.id),
+      source.user.username,
+      displayName
+    )
+
+    // Add to event
+    await this.participantRepository.addToEvent(event.id, participant.id)
+
+    // Update announcement if it exists
+    await this.refreshAnnouncement(event.id)
+
+    // Reply
+    if (source.type === 'callback') {
+      await this.transport.answerCallback(source.callbackId)
+    } else {
+      await this.transport.sendMessage(source.chat.id, `✅ Joined event ${event.id}`)
+    }
+
+    await this.logger.log(`User ${source.user.id} joined event ${event.id}`)
+    void this.transport.logEvent({
+      type: 'participant_joined',
+      eventId: event.id,
+      userName: displayName,
+    })
   }
 
   private async handleCreateFromDef(
     data: { day: string; time: string; courts: number },
     source: SourceContext
   ): Promise<void> {
-    // Stub: will be fully wired in Phase 4 migration
-    await this.logger.log(
-      `event:create called via ${source.type}: ${data.day} ${data.time} ${data.courts}`
-    )
+    // Validate time format (HH:mm)
+    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(data.time)) {
+      await this.transport.sendMessage(
+        source.chat.id,
+        '❌ Invalid time format. Use HH:mm (e.g., 19:00)'
+      )
+      return
+    }
+
+    // Parse date
+    let eventDate: Date
+    try {
+      eventDate = parseDate(data.day)
+    } catch {
+      await this.transport.sendMessage(
+        source.chat.id,
+        '❌ Invalid date format. Use: YYYY-MM-DD, day name (sat, tue), today, tomorrow, or next <day>'
+      )
+      return
+    }
+
+    // Apply time to date
+    const [hours, minutes] = data.time.split(':').map(Number)
+    eventDate = dayjs.tz(eventDate, config.timezone).hour(hours).minute(minutes).second(0).toDate()
+
+    // Create event
+    const event = await this.eventRepository.createEvent({
+      datetime: eventDate,
+      courts: data.courts,
+      status: 'created',
+      ownerId: String(source.user.id),
+    })
+
+    // Format success message
+    const dateFormatted = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    const message = `✅ Created event ${event.id} (${dateFormatted}, ${data.courts} courts). To announce: /event announce ${event.id}`
+    await this.transport.sendMessage(source.chat.id, message)
+    void this.transport.logEvent({
+      type: 'event_created',
+      eventId: event.id,
+      date: dateFormatted,
+      courts: data.courts,
+    })
   }
 
   // === Admin Command Handlers ===
@@ -817,10 +889,6 @@ export class EventBusiness {
     )
 
     await this.transport.sendMessage(data.chatId, `📋 Event list\n\n${list.join('\n')}`)
-  }
-
-  private async handleCreate(data: CommandTypes['event:create']): Promise<void> {
-    await this.handleAddEvent(data.chatId, data.day, data.time, data.courts, data.userId)
   }
 
   private async handleAdd(data: CommandTypes['event:add']): Promise<void> {

@@ -7,7 +7,7 @@ import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
-describe('event-add-by-scaffold', () => {
+describe('event-create-by-scaffold', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer

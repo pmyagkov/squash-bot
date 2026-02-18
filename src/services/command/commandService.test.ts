@@ -6,6 +6,7 @@ import { WizardCancelledError } from '~/services/wizard/types'
 function mockCtx(overrides: Record<string, unknown> = {}) {
   return {
     from: { id: 123 },
+    chat: { id: 456 },
     callbackQuery: undefined,
     ...overrides,
   } as never
@@ -46,7 +47,14 @@ describe('CommandService', () => {
 
     await service.run({ registered: registered as RegisteredCommand, args: ['ev_1'], ctx })
 
-    expect(handler).toHaveBeenCalledWith({ eventId: 'ev_1' }, { type: 'command' })
+    expect(handler).toHaveBeenCalledWith(
+      { eventId: 'ev_1' },
+      {
+        type: 'command',
+        chat: { id: 456 },
+        user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
+      }
+    )
     expect(wizard.collect).not.toHaveBeenCalled()
   })
 
@@ -64,7 +72,14 @@ describe('CommandService', () => {
     await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
 
     expect(wizard.collect).toHaveBeenCalled()
-    expect(handler).toHaveBeenCalledWith({ eventId: 'ev_1' }, { type: 'command' })
+    expect(handler).toHaveBeenCalledWith(
+      { eventId: 'ev_1' },
+      {
+        type: 'command',
+        chat: { id: 456 },
+        user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
+      }
+    )
   })
 
   it('hydrates step createLoader before passing to wizard', async () => {
@@ -109,7 +124,62 @@ describe('CommandService', () => {
 
     expect(handler).toHaveBeenCalledWith(
       { eventId: 'ev_1' },
-      { type: 'callback', callbackId: 'cb_123' }
+      {
+        type: 'callback',
+        callbackId: 'cb_123',
+        chat: { id: 456 },
+        user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
+      }
+    )
+  })
+
+  it('populates user display fields in SourceContext', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined)
+    const registered: RegisteredCommand<{ x: number }> = {
+      parser: () => ({ parsed: { x: 1 }, missing: [] }),
+      steps: [],
+      handler,
+    }
+    const ctx = mockCtx({
+      from: { id: 42, username: 'johndoe', first_name: 'John', last_name: 'Doe' },
+      chat: { id: 100 },
+    })
+
+    await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
+
+    expect(handler).toHaveBeenCalledWith(
+      { x: 1 },
+      {
+        type: 'command',
+        chat: { id: 100 },
+        user: { id: 42, username: 'johndoe', firstName: 'John', lastName: 'Doe' },
+      }
+    )
+  })
+
+  it('populates user display fields in callback SourceContext', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined)
+    const registered: RegisteredCommand<{ x: number }> = {
+      parser: () => ({ parsed: { x: 1 }, missing: [] }),
+      steps: [],
+      handler,
+    }
+    const ctx = mockCtx({
+      from: { id: 42, username: 'janedoe', first_name: 'Jane' },
+      chat: { id: 100 },
+      callbackQuery: { id: 'cb_1' },
+    })
+
+    await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
+
+    expect(handler).toHaveBeenCalledWith(
+      { x: 1 },
+      {
+        type: 'callback',
+        callbackId: 'cb_1',
+        chat: { id: 100 },
+        user: { id: 42, username: 'janedoe', firstName: 'Jane', lastName: undefined },
+      }
     )
   })
 

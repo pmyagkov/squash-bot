@@ -8,7 +8,7 @@ import type { EventRepo } from '~/storage/repo/event'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { EventBusiness } from '~/business/event'
 
-describe('event-add-by-scaffold-api', () => {
+describe('event-create-by-scaffold-api', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer

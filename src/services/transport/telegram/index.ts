@@ -7,6 +7,8 @@ import type { LogEvent } from '~/types/logEvent'
 import { formatLogEvent } from '~/services/formatters/logEvent'
 import type { config as configType } from '~/config'
 import type { WizardService } from '~/services/wizard/wizardService'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { CommandService } from '~/services/command/commandService'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -24,8 +26,24 @@ export class TelegramTransport {
     private bot: Bot,
     private logger: Logger,
     private config: typeof configType,
-    private wizardService: WizardService
-  ) {}
+    private wizardService: WizardService,
+    private commandRegistry: CommandRegistry,
+    private commandService: CommandService
+  ) {
+    // Intercept plain text for wizard input (registered before bot.command handlers)
+    this.bot.on('message:text', async (ctx, next) => {
+      if (ctx.message.text.startsWith('/')) {
+        await next()
+        return
+      }
+      const userId = ctx.from?.id
+      if (userId && this.wizardService.isActive(userId)) {
+        this.wizardService.handleInput(ctx, ctx.message.text)
+        return
+      }
+      await next()
+    })
+  }
 
   // === Handler Registration ===
 
@@ -186,7 +204,23 @@ export class TelegramTransport {
     const args = ctx.message?.text?.split(/\s+/).slice(1) ?? []
     const subcommand = args[0]
 
-    // Try subcommand first: 'event:add'
+    // Try CommandRegistry first (wizard-enabled commands take priority)
+    const registryKey = subcommand ? `${baseCommand}:${subcommand}` : baseCommand
+    const registered = this.commandRegistry.get(registryKey)
+    if (registered) {
+      // Fire-and-forget: don't await to avoid deadlock with Grammy's sequential update processing.
+      // Wizard steps block on collect() waiting for callbacks, but Grammy won't deliver
+      // those callbacks until the current update handler returns.
+      this.commandService.run({ registered, args: args.slice(1), ctx }).catch(async (error) => {
+        await this.logger.error(
+          `Command error: ${error instanceof Error ? error.message : String(error)}`
+        )
+        await ctx.reply('An error occurred')
+      })
+      return
+    }
+
+    // Fall back to old command parsers
     const fullCommand = `${baseCommand}:${subcommand}` as CommandName
     let commandKey: CommandName
     let commandArgs: string[]

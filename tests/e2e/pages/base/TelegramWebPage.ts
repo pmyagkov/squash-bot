@@ -50,9 +50,20 @@ export class TelegramWebPage {
    */
   async navigateToChat(chatId: string): Promise<void> {
     await this.page.goto(getTelegramWebUrl(chatId), { waitUntil: 'domcontentloaded' })
-    // Web K needs a reload for hash-based navigation to take effect
     await this.page.waitForSelector(this.selectors.chatItem, { timeout: 15000 })
+
+    // Try hash-based navigation first (reload for Web K)
     await this.page.evaluate(() => window.location.reload())
+    try {
+      await this.page.waitForSelector(this.selectors.messageComposer, { timeout: 5000 })
+      return
+    } catch {
+      // Hash navigation failed — fall back to clicking the first chat in the list
+    }
+
+    // Fallback: click the first chat in the list (most recent messages)
+    const firstChat = this.page.locator(this.selectors.chatItem).first()
+    await firstChat.click()
     await this.waitForLoad()
   }
 

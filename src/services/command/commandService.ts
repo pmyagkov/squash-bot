@@ -34,9 +34,16 @@ export class CommandService {
       }
 
       // 3. Build source context
+      const chat = { id: ctx.chat?.id ?? 0 }
+      const user = {
+        id: ctx.from?.id ?? 0,
+        username: ctx.from?.username,
+        firstName: ctx.from?.first_name,
+        lastName: ctx.from?.last_name,
+      }
       const source: SourceContext = ctx.callbackQuery
-        ? { type: 'callback', callbackId: ctx.callbackQuery.id }
-        : { type: 'command' }
+        ? { type: 'callback', callbackId: ctx.callbackQuery.id, chat, user }
+        : { type: 'command', chat, user }
 
       // 4. Call handler
       await registered.handler(result.parsed, source)

@@ -6,7 +6,7 @@ import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
-describe('scaffold-remove', () => {
+describe('scaffold-delete', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer
