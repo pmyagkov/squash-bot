@@ -221,6 +221,18 @@ export class EventBusiness {
     this.commandRegistry.register('event:undo-finalize', eventActionDef, async (data, source) => {
       await this.handleUnfinalizeFromDef(data as { eventId: string }, source)
     })
+
+    this.commandRegistry.register('payment:mark-paid', eventActionDef, async (data, source) => {
+      await this.handlePaymentMarkFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register(
+      'payment:undo-mark-paid',
+      eventActionDef,
+      async (data, source) => {
+        await this.handlePaymentCancelFromDef(data as { eventId: string }, source)
+      }
+    )
   }
 
   // === Callback Handlers ===
@@ -957,6 +969,188 @@ export class EventBusiness {
       await this.logger.log(`User ${source.user.id} unfinalized event ${event.id}`)
     } finally {
       this.eventLock.release(event.id)
+    }
+  }
+
+  private async handlePaymentMarkFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    if (!this.eventLock.acquire(data.eventId)) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, '⏳ In progress')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '⏳ Operation already in progress')
+      }
+      return
+    }
+
+    try {
+      const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+      if (!participant) {
+        if (source.type === 'callback') {
+          await this.transport.answerCallback(source.callbackId, 'Participant not found')
+        } else {
+          await this.transport.sendMessage(source.chat.id, '❌ Participant not found')
+        }
+        return
+      }
+
+      const payment = await this.paymentRepository.findByEventAndParticipant(
+        data.eventId,
+        participant.id
+      )
+      if (!payment) {
+        if (source.type === 'callback') {
+          await this.transport.answerCallback(source.callbackId, 'Payment not found')
+        } else {
+          await this.transport.sendMessage(source.chat.id, '❌ Payment not found')
+        }
+        return
+      }
+
+      const updatedPayment = await this.paymentRepository.markAsPaid(payment.id!)
+
+      // Update personal DM message if exists
+      if (payment.personalMessageId) {
+        const event = await this.eventRepository.findById(data.eventId)
+        if (event) {
+          const courtPrice = await this.settingsRepository.getCourtPrice()
+          const participants = await this.participantRepository.getEventParticipants(data.eventId)
+          const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+          const chatId = await this.settingsRepository.getMainChatId()
+
+          const baseText = formatPersonalPaymentText(
+            event,
+            payment.amount,
+            event.courts,
+            courtPrice,
+            totalParticipations,
+            chatId!,
+            event.telegramMessageId!
+          )
+          const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
+          const undoKeyboard = new InlineKeyboard().text(
+            '↩️ Undo',
+            `payment:undo-mark-paid:${data.eventId}`
+          )
+
+          try {
+            await this.transport.editMessage(
+              source.user.id,
+              parseInt(payment.personalMessageId, 10),
+              paidText,
+              undoKeyboard
+            )
+          } catch {
+            // Best effort
+          }
+        }
+      }
+
+      await this.updateAnnouncementWithPayments(data.eventId)
+
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId)
+      } else {
+        await this.transport.sendMessage(source.chat.id, `✅ Payment marked as paid`)
+      }
+
+      void this.transport.logEvent({
+        type: 'payment_received',
+        eventId: data.eventId,
+        userName: participant.telegramUsername ?? participant.displayName,
+        amount: payment.amount,
+      })
+    } finally {
+      this.eventLock.release(data.eventId)
+    }
+  }
+
+  private async handlePaymentCancelFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    if (!this.eventLock.acquire(data.eventId)) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, '⏳ Operation already in progress')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '⏳ Operation already in progress')
+      }
+      return
+    }
+
+    try {
+      const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+      if (!participant) {
+        if (source.type === 'callback') {
+          await this.transport.answerCallback(source.callbackId, 'Participant not found')
+        } else {
+          await this.transport.sendMessage(source.chat.id, '❌ Participant not found')
+        }
+        return
+      }
+
+      const payment = await this.paymentRepository.findByEventAndParticipant(
+        data.eventId,
+        participant.id
+      )
+      if (!payment) {
+        if (source.type === 'callback') {
+          await this.transport.answerCallback(source.callbackId, 'Payment not found')
+        } else {
+          await this.transport.sendMessage(source.chat.id, '❌ Payment not found')
+        }
+        return
+      }
+
+      await this.paymentRepository.markAsUnpaid(payment.id!)
+
+      // Revert personal DM to unpaid state
+      if (payment.personalMessageId) {
+        const event = await this.eventRepository.findById(data.eventId)
+        if (event) {
+          const courtPrice = await this.settingsRepository.getCourtPrice()
+          const participants = await this.participantRepository.getEventParticipants(data.eventId)
+          const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+          const chatId = await this.settingsRepository.getMainChatId()
+
+          const baseText = formatPersonalPaymentText(
+            event,
+            payment.amount,
+            event.courts,
+            courtPrice,
+            totalParticipations,
+            chatId!,
+            event.telegramMessageId!
+          )
+          const paidKeyboard = new InlineKeyboard().text(
+            '✅ I paid',
+            `payment:mark-paid:${data.eventId}`
+          )
+
+          try {
+            await this.transport.editMessage(
+              source.user.id,
+              parseInt(payment.personalMessageId, 10),
+              baseText,
+              paidKeyboard
+            )
+          } catch {
+            // Best effort
+          }
+        }
+      }
+
+      await this.updateAnnouncementWithPayments(data.eventId)
+
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId)
+      } else {
+        await this.transport.sendMessage(source.chat.id, `✅ Payment marked as unpaid`)
+      }
+    } finally {
+      this.eventLock.release(data.eventId)
     }
   }
 
