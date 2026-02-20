@@ -365,7 +365,7 @@ describe('event-participants', () => {
       )
       await tick()
 
-      // Verify event select prompt
+      // Verify event select prompt (label shows date, not ID)
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
         expect.stringContaining('Choose an event'),
@@ -374,7 +374,6 @@ describe('event-participants', () => {
             inline_keyboard: expect.arrayContaining([
               expect.arrayContaining([
                 expect.objectContaining({
-                  text: expect.stringContaining(event.id),
                   callback_data: `wizard:select:${event.id}`,
                 }),
               ]),

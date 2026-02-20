@@ -111,17 +111,14 @@ describe('WizardService', () => {
 
     expect(service.isActive(123)).toBe(true)
 
-    const cancelCtx = mockCtx(123)
-    service.cancel(123, cancelCtx)
+    service.cancel(123)
 
     await expect(promise).rejects.toThrow(WizardCancelledError)
     expect(service.isActive(123)).toBe(false)
-    expect(cancelCtx.reply).toHaveBeenCalledWith('Cancelled.')
   })
 
   it('does nothing when cancelling non-existent wizard', () => {
-    const ctx = mockCtx(123)
-    expect(() => service.cancel(999, ctx)).not.toThrow()
+    expect(() => service.cancel(999)).not.toThrow()
   })
 
   it('handleInput does nothing for user without active wizard', () => {

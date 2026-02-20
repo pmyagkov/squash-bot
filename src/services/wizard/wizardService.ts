@@ -78,12 +78,11 @@ export class WizardService {
     }
   }
 
-  cancel(userId: number, ctx: Context): void {
+  cancel(userId: number): void {
     const entry = this.pending.get(userId)
     if (!entry) return
 
     this.cleanup(userId)
-    ctx.reply('Cancelled.')
     entry.reject(new WizardCancelledError())
   }
 

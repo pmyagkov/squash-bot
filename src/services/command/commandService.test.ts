@@ -203,7 +203,7 @@ describe('CommandService', () => {
     )
   })
 
-  it('catches WizardCancelledError silently', async () => {
+  it('catches WizardCancelledError and replies Cancelled.', async () => {
     const handler = vi.fn()
     const step = { param: 'eventId', type: 'text' as const, prompt: 'Choose:' }
     const registered: RegisteredCommand<{ eventId: string }> = {
@@ -212,11 +212,13 @@ describe('CommandService', () => {
       handler,
     }
     wizard.collect.mockRejectedValue(new WizardCancelledError())
-    const ctx = mockCtx()
+    const reply = vi.fn()
+    const ctx = mockCtx({ reply })
 
     // Should NOT throw
     await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
 
     expect(handler).not.toHaveBeenCalled()
+    expect(reply).toHaveBeenCalledWith('Cancelled.')
   })
 })

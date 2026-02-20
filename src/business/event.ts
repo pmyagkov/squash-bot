@@ -1254,7 +1254,7 @@ export class EventBusiness {
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)} (${dateFormatted}, ${formatCourts(data.courts)}). To announce: /event announce ${code(event.id)}`
+    const message = `✅ Created event ${code(event.id)}: ${dateFormatted}, ${formatCourts(data.courts)}\nTo announce: /event announce ${code(event.id)}`
     await this.transport.sendMessage(source.chat.id, message)
     void this.transport.logEvent({
       type: 'event_created',
@@ -1526,7 +1526,7 @@ export class EventBusiness {
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)} from ${code(scaffold.id)} (${dateFormatted}, ${formatCourts(scaffold.defaultCourts)}). To announce: /event announce ${code(event.id)}`
+    const message = `✅ Created event ${code(event.id)} from ${code(scaffold.id)}: ${dateFormatted}, ${formatCourts(scaffold.defaultCourts)}\nTo announce: /event announce ${code(event.id)}`
     await this.transport.sendMessage(source.chat.id, message)
     void this.transport.logEvent({
       type: 'event_created',
@@ -2018,7 +2018,7 @@ export class EventBusiness {
             .toDate()
           await this.eventRepository.updateEvent(entityId, { datetime: combined })
         } catch (e) {
-          if (e instanceof WizardCancelledError) return
+          if (e instanceof WizardCancelledError) break
           throw e
         }
         break
@@ -2031,7 +2031,7 @@ export class EventBusiness {
           const combined = dayjs(event.datetime).hour(h).minute(m).toDate()
           await this.eventRepository.updateEvent(entityId, { datetime: combined })
         } catch (e) {
-          if (e instanceof WizardCancelledError) return
+          if (e instanceof WizardCancelledError) break
           throw e
         }
         break

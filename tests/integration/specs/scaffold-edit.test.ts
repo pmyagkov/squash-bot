@@ -131,6 +131,92 @@ describe('scaffold-edit (edit menu actions)', () => {
     expect(updated!.isActive).toBe(false)
   })
 
+  it('cancel in day sub-picker re-renders edit menu', async () => {
+    const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2)
+
+    // Click day → opens day picker
+    const editDone = bot.handleUpdate(
+      createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId: 1,
+        data: `edit:scaffold:day:${scaffold.id}`,
+      })
+    )
+    await tick()
+
+    // Verify day picker was shown
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      expect.stringContaining('Choose a day'),
+      expect.anything()
+    )
+
+    // Click cancel in day picker
+    await bot.handleUpdate(
+      createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId: 2,
+        data: 'wizard:cancel',
+      })
+    )
+    await editDone
+
+    // Wizard message should be deleted (edit menu stays visible)
+    expect(api.deleteMessage).toHaveBeenCalledWith(TEST_CHAT_ID, 2)
+    // No "Cancelled." message sent
+    expect(api.sendMessage).not.toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      'Cancelled.',
+      expect.anything()
+    )
+
+    // DB should be unchanged
+    const updated = await scaffoldRepository.findById(scaffold.id)
+    expect(updated!.dayOfWeek).toBe('Tue')
+  })
+
+  it('cancel in time sub-picker deletes wizard message', async () => {
+    const scaffold = await scaffoldRepository.createScaffold('Wed', '19:00', 3)
+
+    // Click time → opens time input
+    const editDone = bot.handleUpdate(
+      createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId: 1,
+        data: `edit:scaffold:time:${scaffold.id}`,
+      })
+    )
+    await tick()
+
+    // Verify time prompt was shown
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      expect.stringContaining('Enter time'),
+      expect.anything()
+    )
+
+    // Click cancel
+    await bot.handleUpdate(
+      createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId: 2,
+        data: 'wizard:cancel',
+      })
+    )
+    await editDone
+
+    // Wizard message should be deleted
+    expect(api.deleteMessage).toHaveBeenCalledWith(TEST_CHAT_ID, 2)
+
+    // DB should be unchanged
+    const updated = await scaffoldRepository.findById(scaffold.id)
+    expect(updated!.time).toBe('19:00')
+  })
+
   it('done removes keyboard (no reply_markup)', async () => {
     const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2)
 

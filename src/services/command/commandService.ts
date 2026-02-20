@@ -56,7 +56,10 @@ export class CommandService {
       // 5. Call handler
       await registered.handler(result.parsed, source)
     } catch (error) {
-      if (error instanceof WizardCancelledError) return
+      if (error instanceof WizardCancelledError) {
+        await ctx.reply('Cancelled.')
+        return
+      }
       throw error
     }
   }

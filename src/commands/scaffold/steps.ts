@@ -12,11 +12,19 @@ export const scaffoldSelectStep: WizardStep<string> = {
   emptyMessage: 'No scaffolds found.',
   createLoader: (container) => async () => {
     const repo = container.resolve('scaffoldRepository')
+    const participantRepo = container.resolve('participantRepository')
     const scaffolds = await repo.getScaffolds()
-    return scaffolds.map((s) => ({
-      value: s.id,
-      label: `${s.id} — ${s.dayOfWeek} ${s.time}`,
-    }))
+    return Promise.all(
+      scaffolds.map(async (s) => {
+        const date = `${s.dayOfWeek} ${s.time}`
+        let label = date
+        if (s.ownerId) {
+          const owner = await participantRepo.findByTelegramId(s.ownerId)
+          if (owner?.telegramUsername) label = `@${owner.telegramUsername} — ${date}`
+        }
+        return { value: s.id, label }
+      })
+    )
   },
 }
 

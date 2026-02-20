@@ -207,7 +207,7 @@ export class ScaffoldBusiness {
           const newDay = await this.wizardService.collect(hydratedDay, ctx)
           await this.scaffoldRepository.updateFields(entityId, { dayOfWeek: newDay })
         } catch (e) {
-          if (e instanceof WizardCancelledError) return
+          if (e instanceof WizardCancelledError) break
           throw e
         }
         break
@@ -218,7 +218,7 @@ export class ScaffoldBusiness {
           const newTime = await this.wizardService.collect(hydratedTime, ctx)
           await this.scaffoldRepository.updateFields(entityId, { time: newTime })
         } catch (e) {
-          if (e instanceof WizardCancelledError) return
+          if (e instanceof WizardCancelledError) break
           throw e
         }
         break

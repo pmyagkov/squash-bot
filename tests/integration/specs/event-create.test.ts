@@ -141,10 +141,10 @@ describe('event-create', () => {
           expect(call![1]).toContain('🏟 Courts: 2')
           expect(call![1]).toContain(`To announce: /event announce <code>${event.id}</code>`)
           // Check message format: should match pattern
-          // Format: "✅ Created event ev_xxx (Day, DD Mon, HH:mm, 🏟 Courts: N). To announce: /event announce ev_xxx"
+          // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: /event announce ev_xxx"
           // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
           expect(call![1]).toMatch(
-            /^✅ Created event <code>ev_[\w-]+<\/code> \([A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\)\. To announce: \/event announce <code>ev_[\w-]+<\/code>$/
+            /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: \/event announce <code>ev_[\w-]+<\/code>$/
           )
         })
 
@@ -503,10 +503,10 @@ describe('event-create', () => {
         expect(successCall![1]).toContain(`To announce: /event announce <code>${createdEvent.id}</code>`)
 
         // Check full message format matches expected pattern
-        // Format: "✅ Created event ev_xxx (Day, DD Mon, HH:mm, 🏟 Courts: N). To announce: /event announce ev_xxx"
+        // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: /event announce ev_xxx"
         // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
         expect(successCall![1]).toMatch(
-          /^✅ Created event <code>ev_[\w-]+<\/code> \([A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\)\. To announce: \/event announce <code>ev_[\w-]+<\/code>$/
+          /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: \/event announce <code>ev_[\w-]+<\/code>$/
         )
       })
     })

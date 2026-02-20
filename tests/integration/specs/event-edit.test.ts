@@ -176,6 +176,100 @@ describe('event-edit (edit menu)', () => {
       expect(updated!.courts).toBe(1)
     })
 
+    it('cancel in date sub-picker re-renders edit menu', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2026-03-01T19:00:00Z'),
+        courts: 2,
+        ownerId: String(ADMIN_ID),
+      })
+
+      // Click date → opens date picker
+      const editDone = bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: `edit:event:date:${event.id}`,
+        })
+      )
+      await tick()
+
+      // Verify date picker was shown
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Choose a date'),
+        expect.anything()
+      )
+
+      // Click cancel in date picker
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 2,
+          data: 'wizard:cancel',
+        })
+      )
+      await editDone
+
+      // Wizard message should be deleted (edit menu stays visible)
+      expect(api.deleteMessage).toHaveBeenCalledWith(TEST_CHAT_ID, 2)
+      // No "Cancelled." message sent
+      expect(api.sendMessage).not.toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        'Cancelled.',
+        expect.anything()
+      )
+
+      // DB should be unchanged
+      const updated = await eventRepository.findById(event.id)
+      expect(updated!.datetime.toISOString()).toBe('2026-03-01T19:00:00.000Z')
+    })
+
+    it('cancel in time sub-picker deletes wizard message', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2026-03-01T19:00:00Z'),
+        courts: 2,
+        ownerId: String(ADMIN_ID),
+      })
+
+      // Click time → opens time input
+      const editDone = bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: `edit:event:time:${event.id}`,
+        })
+      )
+      await tick()
+
+      // Verify time prompt was shown
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Enter time'),
+        expect.anything()
+      )
+
+      // Click cancel
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 2,
+          data: 'wizard:cancel',
+        })
+      )
+      await editDone
+
+      // Wizard message should be deleted
+      expect(api.deleteMessage).toHaveBeenCalledWith(TEST_CHAT_ID, 2)
+
+      // DB should be unchanged
+      const updated = await eventRepository.findById(event.id)
+      expect(updated!.datetime.toISOString()).toBe('2026-03-01T19:00:00.000Z')
+    })
+
     it('done removes keyboard', async () => {
       const event = await eventRepository.createEvent({
         datetime: new Date('2026-03-01T19:00:00Z'),

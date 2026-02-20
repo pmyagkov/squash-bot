@@ -77,13 +77,20 @@ export const eventSelectStep: WizardStep<string> = {
   createLoader: (container) => async () => {
     const tz = container.resolve('config').timezone
     const repo = container.resolve('eventRepository')
+    const participantRepo = container.resolve('participantRepository')
     const events = await repo.getEvents()
-    return events
-      .filter((e) => e.status === 'announced')
-      .map((e) => ({
-        value: e.id,
-        label: `${e.id} — ${dayjs(e.datetime).tz(tz).format('ddd D MMM HH:mm')}`,
-      }))
+    const announced = events.filter((e) => e.status === 'announced')
+    return Promise.all(
+      announced.map(async (e) => {
+        const date = dayjs(e.datetime).tz(tz).format('ddd, D MMM, HH:mm')
+        let label = date
+        if (e.ownerId) {
+          const owner = await participantRepo.findByTelegramId(e.ownerId)
+          if (owner?.telegramUsername) label = `@${owner.telegramUsername} — ${date}`
+        }
+        return { value: e.id, label }
+      })
+    )
   },
 }
 
@@ -105,12 +112,19 @@ export const scaffoldSelectStep: WizardStep<string> = {
   emptyMessage: 'No active scaffolds found.',
   createLoader: (container) => async () => {
     const repo = container.resolve('scaffoldRepository')
+    const participantRepo = container.resolve('participantRepository')
     const scaffolds = await repo.getScaffolds()
-    return scaffolds
-      .filter((s) => s.isActive)
-      .map((s) => ({
-        value: s.id,
-        label: `${s.id} — ${s.dayOfWeek} ${s.time}`,
-      }))
+    const active = scaffolds.filter((s) => s.isActive)
+    return Promise.all(
+      active.map(async (s) => {
+        const date = `${s.dayOfWeek} ${s.time}`
+        let label = date
+        if (s.ownerId) {
+          const owner = await participantRepo.findByTelegramId(s.ownerId)
+          if (owner?.telegramUsername) label = `@${owner.telegramUsername} — ${date}`
+        }
+        return { value: s.id, label }
+      })
+    )
   },
 }

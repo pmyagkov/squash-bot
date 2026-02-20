@@ -90,7 +90,13 @@ export class TelegramTransport {
     text: string,
     keyboard?: InlineKeyboardMarkup
   ): Promise<void> {
-    await this.bot.api.editMessageText(chatId, messageId, text, { reply_markup: keyboard })
+    try {
+      await this.bot.api.editMessageText(chatId, messageId, text, { reply_markup: keyboard })
+    } catch (e) {
+      // Telegram returns this when content hasn't changed — safe to ignore
+      if (e instanceof Error && e.message.includes('message is not modified')) return
+      throw e
+    }
   }
 
   async sendMessage(
@@ -135,7 +141,8 @@ export class TelegramTransport {
     // Wizard routing: handle wizard-specific callbacks
     if (rawAction === 'wizard:cancel') {
       const userId = ctx.from?.id
-      if (userId) this.wizardService.cancel(userId, ctx)
+      if (userId) this.wizardService.cancel(userId)
+      await ctx.deleteMessage().catch(() => {})
       await ctx.answerCallbackQuery()
       return
     }
@@ -212,7 +219,7 @@ export class TelegramTransport {
     if (userId && this.wizardService.isActive(userId)) {
       const text = ctx.message?.text ?? ''
       if (text === '/cancel') {
-        this.wizardService.cancel(userId, ctx)
+        this.wizardService.cancel(userId)
         return
       }
       this.wizardService.handleInput(ctx, text)
