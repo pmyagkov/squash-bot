@@ -136,8 +136,8 @@ describe('ScaffoldBusiness', () => {
       const message = transport.sendMessage.mock.calls[0][1]
       expect(message).toContain('sc_001')
       expect(message).toContain('sc_002')
-      expect(message).toContain('active')
-      expect(message).toContain('inactive')
+      expect(message).toContain('Active')
+      expect(message).toContain('Paused')
     })
 
     test('empty → sends "no scaffolds" message', async ({ container }) => {
@@ -200,7 +200,7 @@ describe('ScaffoldBusiness', () => {
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('Editing scaffold sc_edit'),
+        expect.stringContaining('Scaffold <code>sc_edit</code>'),
         expect.anything()
       )
     })
@@ -246,7 +246,7 @@ describe('ScaffoldBusiness', () => {
       expect(scaffoldRepo.remove).toHaveBeenCalledWith('sc_remove')
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('removed')
+        expect.stringContaining('deleted')
       )
     })
 

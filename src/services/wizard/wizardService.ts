@@ -34,6 +34,18 @@ export class WizardService {
     // Send prompt asynchronously (fire-and-forget within collect)
     const sendPrompt = async () => {
       const options = step.load ? await step.load() : undefined
+
+      // Auto-cancel when a select step has no options
+      if (step.type === 'select' && (!options || options.length === 0)) {
+        const entry = this.pending.get(userId)
+        if (entry) {
+          await ctx.reply(step.emptyMessage ?? 'No options available.')
+          this.cleanup(userId)
+          entry.reject(new WizardCancelledError())
+        }
+        return
+      }
+
       const rendered = renderStep(step, options)
       await ctx.reply(rendered.text, { reply_markup: rendered.keyboard })
     }

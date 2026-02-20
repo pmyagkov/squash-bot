@@ -64,9 +64,11 @@ Interactive edit menu for scaffolds. Replaces the old toggle command.
 
 **Edit menu message:**
 ```
-Editing scaffold sc_1
+✏️ Scaffold sc_1
 
-Day: Tue | Time: 21:00 | Courts: 2 | Active
+📅 Tue at 21:00
+🏟 Courts: 2
+🟢 Active
 ```
 
 **Inline buttons:**
@@ -298,9 +300,11 @@ Interactive edit menu for events.
 
 **Edit menu message:**
 ```
-Editing event ev_1
+✏️ Event ev_1
 
-Date: Tue 01 Mar | Time: 19:00 | Courts: 2 | Status: created
+📅 Tue 01 Mar at 19:00
+🏟 Courts: 2
+📝 Created
 ```
 
 **Inline buttons:**

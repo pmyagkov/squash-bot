@@ -149,8 +149,8 @@ test.describe('Event Lifecycle Flow', () => {
 
     // Step 3: Enter time → courts prompt
     console.log('Step 3: Entering time...')
-    const courtsPrompt = await eventCommands.sendAndExpect('20:00', 'How many courts')
-    expect(courtsPrompt).toContain('How many courts')
+    const courtsPrompt = await eventCommands.sendAndExpect('20:00', 'Choose number of courts')
+    expect(courtsPrompt).toContain('Choose number of courts')
 
     // Step 4: Enter courts → event created
     console.log('Step 4: Entering courts...')
@@ -172,7 +172,7 @@ test.describe('Event Lifecycle Flow', () => {
     expect(dayPrompt).toContain('Choose a day')
 
     // Click Cancel
-    await eventCommands.clickInlineButton('Cancel')
+    await eventCommands.clickInlineButton('❌ Cancel')
     const cancelMessage = await eventCommands.expectNewResponse('Cancelled.')
     expect(cancelMessage).toContain('Cancelled.')
     console.log('✅ Event create wizard cancel completed')

@@ -147,9 +147,9 @@ test.describe('Scaffold Commands', () => {
 
     // Step 3: Type time as plain text → bot shows courts prompt
     console.log('Step 3: Entering time...')
-    const courtsPrompt = await scaffoldCommands.sendAndExpect('20:00', 'How many courts')
+    const courtsPrompt = await scaffoldCommands.sendAndExpect('20:00', 'Choose number of courts')
     console.log('Courts prompt:', courtsPrompt)
-    expect(courtsPrompt).toContain('How many courts')
+    expect(courtsPrompt).toContain('Choose number of courts')
 
     // Step 4: Type courts → bot confirms scaffold created
     console.log('Step 4: Entering courts...')
@@ -179,7 +179,7 @@ test.describe('Scaffold Commands', () => {
     expect(dayPrompt).toContain('Choose a day of the week')
 
     // Click Cancel button
-    await scaffoldCommands.clickInlineButton('Cancel')
+    await scaffoldCommands.clickInlineButton('❌ Cancel')
     const cancelMessage = await scaffoldCommands.expectNewResponse('Cancelled.')
     expect(cancelMessage).toContain('Cancelled.')
   })
@@ -206,8 +206,8 @@ test.describe('Scaffold Commands', () => {
 
     // Enter valid time → should proceed to courts
     console.log('Step 4: Entering valid time...')
-    const courtsPrompt = await scaffoldCommands.sendAndExpect('20:00', 'How many courts')
-    expect(courtsPrompt).toContain('How many courts')
+    const courtsPrompt = await scaffoldCommands.sendAndExpect('20:00', 'Choose number of courts')
+    expect(courtsPrompt).toContain('Choose number of courts')
 
     // Enter courts → scaffold created
     console.log('Step 5: Entering courts...')

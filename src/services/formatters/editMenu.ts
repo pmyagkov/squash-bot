@@ -1,45 +1,69 @@
 import { InlineKeyboard } from 'grammy'
 import type { Scaffold, Event } from '~/types'
+import { code } from '~/helpers/format'
 import dayjs from 'dayjs'
+import {
+  BTN_EDIT_DAY,
+  BTN_EDIT_DATE,
+  BTN_EDIT_TIME,
+  BTN_ADD_COURT,
+  BTN_REMOVE_COURT,
+  BTN_TURN_ON,
+  BTN_TURN_OFF,
+  BTN_DONE,
+  formatDate,
+  formatCourts,
+  formatActiveStatus,
+} from '~/ui/constants'
 
 export function formatScaffoldEditMenu(scaffold: Scaffold): string {
-  const activeLabel = scaffold.isActive ? 'Active' : 'Inactive'
   return [
-    `Editing scaffold ${scaffold.id}`,
+    `✏️ Scaffold ${code(scaffold.id)}`,
     '',
-    `Day: ${scaffold.dayOfWeek} | Time: ${scaffold.time} | Courts: ${scaffold.defaultCourts} | ${activeLabel}`,
+    `📅 ${scaffold.dayOfWeek}, ${scaffold.time}`,
+    `${formatCourts(scaffold.defaultCourts)}`,
+    `${formatActiveStatus(scaffold.isActive)}`,
   ].join('\n')
 }
 
-export function buildScaffoldEditKeyboard(scaffoldId: string): InlineKeyboard {
+export function buildScaffoldEditKeyboard(scaffoldId: string, isActive: boolean): InlineKeyboard {
   return new InlineKeyboard()
-    .text('Change day', `edit:scaffold:day:${scaffoldId}`)
-    .text('Change time', `edit:scaffold:time:${scaffoldId}`)
+    .text(BTN_EDIT_DAY, `edit:scaffold:day:${scaffoldId}`)
+    .text(BTN_EDIT_TIME, `edit:scaffold:time:${scaffoldId}`)
     .row()
-    .text('+court', `edit:scaffold:+court:${scaffoldId}`)
-    .text('-court', `edit:scaffold:-court:${scaffoldId}`)
+    .text(BTN_ADD_COURT, `edit:scaffold:+court:${scaffoldId}`)
+    .text(BTN_REMOVE_COURT, `edit:scaffold:-court:${scaffoldId}`)
     .row()
-    .text('Toggle active', `edit:scaffold:toggle:${scaffoldId}`)
+    .text(isActive ? BTN_TURN_OFF : BTN_TURN_ON, `edit:scaffold:toggle:${scaffoldId}`)
     .row()
-    .text('Done', `edit:scaffold:done:${scaffoldId}`)
+    .text(BTN_DONE, `edit:scaffold:done:${scaffoldId}`)
 }
 
 export function formatEventEditMenu(event: Event): string {
   const dt = dayjs(event.datetime)
+  const statusLabels: Record<string, string> = {
+    created: '📝 Created',
+    announced: '📢 Announced',
+    finalized: '✅ Finalized',
+    cancelled: '❌ Cancelled',
+  }
+  const statusLabel = statusLabels[event.status] ?? event.status
   return [
-    `Editing event ${event.id}`,
+    `✏️ Event ${code(event.id)}`,
     '',
-    `Date: ${dt.format('ddd DD MMM')} | Time: ${dt.format('HH:mm')} | Courts: ${event.courts} | Status: ${event.status}`,
+    `📅 ${formatDate(dt)}`,
+    `${formatCourts(event.courts)}`,
+    `${statusLabel}`,
   ].join('\n')
 }
 
 export function buildEventEditKeyboard(eventId: string): InlineKeyboard {
   return new InlineKeyboard()
-    .text('Change date', `edit:event:date:${eventId}`)
-    .text('Change time', `edit:event:time:${eventId}`)
+    .text(BTN_EDIT_DATE, `edit:event:date:${eventId}`)
+    .text(BTN_EDIT_TIME, `edit:event:time:${eventId}`)
     .row()
-    .text('+court', `edit:event:+court:${eventId}`)
-    .text('-court', `edit:event:-court:${eventId}`)
+    .text(BTN_ADD_COURT, `edit:event:+court:${eventId}`)
+    .text(BTN_REMOVE_COURT, `edit:event:-court:${eventId}`)
     .row()
-    .text('Done', `edit:event:done:${eventId}`)
+    .text(BTN_DONE, `edit:event:done:${eventId}`)
 }

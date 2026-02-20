@@ -99,8 +99,8 @@ export class EventCommands extends ChatPage {
       status: string
     }[] = []
 
-    // Match pattern: ev_15: Sat 20 Jan 19:00, 2 courts, created
-    const regex = /(ev_[\w-]+):.*?(\d+)\s+courts?,\s+(\w+)/gi
+    // Match pattern: ev_15: Sat, 20 Jan, 19:00, 🏟 Courts: 2, created
+    const regex = /(ev_[\w-]+):.*?🏟 Courts:\s+(\d+),\s+(\w+)/gi
     let match
 
     while ((match = regex.exec(response)) !== null) {

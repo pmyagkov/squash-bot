@@ -12,7 +12,9 @@ import type { WizardService } from '~/services/wizard/wizardService'
 import type { WizardStep } from '~/services/wizard/types'
 import type { HydratedStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
+import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
+import { formatCourts, formatActiveStatus } from '~/ui/constants'
 import { scaffoldCreateDef } from '~/commands/scaffold/create'
 import {
   scaffoldListDef,
@@ -107,7 +109,7 @@ export class ScaffoldBusiness {
 
       await this.transport.sendMessage(
         source.chat.id,
-        `✅ Created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} court(s)`
+        `✅ Created scaffold ${code(scaffold.id)}: ${data.day}, ${data.time}, ${formatCourts(data.courts)}`
       )
 
       await this.logger.log(
@@ -147,9 +149,7 @@ export class ScaffoldBusiness {
                 ? `, 👑 ${owner.displayName}`
                 : ''
           }
-          return `${s.id}: ${s.dayOfWeek} ${s.time}, ${s.defaultCourts} court(s), ${
-            s.isActive ? '✅ active' : '❌ inactive'
-          }${ownerLabel}`
+          return `${code(s.id)}: ${s.dayOfWeek}, ${s.time}, ${formatCourts(s.defaultCourts)}, ${formatActiveStatus(s.isActive)}${ownerLabel}`
         })
       )
 
@@ -166,13 +166,16 @@ export class ScaffoldBusiness {
   private async handleEditMenu(data: { scaffoldId: string }, source: SourceContext): Promise<void> {
     const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
     if (!scaffold) {
-      await this.transport.sendMessage(source.chat.id, `❌ Scaffold ${data.scaffoldId} not found`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `❌ Scaffold ${code(data.scaffoldId)} not found`
+      )
       return
     }
     await this.transport.sendMessage(
       source.chat.id,
       formatScaffoldEditMenu(scaffold),
-      buildScaffoldEditKeyboard(data.scaffoldId)
+      buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive)
     )
   }
 
@@ -232,7 +235,7 @@ export class ScaffoldBusiness {
         chatId,
         messageId,
         formatScaffoldEditMenu(updated),
-        buildScaffoldEditKeyboard(entityId)
+        buildScaffoldEditKeyboard(entityId, updated.isActive)
       )
     }
   }
@@ -246,23 +249,29 @@ export class ScaffoldBusiness {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
-        await this.transport.sendMessage(source.chat.id, `❌ Scaffold ${data.scaffoldId} not found`)
+        await this.transport.sendMessage(
+          source.chat.id,
+          `❌ Scaffold ${code(data.scaffoldId)} not found`
+        )
         return
       }
 
       if (!(await isOwnerOrAdmin(source.user.id, scaffold.ownerId, this.settingsRepository))) {
         await this.transport.sendMessage(
           source.chat.id,
-          '❌ Only the owner or admin can remove this scaffold'
+          '❌ Only the owner or admin can delete this scaffold'
         )
         return
       }
 
       await this.scaffoldRepository.remove(data.scaffoldId)
 
-      await this.transport.sendMessage(source.chat.id, `✅ Scaffold ${data.scaffoldId} removed`)
-      await this.logger.log(`User ${source.user.id} removed scaffold ${data.scaffoldId}`)
-      void this.transport.logEvent({ type: 'scaffold_removed', scaffoldId: data.scaffoldId })
+      await this.transport.sendMessage(
+        source.chat.id,
+        `✅ Scaffold ${code(data.scaffoldId)} deleted`
+      )
+      await this.logger.log(`User ${source.user.id} deleted scaffold ${data.scaffoldId}`)
+      void this.transport.logEvent({ type: 'scaffold_deleted', scaffoldId: data.scaffoldId })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
@@ -276,13 +285,16 @@ export class ScaffoldBusiness {
     try {
       const scaffold = await this.scaffoldRepository.findByIdIncludingDeleted(data.scaffoldId)
       if (!scaffold) {
-        await this.transport.sendMessage(source.chat.id, `❌ Scaffold ${data.scaffoldId} not found`)
+        await this.transport.sendMessage(
+          source.chat.id,
+          `❌ Scaffold ${code(data.scaffoldId)} not found`
+        )
         return
       }
       if (!scaffold.deletedAt) {
         await this.transport.sendMessage(
           source.chat.id,
-          `❌ Scaffold ${data.scaffoldId} is not deleted`
+          `❌ Scaffold ${code(data.scaffoldId)} is not deleted`
         )
         return
       }
@@ -294,7 +306,10 @@ export class ScaffoldBusiness {
         return
       }
       await this.scaffoldRepository.restore(data.scaffoldId)
-      await this.transport.sendMessage(source.chat.id, `✅ Scaffold ${data.scaffoldId} restored`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `✅ Scaffold ${code(data.scaffoldId)} restored`
+      )
       await this.logger.log(`User ${source.user.id} restored scaffold ${data.scaffoldId}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -312,7 +327,10 @@ export class ScaffoldBusiness {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
-        await this.transport.sendMessage(source.chat.id, `❌ Scaffold ${data.scaffoldId} not found`)
+        await this.transport.sendMessage(
+          source.chat.id,
+          `❌ Scaffold ${code(data.scaffoldId)} not found`
+        )
         return
       }
 
@@ -337,7 +355,7 @@ export class ScaffoldBusiness {
 
       await this.transport.sendMessage(
         source.chat.id,
-        `✅ Scaffold ${scaffold.id} transferred to @${data.targetUsername}`
+        `✅ Scaffold ${code(scaffold.id)} transferred to @${data.targetUsername}`
       )
       await this.logger.log(
         `User ${source.user.id} transferred scaffold ${scaffold.id} to @${data.targetUsername}`

@@ -9,6 +9,7 @@ export const scaffoldSelectStep: WizardStep<string> = {
   param: 'scaffoldId',
   type: 'select',
   prompt: 'Choose a scaffold:',
+  emptyMessage: 'No scaffolds found.',
   createLoader: (container) => async () => {
     const repo = container.resolve('scaffoldRepository')
     const scaffolds = await repo.getScaffolds()
@@ -58,7 +59,7 @@ export const timeStep: WizardStep<string> = {
 export const courtsStep: WizardStep<number> = {
   param: 'courts',
   type: 'select',
-  prompt: 'How many courts?',
+  prompt: 'Choose number of courts (or type your own):',
   columns: 3,
   createLoader: () => async () => [
     { value: '2', label: '2' },

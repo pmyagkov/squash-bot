@@ -87,7 +87,7 @@ describe('event-cancel', () => {
         // Check success message
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining(`✅ Event ${event.id} cancelled`),
+          expect.stringContaining(`✅ Event <code>${event.id}</code> cancelled`),
           expect.anything()
         )
 
@@ -96,7 +96,7 @@ describe('event-cancel', () => {
         expect(updatedEvent?.status).toBe('cancelled')
       })
 
-      it('should show wizard prompt when no event ID provided', async () => {
+      it('should show empty message when no event ID provided and no events exist', async () => {
         const update = createTextMessageUpdate('/event cancel', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
@@ -104,10 +104,10 @@ describe('event-cancel', () => {
 
         await bot.handleUpdate(update)
 
-        // Wizard prompts for event selection
+        // Wizard auto-cancels when no events found
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('Choose an event:'),
+          expect.stringContaining('No announced events found.'),
           expect.anything()
         )
       })
@@ -140,14 +140,14 @@ describe('event-cancel', () => {
         // Check success message
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining(`✅ Event ${event.id} cancelled`),
+          expect.stringContaining(`✅ Event <code>${event.id}</code> cancelled`),
           expect.anything()
         )
 
         // Check that cancellation notification was sent to main chat
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining(`❌ Event ${event.id} has been cancelled.`),
+          expect.stringContaining(`❌ Event <code>${event.id}</code> has been cancelled.`),
           expect.anything()
         )
 
@@ -175,7 +175,7 @@ describe('event-cancel', () => {
         // Check success message
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining(`✅ Event ${event.id} cancelled`),
+          expect.stringContaining(`✅ Event <code>${event.id}</code> cancelled`),
           expect.anything()
         )
 

@@ -47,7 +47,7 @@ describe('scaffold-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Scaffold ${scaffold.id} removed`),
+        expect.stringContaining(`✅ Scaffold <code>${scaffold.id}</code> deleted`),
         expect.anything()
       )
     })
@@ -75,7 +75,7 @@ describe('scaffold-delete', () => {
       )
     })
 
-    it('should show wizard prompt when no id provided', async () => {
+    it('should show empty message when no id provided and no scaffolds exist', async () => {
       const update = createTextMessageUpdate('/scaffold delete', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -85,7 +85,7 @@ describe('scaffold-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Choose a scaffold:'),
+        expect.stringContaining('No scaffolds found.'),
         expect.anything()
       )
     })
@@ -100,7 +100,7 @@ describe('scaffold-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+        expect.stringContaining('❌ Scaffold <code>sc_nonexistent</code> not found'),
         expect.anything()
       )
     })
@@ -162,7 +162,7 @@ describe('scaffold-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Scaffold ${scaffold.id} restored`),
+        expect.stringContaining(`✅ Scaffold <code>${scaffold.id}</code> restored`),
         expect.anything()
       )
 
@@ -183,7 +183,7 @@ describe('scaffold-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`❌ Scaffold ${scaffold.id} is not deleted`),
+        expect.stringContaining(`❌ Scaffold <code>${scaffold.id}</code> is not deleted`),
         expect.anything()
       )
     })
@@ -197,7 +197,7 @@ describe('scaffold-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+        expect.stringContaining('❌ Scaffold <code>sc_nonexistent</code> not found'),
         expect.anything()
       )
     })

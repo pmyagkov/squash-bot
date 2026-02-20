@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { renderStep } from './wizard'
 import type { HydratedStep, StepOption } from '~/services/wizard/types'
 import type { InlineKeyboardButton } from 'grammy/types'
+import { BTN_WIZARD_CANCEL } from '~/ui/constants'
 
 describe('renderStep', () => {
   it('renders text step with cancel button only', () => {
@@ -18,7 +19,7 @@ describe('renderStep', () => {
     // Cancel button is always present
     const buttons = result.keyboard.inline_keyboard.flat()
     expect(buttons).toHaveLength(1)
-    expect(buttons[0].text).toBe('Cancel')
+    expect(buttons[0].text).toBe(BTN_WIZARD_CANCEL)
     const cancelData = (buttons[0] as InlineKeyboardButton.CallbackButton).callback_data
     expect(cancelData).toBe('wizard:cancel')
   })
@@ -61,7 +62,7 @@ describe('renderStep', () => {
 
     // Cancel button in last row
     const cancelRow = rows[rows.length - 1]
-    expect(cancelRow[0].text).toBe('Cancel')
+    expect(cancelRow[0].text).toBe(BTN_WIZARD_CANCEL)
     expect((cancelRow[0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
       'wizard:cancel'
     )
@@ -106,7 +107,7 @@ describe('renderStep', () => {
 
     // Cancel row
     expect(rows[2]).toHaveLength(1)
-    expect(rows[2][0].text).toBe('Cancel')
+    expect(rows[2][0].text).toBe(BTN_WIZARD_CANCEL)
   })
 
   it('renders select step with columns evenly divisible', () => {
@@ -118,7 +119,7 @@ describe('renderStep', () => {
     const step: HydratedStep = {
       param: 'courts',
       type: 'select',
-      prompt: 'How many courts?',
+      prompt: 'Choose number of courts (or type your own):',
       columns: 3,
       load: async () => options,
     }
@@ -136,10 +137,10 @@ describe('renderStep', () => {
     expect(rows[0][2].text).toBe('4')
 
     expect(rows[1]).toHaveLength(1)
-    expect(rows[1][0].text).toBe('Cancel')
+    expect(rows[1][0].text).toBe(BTN_WIZARD_CANCEL)
   })
 
-  it('renders select step with no options as text fallback', () => {
+  it('renders select step with no options as cancel-only (empty options handled by WizardService)', () => {
     const step: HydratedStep = {
       param: 'eventId',
       type: 'select',
@@ -148,13 +149,12 @@ describe('renderStep', () => {
 
     const result = renderStep(step, [])
 
-    expect(result.text).toContain('Choose an event:')
-    expect(result.text).toContain('no options')
+    expect(result.text).toBe('Choose an event:')
 
-    // Should still have cancel button
+    // Only cancel button (no option buttons)
     const buttons = result.keyboard.inline_keyboard.flat()
     expect(buttons).toHaveLength(1)
-    expect(buttons[0].text).toBe('Cancel')
+    expect(buttons[0].text).toBe(BTN_WIZARD_CANCEL)
     const cancelData = (buttons[0] as InlineKeyboardButton.CallbackButton).callback_data
     expect(cancelData).toBe('wizard:cancel')
   })

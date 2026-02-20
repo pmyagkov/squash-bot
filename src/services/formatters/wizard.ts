@@ -1,5 +1,6 @@
 import { InlineKeyboard } from 'grammy'
 import type { HydratedStep, StepOption } from '~/services/wizard/types'
+import { BTN_WIZARD_CANCEL } from '~/ui/constants'
 
 export const WIZARD_CANCEL_DATA = 'wizard:cancel'
 
@@ -21,15 +22,7 @@ export function renderStep(step: HydratedStep<unknown>, options?: StepOption[]):
     }
   }
 
-  if (step.type === 'select' && (!options || options.length === 0)) {
-    keyboard.text('Cancel', WIZARD_CANCEL_DATA)
-    return {
-      text: `${step.prompt}\n\n(no options available)`,
-      keyboard,
-    }
-  }
-
-  keyboard.text('Cancel', WIZARD_CANCEL_DATA)
+  keyboard.text(BTN_WIZARD_CANCEL, WIZARD_CANCEL_DATA)
 
   return { text: step.prompt, keyboard }
 }

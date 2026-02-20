@@ -39,7 +39,7 @@ describe('scaffold-create', () => {
       )
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringMatching(/Tue 21:00.*2 court\(s\)/s),
+        expect.stringContaining('Tue, 21:00, 🏟 Courts: 2'),
         expect.anything()
       )
     })
@@ -106,7 +106,7 @@ describe('scaffold-create', () => {
       )
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringMatching(/Tue 21:00.*2 court\(s\)/s),
+        expect.stringContaining('Tue, 21:00, 🏟 Courts: 2'),
         expect.anything()
       )
     })
@@ -175,7 +175,7 @@ describe('scaffold-create', () => {
       // Verify courts prompt was sent
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('How many courts'),
+        expect.stringContaining('Choose number of courts'),
         expect.anything()
       )
 
@@ -199,7 +199,7 @@ describe('scaffold-create', () => {
       )
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringMatching(/Wed 21:00.*2 court\(s\)/s),
+        expect.stringContaining('Wed, 21:00, 🏟 Courts: 2'),
         expect.anything()
       )
 
@@ -335,8 +335,8 @@ describe('scaffold-create', () => {
         text.includes('✅ Created scaffold')
       )
       expect(addCall).toBeDefined()
-      expect(addCall![1]).toContain('Wed 19:00')
-      expect(addCall![1]).toContain('3 court(s)')
+      expect(addCall![1]).toContain('Wed, 19:00')
+      expect(addCall![1]).toContain('🏟 Courts: 3')
 
       // Extract scaffold ID from response
       const idMatch = addCall![1].match(/sc_[\w-]+/)
@@ -357,7 +357,7 @@ describe('scaffold-create', () => {
       )
       expect(listCall).toBeDefined()
       expect(listCall![1]).toContain(scaffoldId)
-      expect(listCall![1]).toContain('✅ active')
+      expect(listCall![1]).toContain('🟢 Active')
 
       // Step 3: Edit menu (scaffold update now shows edit menu)
       api.sendMessage.mockClear()
@@ -369,7 +369,7 @@ describe('scaffold-create', () => {
       await bot.handleUpdate(editUpdate)
 
       const editCall = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes('Editing scaffold')
+        text.includes('Scaffold') && text.includes('Courts')
       )
       expect(editCall).toBeDefined()
       expect(editCall![1]).toContain(scaffoldId)
@@ -385,7 +385,7 @@ describe('scaffold-create', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Scaffold ${scaffoldId} removed`),
+        expect.stringContaining(`✅ Scaffold <code>${scaffoldId}</code> deleted`),
         expect.anything()
       )
 

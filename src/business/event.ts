@@ -3,10 +3,12 @@ import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import type { Scaffold, DayOfWeek, Event, EventParticipant, EventStatus, Payment } from '~/types'
+import { code } from '~/helpers/format'
 import { config } from '~/config'
 import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
 import { isOwnerOrAdmin } from '~/utils/environment'
+import { formatDate, formatCourts } from '~/ui/constants'
 import type { TelegramTransport, CallbackTypes } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
@@ -467,7 +469,7 @@ export class EventBusiness {
       await this.transport.answerCallback(data.callbackId)
       await this.logger.log(`User ${data.userId} finalized event ${event.id}`)
 
-      const finalizedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+      const finalizedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
       void this.transport.logEvent({
         type: 'event_finalized',
         eventId: event.id,
@@ -500,7 +502,7 @@ export class EventBusiness {
     await this.transport.answerCallback(data.callbackId)
     await this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
 
-    const cancelledDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    const cancelledDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({
       type: 'event_cancelled',
       eventId: event.id,
@@ -528,7 +530,7 @@ export class EventBusiness {
 
     await this.transport.answerCallback(data.callbackId)
     await this.logger.log(`User ${data.userId} restored event ${event.id}`)
-    const restoredDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    const restoredDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
   }
 
@@ -734,7 +736,7 @@ export class EventBusiness {
   private async handleJoinFromDef(data: { eventId: string }, source: SourceContext): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -761,7 +763,7 @@ export class EventBusiness {
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
     } else {
-      await this.transport.sendMessage(source.chat.id, `✅ Joined event ${event.id}`)
+      await this.transport.sendMessage(source.chat.id, `✅ Joined event ${code(event.id)}`)
     }
 
     await this.logger.log(`User ${source.user.id} joined event ${event.id}`)
@@ -778,7 +780,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -798,7 +800,7 @@ export class EventBusiness {
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
     } else {
-      await this.transport.sendMessage(source.chat.id, `✅ Left event ${event.id}`)
+      await this.transport.sendMessage(source.chat.id, `✅ Left event ${code(event.id)}`)
     }
 
     await this.logger.log(`User ${source.user.id} left event ${event.id}`)
@@ -815,7 +817,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -828,7 +830,7 @@ export class EventBusiness {
     } else {
       await this.transport.sendMessage(
         source.chat.id,
-        `✅ Added court to ${event.id} (now ${newCourts})`
+        `✅ Added court to ${code(event.id)} (now ${newCourts})`
       )
     }
 
@@ -842,7 +844,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -864,7 +866,7 @@ export class EventBusiness {
     } else {
       await this.transport.sendMessage(
         source.chat.id,
-        `✅ Removed court from ${event.id} (now ${newCourts})`
+        `✅ Removed court from ${code(event.id)} (now ${newCourts})`
       )
     }
 
@@ -880,7 +882,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -939,12 +941,12 @@ export class EventBusiness {
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId)
       } else {
-        await this.transport.sendMessage(source.chat.id, `✅ Finalized event ${event.id}`)
+        await this.transport.sendMessage(source.chat.id, `✅ Finalized event ${code(event.id)}`)
       }
 
       await this.logger.log(`User ${source.user.id} finalized event ${event.id}`)
 
-      const finalizedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+      const finalizedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
       void this.transport.logEvent({
         type: 'event_finalized',
         eventId: event.id,
@@ -962,7 +964,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -982,11 +984,11 @@ export class EventBusiness {
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
     } else {
-      await this.transport.sendMessage(source.chat.id, `✅ Restored event ${event.id}`)
+      await this.transport.sendMessage(source.chat.id, `✅ Restored event ${code(event.id)}`)
     }
 
     await this.logger.log(`User ${source.user.id} restored event ${event.id}`)
-    const restoredDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    const restoredDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
   }
 
@@ -996,7 +998,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -1035,7 +1037,7 @@ export class EventBusiness {
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId)
       } else {
-        await this.transport.sendMessage(source.chat.id, `✅ Unfinalized event ${event.id}`)
+        await this.transport.sendMessage(source.chat.id, `✅ Unfinalized event ${code(event.id)}`)
       }
 
       await this.logger.log(`User ${source.user.id} unfinalized event ${event.id}`)
@@ -1251,8 +1253,8 @@ export class EventBusiness {
     })
 
     // Format success message
-    const dateFormatted = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
-    const message = `✅ Created event ${event.id} (${dateFormatted}, ${data.courts} courts). To announce: /event announce ${event.id}`
+    const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
+    const message = `✅ Created event ${code(event.id)} (${dateFormatted}, ${formatCourts(data.courts)}). To announce: /event announce ${code(event.id)}`
     await this.transport.sendMessage(source.chat.id, message)
     void this.transport.logEvent({
       type: 'event_created',
@@ -1270,11 +1272,14 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
     if (event.status !== 'finalized') {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} is not finalized`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `❌ Event ${code(data.eventId)} is not finalized`
+      )
       return
     }
 
@@ -1291,7 +1296,7 @@ export class EventBusiness {
     if (!payment) {
       await this.transport.sendMessage(
         source.chat.id,
-        `❌ No payment found for @${data.targetUsername} in ${event.id}`
+        `❌ No payment found for @${data.targetUsername} in ${code(event.id)}`
       )
       return
     }
@@ -1336,7 +1341,7 @@ export class EventBusiness {
 
     await this.transport.sendMessage(
       source.chat.id,
-      `✅ @${data.targetUsername} marked as paid for ${event.id}`
+      `✅ @${data.targetUsername} marked as paid for ${code(event.id)}`
     )
 
     void this.transport.logEvent({
@@ -1353,11 +1358,14 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
     if (event.status !== 'finalized') {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} is not finalized`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `❌ Event ${code(data.eventId)} is not finalized`
+      )
       return
     }
 
@@ -1374,7 +1382,7 @@ export class EventBusiness {
     if (!payment) {
       await this.transport.sendMessage(
         source.chat.id,
-        `❌ No payment found for @${data.targetUsername} in ${event.id}`
+        `❌ No payment found for @${data.targetUsername} in ${code(event.id)}`
       )
       return
     }
@@ -1415,7 +1423,7 @@ export class EventBusiness {
 
     await this.transport.sendMessage(
       source.chat.id,
-      `✅ @${data.targetUsername} marked as unpaid for ${event.id}`
+      `✅ @${data.targetUsername} marked as unpaid for ${code(event.id)}`
     )
   }
 
@@ -1432,10 +1440,10 @@ export class EventBusiness {
 
     const list = await Promise.all(
       activeEvents.map(async (e) => {
-        const date = dayjs.tz(e.datetime, config.timezone).format('ddd DD MMM HH:mm')
+        const date = formatDate(dayjs.tz(e.datetime, config.timezone))
         const ownerLabel = await this.resolveOwnerLabel(e.ownerId)
         const ownerSuffix = ownerLabel ? ` | 👑 ${ownerLabel}` : ''
-        return `• ${e.id} | ${date} | ${e.courts} courts | ${e.status}${ownerSuffix}`
+        return `• ${code(e.id)} | ${date} | ${formatCourts(e.courts)} | ${e.status}${ownerSuffix}`
       })
     )
 
@@ -1448,18 +1456,21 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
     if (event.status === 'announced') {
-      await this.transport.sendMessage(source.chat.id, `ℹ️ Event ${event.id} is already announced`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `ℹ️ Event ${code(event.id)} is already announced`
+      )
       return
     }
 
     try {
       await this.announceEvent(event.id)
-      await this.transport.sendMessage(source.chat.id, `✅ Event ${event.id} announced`)
+      await this.transport.sendMessage(source.chat.id, `✅ Event ${code(event.id)} announced`)
     } catch (error) {
       await this.transport.sendMessage(
         source.chat.id,
@@ -1474,7 +1485,10 @@ export class EventBusiness {
   ): Promise<void> {
     const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
     if (!scaffold) {
-      await this.transport.sendMessage(source.chat.id, `❌ Scaffold ${data.scaffoldId} not found`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `❌ Scaffold ${code(data.scaffoldId)} not found`
+      )
       return
     }
 
@@ -1486,7 +1500,7 @@ export class EventBusiness {
     if (eventExists(events, scaffold.id, nextOccurrence)) {
       await this.transport.sendMessage(
         source.chat.id,
-        `❌ Event already exists for scaffold ${scaffold.id}`
+        `❌ Event already exists for scaffold ${code(scaffold.id)}`
       )
       return
     }
@@ -1511,8 +1525,8 @@ export class EventBusiness {
     })
 
     // Format success message
-    const dateFormatted = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
-    const message = `✅ Created event ${event.id} from ${scaffold.id} (${dateFormatted}, ${scaffold.defaultCourts} courts). To announce: /event announce ${event.id}`
+    const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
+    const message = `✅ Created event ${code(event.id)} from ${code(scaffold.id)} (${dateFormatted}, ${formatCourts(scaffold.defaultCourts)}). To announce: /event announce ${code(event.id)}`
     await this.transport.sendMessage(source.chat.id, message)
     void this.transport.logEvent({
       type: 'event_created',
@@ -1528,24 +1542,24 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
     // Cancel the event
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
-    await this.transport.sendMessage(source.chat.id, `✅ Event ${event.id} cancelled`)
+    await this.transport.sendMessage(source.chat.id, `✅ Event ${code(event.id)} cancelled`)
 
     // If event was announced, send cancellation notification to the main chat
     if (event.status === 'announced') {
       const chatId = await this.settingsRepository.getMainChatId()
       if (chatId) {
-        await this.transport.sendMessage(chatId, `❌ Event ${event.id} has been cancelled.`)
+        await this.transport.sendMessage(chatId, `❌ Event ${code(event.id)} has been cancelled.`)
       }
     }
 
-    const cancelledDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    const cancelledDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({
       type: 'event_cancelled',
       eventId: event.id,
@@ -1746,7 +1760,7 @@ export class EventBusiness {
       status: 'announced',
     })
 
-    const announcedDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+    const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({ type: 'event_announced', eventId: id, date: announcedDate })
 
     return updatedEvent
@@ -1825,7 +1839,7 @@ export class EventBusiness {
           `Created and announced event ${event.id} from scaffold ${scaffold.id}`
         )
 
-        const createdDate = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
+        const createdDate = formatDate(dayjs.tz(event.datetime, config.timezone))
         void this.transport.logEvent({
           type: 'event_created',
           eventId: event.id,
@@ -1849,7 +1863,7 @@ export class EventBusiness {
     try {
       const event = await this.eventRepository.findById(data.eventId)
       if (!event) {
-        await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+        await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
         return
       }
 
@@ -1863,7 +1877,7 @@ export class EventBusiness {
 
       await this.eventRepository.remove(data.eventId)
 
-      await this.transport.sendMessage(source.chat.id, `✅ Event ${data.eventId} deleted`)
+      await this.transport.sendMessage(source.chat.id, `✅ Event ${code(data.eventId)} deleted`)
       await this.logger.log(`User ${source.user.id} deleted event ${data.eventId}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -1879,11 +1893,14 @@ export class EventBusiness {
     try {
       const event = await this.eventRepository.findByIdIncludingDeleted(data.eventId)
       if (!event) {
-        await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+        await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
         return
       }
       if (!event.deletedAt) {
-        await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} is not deleted`)
+        await this.transport.sendMessage(
+          source.chat.id,
+          `❌ Event ${code(data.eventId)} is not deleted`
+        )
         return
       }
       if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
@@ -1894,7 +1911,7 @@ export class EventBusiness {
         return
       }
       await this.eventRepository.restore(data.eventId)
-      await this.transport.sendMessage(source.chat.id, `✅ Event ${data.eventId} restored`)
+      await this.transport.sendMessage(source.chat.id, `✅ Event ${code(data.eventId)} restored`)
       await this.logger.log(`User ${source.user.id} restored event ${data.eventId}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -1909,7 +1926,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
 
@@ -1934,7 +1951,7 @@ export class EventBusiness {
 
     await this.transport.sendMessage(
       source.chat.id,
-      `✅ Event ${event.id} transferred to @${data.targetUsername}`
+      `✅ Event ${code(event.id)} transferred to @${data.targetUsername}`
     )
     await this.logger.log(
       `User ${source.user.id} transferred event ${event.id} to @${data.targetUsername}`
@@ -1955,7 +1972,7 @@ export class EventBusiness {
   ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
       return
     }
     await this.transport.sendMessage(

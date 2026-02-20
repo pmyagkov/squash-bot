@@ -72,7 +72,7 @@ describe('WizardService', () => {
     const step: HydratedStep<number> = {
       param: 'courts',
       type: 'text',
-      prompt: 'How many courts?',
+      prompt: 'Choose number of courts (or type your own):',
       parse: (input: string) => {
         const n = parseInt(input, 10)
         if (isNaN(n) || n < 1) throw new ParseError('Must be a positive number')

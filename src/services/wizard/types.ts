@@ -25,6 +25,7 @@ export interface WizardStep<T = string> {
   type: 'select' | 'text'
   prompt: string
   columns?: number
+  emptyMessage?: string
   createLoader?: (container: AppContainer) => () => Promise<StepOption[]>
   parse?: (input: string) => T
 }
@@ -35,6 +36,7 @@ export interface HydratedStep<T = string> {
   type: 'select' | 'text'
   prompt: string
   columns?: number
+  emptyMessage?: string
   load?: () => Promise<StepOption[]>
   parse?: (input: string) => T
 }

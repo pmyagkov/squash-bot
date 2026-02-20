@@ -320,7 +320,7 @@ describe('event-participants', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`Joined event ${event.id}`),
+        expect.stringContaining(`Joined event <code>${event.id}</code>`),
         expect.anything()
       )
 
@@ -374,7 +374,7 @@ describe('event-participants', () => {
             inline_keyboard: expect.arrayContaining([
               expect.arrayContaining([
                 expect.objectContaining({
-                  text: event.id,
+                  text: expect.stringContaining(event.id),
                   callback_data: `wizard:select:${event.id}`,
                 }),
               ]),
@@ -400,7 +400,7 @@ describe('event-participants', () => {
       // Verify joined
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`Joined event ${event.id}`),
+        expect.stringContaining(`Joined event <code>${event.id}</code>`),
         expect.anything()
       )
 

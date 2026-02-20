@@ -47,13 +47,13 @@ describe('scaffold-update (edit menu)', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`Editing scaffold ${scaffold.id}`),
+        expect.stringContaining(`Scaffold <code>${scaffold.id}</code>`),
         expect.objectContaining({
           reply_markup: expect.objectContaining({
             inline_keyboard: expect.arrayContaining([
               expect.arrayContaining([
-                expect.objectContaining({ text: 'Change day' }),
-                expect.objectContaining({ text: 'Change time' }),
+                expect.objectContaining({ text: '📅 Day' }),
+                expect.objectContaining({ text: '🕐 Time' }),
               ]),
             ]),
           }),
@@ -72,16 +72,15 @@ describe('scaffold-update (edit menu)', () => {
       await bot.handleUpdate(update)
 
       const call = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes(`Editing scaffold ${scaffold.id}`)
+        text.includes(`Scaffold <code>${scaffold.id}</code>`)
       )
       expect(call).toBeDefined()
-      expect(call![1]).toContain('Day: Fri')
-      expect(call![1]).toContain('Time: 19:00')
-      expect(call![1]).toContain('Courts: 3')
-      expect(call![1]).toContain('Active')
+      expect(call![1]).toContain('📅 Fri, 19:00')
+      expect(call![1]).toContain('🏟 Courts: 3')
+      expect(call![1]).toContain('🟢 Active')
     })
 
-    it('should show wizard prompt when no id provided', async () => {
+    it('should show empty message when no id provided and no scaffolds exist', async () => {
       const update = createTextMessageUpdate('/scaffold update', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -91,7 +90,7 @@ describe('scaffold-update (edit menu)', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Choose a scaffold:'),
+        expect.stringContaining('No scaffolds found.'),
         expect.anything()
       )
     })
@@ -106,7 +105,7 @@ describe('scaffold-update (edit menu)', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+        expect.stringContaining('❌ Scaffold <code>sc_nonexistent</code> not found'),
         expect.anything()
       )
     })

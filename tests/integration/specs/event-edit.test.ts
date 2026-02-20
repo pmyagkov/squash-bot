@@ -44,13 +44,13 @@ describe('event-edit (edit menu)', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`Editing event ${event.id}`),
+        expect.stringContaining(`Event <code>${event.id}</code>`),
         expect.objectContaining({
           reply_markup: expect.objectContaining({
             inline_keyboard: expect.arrayContaining([
               expect.arrayContaining([
-                expect.objectContaining({ text: 'Change date' }),
-                expect.objectContaining({ text: 'Change time' }),
+                expect.objectContaining({ text: '📅 Date' }),
+                expect.objectContaining({ text: '🕐 Time' }),
               ]),
             ]),
           }),
@@ -74,11 +74,11 @@ describe('event-edit (edit menu)', () => {
       await tick()
 
       const call = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes(`Editing event ${event.id}`)
+        text.includes(`Event <code>${event.id}</code>`)
       )
       expect(call).toBeDefined()
       expect(call![1]).toContain('Courts: 3')
-      expect(call![1]).toContain('Status: created')
+      expect(call![1]).toContain('Created')
     })
 
     it('shows error for nonexistent event', async () => {
@@ -92,7 +92,7 @@ describe('event-edit (edit menu)', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Event ev_nonexistent not found'),
+        expect.stringContaining('❌ Event <code>ev_nonexistent</code> not found'),
         expect.anything()
       )
     })
@@ -197,7 +197,7 @@ describe('event-edit (edit menu)', () => {
         ([chatId]) => chatId === TEST_CHAT_ID
       )
       expect(editCall).toBeDefined()
-      expect(editCall![2]).toContain(`Editing event ${event.id}`)
+      expect(editCall![2]).toContain(`Event <code>${event.id}</code>`)
 
       // Done action should not include keyboard
       const options = editCall![3]
@@ -275,7 +275,7 @@ describe('event-edit (edit menu)', () => {
         ([chatId]) => chatId === TEST_CHAT_ID
       )
       expect(editCall).toBeDefined()
-      expect(editCall![2]).toContain(`Editing event ${event.id}`)
+      expect(editCall![2]).toContain(`Event <code>${event.id}</code>`)
     })
   })
 })

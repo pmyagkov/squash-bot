@@ -4,6 +4,18 @@ import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import type { Event, EventStatus } from '~/types'
 import { config } from '~/config'
+import {
+  BTN_JOIN,
+  BTN_LEAVE,
+  BTN_ADD_COURT,
+  BTN_REMOVE_COURT,
+  BTN_FINALIZE,
+  BTN_CANCEL_EVENT,
+  BTN_RESTORE,
+  BTN_UNFINALIZE,
+  formatDate,
+  formatCourts,
+} from '~/ui/constants'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
@@ -26,24 +38,23 @@ export interface EventParticipantDisplay {
  */
 export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
   if (status === 'cancelled') {
-    // Show only Restore button
-    return new InlineKeyboard().text('🔄 Restore', 'event:undo-cancel')
+    return new InlineKeyboard().text(BTN_RESTORE, 'event:undo-cancel')
   }
 
   if (status === 'finalized') {
-    return new InlineKeyboard().text('↩️ Unfinalize', 'event:undo-finalize')
+    return new InlineKeyboard().text(BTN_UNFINALIZE, 'event:undo-finalize')
   }
 
   // Active event (announced status)
   return new InlineKeyboard()
-    .text("I'm in", 'event:join')
-    .text("I'm out", 'event:leave')
+    .text(BTN_JOIN, 'event:join')
+    .text(BTN_LEAVE, 'event:leave')
     .row()
-    .text('+court', 'event:add-court')
-    .text('-court', 'event:remove-court')
+    .text(BTN_ADD_COURT, 'event:add-court')
+    .text(BTN_REMOVE_COURT, 'event:remove-court')
     .row()
-    .text('✅ Finalize', 'event:finalize')
-    .text('❌ Cancel', 'event:cancel')
+    .text(BTN_FINALIZE, 'event:finalize')
+    .text(BTN_CANCEL_EVENT, 'event:cancel')
 }
 
 /**
@@ -51,12 +62,9 @@ export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
  */
 export function formatEventMessage(event: Event): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
-  const dayName = eventDate.format('dddd')
-  const dateStr = eventDate.format('D MMMM')
-  const timeStr = eventDate.format('HH:mm')
 
-  return `🎾 Squash: ${dayName}, ${dateStr}, ${timeStr}
-Courts: ${event.courts}
+  return `🎾 Squash: ${formatDate(eventDate)}
+${formatCourts(event.courts)}
 
 Participants:
 (nobody yet)`
@@ -73,11 +81,8 @@ export function formatAnnouncementText(
   paidParticipantIds: Set<string> = new Set()
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
-  const dayName = eventDate.format('dddd')
-  const dateStr = eventDate.format('D MMMM')
-  const timeStr = eventDate.format('HH:mm')
 
-  let messageText = `🎾 Squash: ${dayName}, ${dateStr}, ${timeStr}\nCourts: ${event.courts}\n\n`
+  let messageText = `🎾 Squash: ${formatDate(eventDate)}\n${formatCourts(event.courts)}\n\n`
 
   // Add participants
   if (participants.length === 0) {
@@ -119,15 +124,13 @@ export function formatPaymentText(
   courtPrice: number
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
-  const dateStr = eventDate.format('D.MM')
-  const timeStr = eventDate.format('HH:mm')
 
   const totalParticipants = participants.reduce((sum, ep) => sum + ep.participations, 0)
   const totalCost = event.courts * courtPrice
   const perPerson = Math.round(totalCost / totalParticipants)
 
-  let messageText = `💰 Payment for Squash ${dateStr} ${timeStr}\n\n`
-  messageText += `Courts: ${event.courts} × ${courtPrice} din = ${totalCost} din\n`
+  let messageText = `💰 Payment for Squash ${formatDate(eventDate)}\n\n`
+  messageText += `${formatCourts(event.courts)} × ${courtPrice} din = ${totalCost} din\n`
   messageText += `Participants: ${totalParticipants}\n\n`
   messageText += `Each pays: ${perPerson} din\n\n`
 
@@ -157,16 +160,14 @@ export function formatPersonalPaymentText(
   messageId: string
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
-  const dateStr = eventDate.format('DD.MM')
-  const timeStr = eventDate.format('HH:mm')
   const totalCost = courts * courtPrice
 
   // Convert chatId for t.me link (remove -100 prefix for supergroups)
   const chatIdStr = String(chatId).replace(/^-100/, '')
   const link = `https://t.me/c/${chatIdStr}/${messageId}`
 
-  let text = `💰 Payment for Squash ${dateStr} ${timeStr}\n\n`
-  text += `Courts: ${courts} × ${courtPrice} din = ${totalCost} din\n`
+  let text = `💰 Payment for Squash ${formatDate(eventDate)}\n\n`
+  text += `${formatCourts(courts)} × ${courtPrice} din = ${totalCost} din\n`
   text += `Participants: ${totalParticipants}\n`
   text += `Full details: ${link}\n\n`
   text += `Your amount: ${amount} din`
@@ -178,9 +179,8 @@ export function formatPersonalPaymentText(
  * Formats the paid version of a personal payment DM
  */
 export function formatPaidPersonalPaymentText(baseText: string, paidDate: Date): string {
-  const dateStr = dayjs.tz(paidDate, config.timezone).format('DD.MM')
-  const timeStr = dayjs.tz(paidDate, config.timezone).format('HH:mm')
-  return `${baseText}\n\n✓ Paid on ${dateStr} at ${timeStr}`
+  const paidDayjs = dayjs.tz(paidDate, config.timezone)
+  return `${baseText}\n\n✓ Paid on ${formatDate(paidDayjs)}`
 }
 
 /**

@@ -17,6 +17,6 @@ export type BusinessEvent =
   | { type: 'payment_check_completed'; eventsChecked: number }
   | { type: 'scaffold_created'; scaffoldId: string; day: string; time: string; courts: number }
   | { type: 'scaffold_toggled'; scaffoldId: string; active: boolean }
-  | { type: 'scaffold_removed'; scaffoldId: string }
+  | { type: 'scaffold_deleted'; scaffoldId: string }
 
 export type LogEvent = SystemEvent | BusinessEvent

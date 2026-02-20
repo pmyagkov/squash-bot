@@ -54,7 +54,7 @@ describe('event-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Event ${event.id} deleted`),
+        expect.stringContaining(`✅ Event <code>${event.id}</code> deleted`),
         expect.anything()
       )
     })
@@ -135,7 +135,7 @@ describe('event-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Event ev_nonexistent not found'),
+        expect.stringContaining('❌ Event <code>ev_nonexistent</code> not found'),
         expect.anything()
       )
     })
@@ -164,7 +164,7 @@ describe('event-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Event ${event.id} restored`),
+        expect.stringContaining(`✅ Event <code>${event.id}</code> restored`),
         expect.anything()
       )
 
@@ -191,7 +191,7 @@ describe('event-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`❌ Event ${event.id} is not deleted`),
+        expect.stringContaining(`❌ Event <code>${event.id}</code> is not deleted`),
         expect.anything()
       )
     })
@@ -206,7 +206,7 @@ describe('event-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Event ev_nonexistent not found'),
+        expect.stringContaining('❌ Event <code>ev_nonexistent</code> not found'),
         expect.anything()
       )
     })

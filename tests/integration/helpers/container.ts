@@ -30,6 +30,9 @@ export function createTestContainer(bot: Bot): TestContainer {
     injectionMode: InjectionMode.CLASSIC,
   })
 
+  // Set HTML parse mode globally (same as production)
+  bot.api.config.use((prev, method, payload) => prev(method, { ...payload, parse_mode: 'HTML' }))
+
   // Register primitives first so TelegramProvider can resolve them
   container.register({
     bot: asValue(bot),

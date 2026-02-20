@@ -137,14 +137,14 @@ describe('event-create', () => {
             text.includes('✅ Created event')
           )
           expect(call).toBeDefined()
-          expect(call![1]).toContain(`✅ Created event ${event.id}`)
-          expect(call![1]).toContain('2 courts')
-          expect(call![1]).toContain(`To announce: /event announce ${event.id}`)
+          expect(call![1]).toContain(`✅ Created event <code>${event.id}</code>`)
+          expect(call![1]).toContain('🏟 Courts: 2')
+          expect(call![1]).toContain(`To announce: /event announce <code>${event.id}</code>`)
           // Check message format: should match pattern
-          // Format: "✅ Created event ev_xxx (Day DD Mon HH:mm, N courts). To announce: /event announce ev_xxx"
+          // Format: "✅ Created event ev_xxx (Day, DD Mon, HH:mm, 🏟 Courts: N). To announce: /event announce ev_xxx"
           // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
           expect(call![1]).toMatch(
-            /^✅ Created event ev_[\w-]+ \([A-Za-z]{3} \d{1,2} [A-Za-z]{3} \d{2}:\d{2}, \d+ courts\)\. To announce: \/event announce ev_[\w-]+$/
+            /^✅ Created event <code>ev_[\w-]+<\/code> \([A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\)\. To announce: \/event announce <code>ev_[\w-]+<\/code>$/
           )
         })
 
@@ -498,15 +498,15 @@ describe('event-create', () => {
         expect(successCall).toBeDefined()
 
         // Verify message contains all required parts
-        expect(successCall![1]).toContain(`✅ Created event ${createdEvent.id}`)
-        expect(successCall![1]).toContain('2 courts')
-        expect(successCall![1]).toContain(`To announce: /event announce ${createdEvent.id}`)
+        expect(successCall![1]).toContain(`✅ Created event <code>${createdEvent.id}</code>`)
+        expect(successCall![1]).toContain('🏟 Courts: 2')
+        expect(successCall![1]).toContain(`To announce: /event announce <code>${createdEvent.id}</code>`)
 
         // Check full message format matches expected pattern
-        // Format: "✅ Created event ev_xxx (Day DD Mon HH:mm, N courts). To announce: /event announce ev_xxx"
+        // Format: "✅ Created event ev_xxx (Day, DD Mon, HH:mm, 🏟 Courts: N). To announce: /event announce ev_xxx"
         // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
         expect(successCall![1]).toMatch(
-          /^✅ Created event ev_[\w-]+ \([A-Za-z]{3} \d{1,2} [A-Za-z]{3} \d{2}:\d{2}, \d+ courts\)\. To announce: \/event announce ev_[\w-]+$/
+          /^✅ Created event <code>ev_[\w-]+<\/code> \([A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\)\. To announce: \/event announce <code>ev_[\w-]+<\/code>$/
         )
       })
     })
@@ -597,7 +597,7 @@ describe('event-create', () => {
 
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('How many courts'),
+          expect.stringContaining('Choose number of courts'),
           expect.anything()
         )
 
@@ -755,7 +755,7 @@ describe('event-create', () => {
         )
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('3 courts'),
+          expect.stringContaining('🏟 Courts: 3'),
           expect.anything()
         )
         expect(api.sendMessage).toHaveBeenCalledWith(
@@ -770,7 +770,7 @@ describe('event-create', () => {
         expect(announcementCall).toBeUndefined()
       })
 
-      it('should show wizard prompt when no scaffold ID provided', async () => {
+      it('should show empty message when no scaffold ID provided and no scaffolds exist', async () => {
         const update = createTextMessageUpdate('/event spawn', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
@@ -778,10 +778,10 @@ describe('event-create', () => {
 
         await bot.handleUpdate(update)
 
-        // Wizard prompts for scaffold selection
+        // Wizard auto-cancels when there are no scaffolds
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('Choose a scaffold:'),
+          expect.stringContaining('No active scaffolds found.'),
           expect.anything()
         )
 
@@ -801,7 +801,7 @@ describe('event-create', () => {
         // Check error message
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+          expect.stringContaining('❌ Scaffold <code>sc_nonexistent</code> not found'),
           expect.anything()
         )
 

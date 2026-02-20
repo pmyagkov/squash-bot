@@ -125,7 +125,7 @@ describe('scaffold-edit (edit menu actions)', () => {
       ([chatId]) => chatId === TEST_CHAT_ID
     )
     expect(editCall).toBeDefined()
-    expect(editCall![2]).toContain('Inactive')
+    expect(editCall![2]).toContain('Paused')
 
     const updated = await scaffoldRepository.findById(scaffold.id)
     expect(updated!.isActive).toBe(false)
@@ -148,7 +148,7 @@ describe('scaffold-edit (edit menu actions)', () => {
       ([chatId]) => chatId === TEST_CHAT_ID
     )
     expect(editCall).toBeDefined()
-    expect(editCall![2]).toContain(`Editing scaffold ${scaffold.id}`)
+    expect(editCall![2]).toContain(`Scaffold <code>${scaffold.id}</code>`)
 
     // The done action should NOT include a keyboard in the options
     const options = editCall![3]

@@ -16,6 +16,9 @@ async function main() {
       },
     })
 
+    // Set HTML parse mode globally for all outgoing messages
+    bot.api.config.use((prev, method, payload) => prev(method, { ...payload, parse_mode: 'HTML' }))
+
     // 2. Create container
     const container = createAppContainer(bot)
     const logger = container.resolve('logger')

@@ -67,7 +67,7 @@ describe('event-announce', () => {
       // Check success message
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Event ${event.id} announced`),
+        expect.stringContaining(`✅ Event <code>${event.id}</code> announced`),
         expect.anything()
       )
 
@@ -109,11 +109,11 @@ describe('event-announce', () => {
       expect(replyMarkup?.inline_keyboard).toBeDefined()
       const buttons = replyMarkup.inline_keyboard[0]
       expect(buttons).toHaveLength(2)
-      expect(buttons[0].text).toBe("I'm in")
-      expect(buttons[1].text).toBe("I'm out")
+      expect(buttons[0].text).toBe("✋ I'm in")
+      expect(buttons[1].text).toBe("👋 I'm out")
     })
 
-    it('should show wizard prompt when no event ID provided', async () => {
+    it('should show empty message when no event ID provided and no events exist', async () => {
       const update = createTextMessageUpdate('/event announce', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -121,10 +121,10 @@ describe('event-announce', () => {
 
       await bot.handleUpdate(update)
 
-      // Wizard prompts for event selection
+      // Wizard auto-cancels when no events exist
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Choose an event:'),
+        expect.stringContaining('No announced events found.'),
         expect.anything()
       )
     })
@@ -140,7 +140,7 @@ describe('event-announce', () => {
       // Check error message
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Event ev_nonexistent not found'),
+        expect.stringContaining('❌ Event <code>ev_nonexistent</code> not found'),
         expect.anything()
       )
     })
@@ -171,7 +171,7 @@ describe('event-announce', () => {
       // Check info message
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`ℹ️ Event ${event.id} is already announced`),
+        expect.stringContaining(`ℹ️ Event <code>${event.id}</code> is already announced`),
         expect.anything()
       )
 
