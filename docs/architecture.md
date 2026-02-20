@@ -143,6 +143,37 @@ transport/api → business → repo + logger + formatter → transport/telegram
 | **helpers/** | Pure utility functions — date/time parsing, calculations |
 | **utils/** | Shared utilities — environment helpers, time offsets |
 
+### Architecture Invariants
+
+Layer boundaries must never leak. These rules are verified during code review.
+
+**Allowed dependencies:**
+
+```
+bot/commands → business → {storage/repo, services/formatters, services/transport}
+                           storage/repo → storage/db/schema, types
+                           services/formatters → types (only)
+                           services/transport → bot API (grammY)
+helpers, utils → standard library only (no project imports)
+```
+
+**Forbidden imports:**
+
+| Layer | Must NOT import from |
+|-------|---------------------|
+| `storage/repo/` | business, services, bot/commands |
+| `services/formatters/` | business, storage, services/transport |
+| `helpers/`, `utils/` | business, services, storage, bot |
+| `business/` | bot/commands (business receives calls FROM commands, not the reverse) |
+| `types/` | any runtime layer (types are leaf nodes) |
+
+**Key rules:**
+
+- **grammY `Context` is transport-only** — never passes to business or repo. Transport parses it into typed data first.
+- **Repos do database operations only** — no business logic, no formatting, no Telegram calls.
+- **Formatters are pure functions** — take domain objects, return strings/keyboards. No side effects, no service dependencies.
+- **Business classes orchestrate** — they call repos, formatters, and transport, but never import from `bot/commands/`.
+
 ### Transport Layer Details
 
 The `TelegramTransport` class provides:
