@@ -18,11 +18,11 @@ export class EventCommands extends ChatPage {
    * @returns Response message from bot
    *
    * Example from architecture.md:
-   * /event add 2024-01-20 19:00 2
+   * /event create 2024-01-20 19:00 2
    * → Created event ev_15 (Sat 20 Jan 19:00, 2 courts). To announce: /event announce ev_15
    */
   async addEvent(date: string, time: string, courts: number): Promise<string> {
-    const command = `/event add ${date} ${time} ${courts}`
+    const command = `/event create ${date} ${time} ${courts}`
     return await this.sendCommand(command)
   }
 
@@ -99,8 +99,8 @@ export class EventCommands extends ChatPage {
       status: string
     }[] = []
 
-    // Match pattern: ev_15: Sat 20 Jan 19:00, 2 courts, created
-    const regex = /(ev_[\w-]+):.*?(\d+)\s+courts?,\s+(\w+)/gi
+    // Match pattern: ev_15: Sat, 20 Jan, 19:00, 🏟 Courts: 2, created
+    const regex = /(ev_[\w-]+):.*?🏟 Courts:\s+(\d+),\s+(\w+)/gi
     let match
 
     while ((match = regex.exec(response)) !== null) {

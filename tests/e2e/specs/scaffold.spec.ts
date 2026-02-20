@@ -122,4 +122,101 @@ test.describe('Scaffold Commands', () => {
 
     console.log('✅ Full scaffold lifecycle completed successfully')
   })
+
+  test('should create scaffold via interactive wizard (/scaffold create)', async ({
+    scaffoldCommands,
+  }) => {
+    // Uses count-based methods (sendAndExpect / expectNewResponse) to avoid
+    // matching stale historical messages from previous wizard runs.
+
+    // Step 1: /scaffold create (no args) → bot shows day picker with inline buttons
+    console.log('Step 1: Starting scaffold create wizard...')
+    const dayPrompt = await scaffoldCommands.sendAndExpect(
+      '/scaffold create',
+      'Choose a day of the week'
+    )
+    console.log('Day prompt:', dayPrompt)
+    expect(dayPrompt).toContain('Choose a day of the week')
+
+    // Step 2: Click "Wed" button → bot shows time prompt
+    console.log('Step 2: Selecting day...')
+    await scaffoldCommands.clickInlineButton('Wed')
+    const timePrompt = await scaffoldCommands.expectNewResponse('Enter time (HH:MM)')
+    console.log('Time prompt:', timePrompt)
+    expect(timePrompt).toContain('Enter time')
+
+    // Step 3: Type time as plain text → bot shows courts prompt
+    console.log('Step 3: Entering time...')
+    const courtsPrompt = await scaffoldCommands.sendAndExpect('20:00', 'Choose number of courts')
+    console.log('Courts prompt:', courtsPrompt)
+    expect(courtsPrompt).toContain('Choose number of courts')
+
+    // Step 4: Type courts → bot confirms scaffold created
+    console.log('Step 4: Entering courts...')
+    const confirmation = await scaffoldCommands.sendAndExpect('3', 'Created scaffold')
+    console.log('Confirmation:', confirmation)
+    expect(scaffoldCommands.isScaffoldCreated(confirmation)).toBe(true)
+
+    // Verify scaffold appears in list
+    const scaffoldId = scaffoldCommands.parseScaffoldId(confirmation)
+    expect(scaffoldId).toBeTruthy()
+    console.log(`Created scaffold: ${scaffoldId}`)
+
+    const listResponse = await scaffoldCommands.listScaffolds()
+    expect(listResponse).toContain(scaffoldId!)
+
+    // Cleanup: remove the scaffold
+    await scaffoldCommands.removeScaffold(scaffoldId!)
+    console.log('✅ Interactive wizard scaffold creation completed successfully')
+  })
+
+  test('should cancel wizard when Cancel button is clicked', async ({ scaffoldCommands }) => {
+    // Start wizard
+    const dayPrompt = await scaffoldCommands.sendAndExpect(
+      '/scaffold create',
+      'Choose a day of the week'
+    )
+    expect(dayPrompt).toContain('Choose a day of the week')
+
+    // Click Cancel button
+    await scaffoldCommands.clickInlineButton('❌ Cancel')
+    const cancelMessage = await scaffoldCommands.expectNewResponse('Cancelled.')
+    expect(cancelMessage).toContain('Cancelled.')
+  })
+
+  test('should re-prompt on invalid time input during wizard', async ({ scaffoldCommands }) => {
+    // Start wizard
+    console.log('Step 1: Starting wizard...')
+    const dayPrompt = await scaffoldCommands.sendAndExpect(
+      '/scaffold create',
+      'Choose a day of the week'
+    )
+    expect(dayPrompt).toContain('Choose a day of the week')
+
+    // Select day
+    console.log('Step 2: Selecting day...')
+    await scaffoldCommands.clickInlineButton('Wed')
+    const timePrompt = await scaffoldCommands.expectNewResponse('Enter time (HH:MM)')
+    expect(timePrompt).toContain('Enter time')
+
+    // Enter invalid time → should re-prompt with error
+    console.log('Step 3: Entering invalid time...')
+    const errorMessage = await scaffoldCommands.sendAndExpect('invalid', 'Invalid time format')
+    expect(errorMessage).toContain('Invalid time format')
+
+    // Enter valid time → should proceed to courts
+    console.log('Step 4: Entering valid time...')
+    const courtsPrompt = await scaffoldCommands.sendAndExpect('20:00', 'Choose number of courts')
+    expect(courtsPrompt).toContain('Choose number of courts')
+
+    // Enter courts → scaffold created
+    console.log('Step 5: Entering courts...')
+    const confirmation = await scaffoldCommands.sendAndExpect('3', 'Created scaffold')
+    expect(scaffoldCommands.isScaffoldCreated(confirmation)).toBe(true)
+
+    // Cleanup
+    const scaffoldId = scaffoldCommands.parseScaffoldId(confirmation)
+    if (scaffoldId) await scaffoldCommands.removeScaffold(scaffoldId)
+    console.log('✅ Re-prompt validation test completed')
+  })
 })

@@ -6,7 +6,7 @@ Detailed feature descriptions for integration and E2E test naming.
 
 ## Scaffold Management
 
-### scaffold-add ✅
+### scaffold-create ✅
 
 Create scaffold template for recurring sessions.
 
@@ -49,69 +49,99 @@ sc_2: Sat 19:00, 3 court(s), ❌ inactive
 
 ---
 
-### scaffold-toggle ✅
+### scaffold-edit ✅
 
-Enable or disable scaffold.
+Interactive edit menu for scaffolds. Replaces the old toggle command.
 
-**Actor:** Admin
+**Actor:** Any user
 **Chat:** Test or Main
 
 **Flow:**
-1. Admin sends `/scaffold toggle sc_1`
-2. Bot finds scaffold by ID
-3. Bot flips is_active status
-4. Bot replies: `✅ sc_1 is now active` or `✅ sc_1 is now inactive`
+1. User sends `/scaffold update sc_1` (or `/scaffold update` for wizard picker)
+2. Bot shows edit menu with current scaffold details and inline keyboard
+3. User clicks action buttons to modify scaffold fields
+4. Bot re-renders edit menu after each change
+
+**Edit menu message:**
+```
+✏️ Scaffold sc_1
+
+📅 Tue at 21:00
+🏟 Courts: 2
+🟢 Active
+```
+
+**Inline buttons:**
+```
+[Change day] [Change time]
+[+court] [-court]
+[Toggle active]
+[Done]
+```
+
+**Actions:**
+- `Change day` → wizard collects new day via inline select
+- `Change time` → wizard collects new time via text input
+- `+court` → increment courts
+- `-court` → decrement courts (min 1)
+- `Toggle active` → flip isActive status
+- `Done` → remove keyboard (finalize editing)
 
 **Errors:**
-- Missing ID → `Usage: /scaffold toggle <id>\n\nExample: /scaffold toggle sc_1`
-- Not found → `❌ Error: Scaffold sc_1 not found`
+- Missing ID (no scaffolds to pick) → wizard prompt
+- Not found → `❌ Scaffold sc_1 not found`
 
 ---
 
-### scaffold-remove ✅
+### scaffold-delete ✅
 
-Remove scaffold.
+Soft-delete scaffold (can be restored with undo-delete).
 
-**Actor:** Admin
+**Actor:** Owner or Admin
 **Chat:** Test or Main
 
 **Flow:**
-1. Admin sends `/scaffold remove sc_1`
-2. Bot finds scaffold by ID
-3. Bot deletes scaffold from Notion
+1. User sends `/scaffold delete sc_1`
+2. Bot checks ownership (owner or global admin)
+3. Bot soft-deletes scaffold (sets `deletedAt` timestamp)
 4. Bot replies: `✅ Scaffold sc_1 removed`
 
+**Undo-delete:**
+1. User sends `/scaffold undo-delete sc_1`
+2. Bot checks scaffold exists and is deleted
+3. Bot checks ownership
+4. Bot restores scaffold (clears `deletedAt`)
+5. Bot replies: `✅ Scaffold sc_1 restored`
+
 **Errors:**
-- Missing ID → `Usage: /scaffold remove <id>\n\nExample: /scaffold remove sc_1`
-- Not found → `❌ Error: Scaffold sc_1 not found`
+- Missing ID → `Usage: /scaffold undo-delete <scaffoldId>`
+- Not found → `❌ Scaffold sc_1 not found`
+- Not deleted → `❌ Scaffold sc_1 is not deleted`
+- Not owner/admin → `❌ Only the owner or admin can restore this scaffold`
+
+---
+
+### scaffold-ownership ✅
+
+Scaffold owner assignment and ownership transfer.
+
+#### Owner assignment
+
+Creator of the scaffold becomes its owner. Any user can create scaffolds.
+
+#### Ownership transfer
+
+Owner or global admin can transfer scaffold to another user via `/scaffold transfer <id> <userId>`.
 
 ---
 
 ## Event Management
 
-### event-add-by-scaffold-api ✅
+### event-create ✅
 
-Auto-create event from scaffold on schedule.
+Create events manually or automatically from scaffolds.
 
-**Actor:** System (n8n)
-**Trigger:** POST /check-events (every 15 min)
-
-**Flow:**
-1. n8n calls POST /check-events
-2. Bot fetches all active scaffolds
-3. For each scaffold, checks if event exists for next occurrence
-4. If no event and time to create (based on `announcement_deadline` setting):
-   - Creates event in Notion (status: created)
-   - Immediately announces event (see event-announce)
-5. Bot responds 200 OK to n8n
-
-**Duplicate check:** scaffold_id + datetime pair (within 1 hour)
-
-**Edge case:** Uses `shouldTrigger` with time offset notation to determine creation time
-
----
-
-### event-create-adhoc ✅
+#### Manual create
 
 Create one-time event outside regular schedule.
 
@@ -134,9 +164,11 @@ Create one-time event outside regular schedule.
 - Invalid time → `❌ Invalid time format. Use HH:MM (e.g., 19:00)`
 - Invalid courts → `❌ Number of courts must be a positive number`
 
----
+#### Wizard
 
-### event-add-by-scaffold ✅
+When `/event create` is called without arguments, bot guides user through interactive wizard: day → time → courts.
+
+#### Spawn from scaffold
 
 Create event manually from scaffold template.
 
@@ -156,27 +188,25 @@ Create event manually from scaffold template.
 - Scaffold not found → `❌ Scaffold sc_xxx not found`
 - Event already exists → `❌ Event already exists for scaffold sc_xxx at this time`
 
----
+#### Auto-create from scaffold (API)
 
-### event-list ✅
+Auto-create event from scaffold on schedule.
 
-List events.
-
-**Actor:** Any user
-**Chat:** Test or Main
+**Actor:** System (n8n)
+**Trigger:** POST /check-events (every 15 min)
 
 **Flow:**
-1. User sends `/event list`
-2. Bot fetches events from Notion
-3. Bot replies with list:
-```
-📋 Event list:
+1. n8n calls POST /check-events
+2. Bot fetches all active scaffolds
+3. For each scaffold, checks if event exists for next occurrence
+4. If no event and time to create (based on `announcement_deadline` setting):
+   - Creates event in Notion (status: created)
+   - Immediately announces event (see event-announce)
+5. Bot responds 200 OK to n8n
 
-ev_15: Sat 20 Jan 19:00, 2 courts, announced
-ev_16: Tue 23 Jan 21:00, 3 courts, created
-```
+**Duplicate check:** scaffold_id + datetime pair (within 1 hour)
 
-**Empty state:** `📋 No events found`
+**Edge case:** Uses `shouldTrigger` with time offset notation to determine creation time
 
 ---
 
@@ -219,9 +249,121 @@ Participants:
 
 ---
 
+### event-list ✅
+
+List events.
+
+**Actor:** Any user
+**Chat:** Test or Main
+
+**Flow:**
+1. User sends `/event list`
+2. Bot fetches events from Notion
+3. Bot replies with list:
+```
+📋 Event list:
+
+ev_15: Sat 20 Jan 19:00, 2 courts, announced
+ev_16: Tue 23 Jan 21:00, 3 courts, created
+```
+
+**Empty state:** `📋 No events found`
+
+---
+
+### event-ownership ✅
+
+Event owner assignment and ownership transfer.
+
+#### Owner assignment
+
+Ad-hoc events: creator becomes owner. Scaffold events: inherit scaffold owner.
+
+#### Ownership transfer
+
+Owner or global admin can transfer event to another user via `/event transfer <id> <userId>`.
+
+---
+
+### event-edit ✅
+
+Interactive edit menu for events.
+
+**Actor:** Any user
+**Chat:** Test or Main
+
+**Flow:**
+1. User sends `/event update ev_1` (or `/event update` for wizard picker)
+2. Bot shows edit menu with current event details and inline keyboard
+3. User clicks action buttons to modify event fields
+4. Bot re-renders edit menu after each change
+
+**Edit menu message:**
+```
+✏️ Event ev_1
+
+📅 Tue 01 Mar at 19:00
+🏟 Courts: 2
+📝 Created
+```
+
+**Inline buttons:**
+```
+[Change date] [Change time]
+[+court] [-court]
+[Done]
+```
+
+**Actions:**
+- `Change date` → wizard collects new date via select/text input
+- `Change time` → wizard collects new time via text input
+- `+court` → increment courts
+- `-court` → decrement courts (min 1)
+- `Done` → remove keyboard (finalize editing)
+
+**Constraints:**
+- Edit actions (except Done) are silently ignored for events in cancelled, finalized, or paid status
+
+**Errors:**
+- Not found → `❌ Event ev_1 not found`
+
+---
+
+### event-delete ✅
+
+Soft-delete event (can be restored with undo-delete).
+
+**Actor:** Owner or Admin
+**Chat:** Test or Main
+
+**Flow:**
+1. User sends `/event delete ev_1`
+2. Bot checks ownership (owner or global admin)
+3. Bot soft-deletes event (sets `deletedAt` timestamp)
+4. Bot replies: `✅ Event ev_1 deleted`
+
+**Undo-delete:**
+1. User sends `/event undo-delete ev_1`
+2. Bot checks event exists and is deleted
+3. Bot checks ownership
+4. Bot restores event (clears `deletedAt`)
+5. Bot replies: `✅ Event ev_1 restored`
+
+**Note:** Event delete (soft) is separate from event cancel (status change). Delete hides the event entirely; cancel changes status to 'cancelled' but event remains visible.
+
+**Errors:**
+- Missing ID → `Usage: /event undo-delete <eventId>`
+- Not found → `❌ Event ev_1 not found`
+- Not deleted → `❌ Event ev_1 is not deleted`
+- Not owner/admin → `❌ Only the owner or admin can delete/restore this event`
+
+---
+
 ### event-cancel ✅
 
 Cancel event.
+
+#### Cancel (command)
 
 **Actor:** Any user
 **Chat:** Test or Main
@@ -239,13 +381,44 @@ Cancel event.
 - Missing ID → `Usage: /event cancel <id>\n\nExample: /event cancel ev_a1b2`
 - Not found → `❌ Error: Event ev_15 not found`
 
+#### Cancel (callback)
+
+Cancel event via inline button.
+
+**Actor:** Any user
+**Chat:** Main (under announcement message)
+
+**Flow:**
+1. User clicks [❌ Cancel] button
+2. Bot updates event status → cancelled
+3. Bot updates announcement message (adds "❌ Event cancelled")
+4. Bot shows [🔄 Restore] button
+5. Bot unpins message
+6. Bot logs action
+
+#### Restore
+
+Restore cancelled event.
+
+**Actor:** Any user
+**Chat:** Main (under cancelled announcement message)
+
+**Flow:**
+1. User clicks [🔄 Restore] button
+2. Bot updates event status → announced
+3. Bot restores full announcement with action buttons
+4. Bot pins message
+5. Bot logs action
+
 ---
 
-## Participant Registration
+## Event Participants
 
-### event-participant-join ✅
+### event-participants ✅
 
-Register for event.
+Register for or unregister from event.
+
+#### Join
 
 **Actor:** Any user
 **Chat:** Main (under announcement message)
@@ -266,11 +439,7 @@ Participants (3):
 
 **Note:** Each click adds +1 participation (same user can click multiple times)
 
----
-
-### event-participant-leave ✅
-
-Unregister from event.
+#### Leave
 
 **Actor:** Any user
 **Chat:** Main (under announcement message)
@@ -289,7 +458,7 @@ Unregister from event.
 
 ## Session Management
 
-### event-adjust-courts ✅
+### event-courts ✅
 
 Change court count for event.
 
@@ -325,7 +494,7 @@ Finalize session, create payment records, and send personal notifications.
 
 **Precondition:** Event has participants
 
-**Related:** `payment-personal-notifications`, `fallback-notification`
+**Related:** `event-payment-notifications`, `fallback-notification`
 
 **Flow:**
 1. User clicks [✅ Finalize] button
@@ -336,7 +505,7 @@ Finalize session, create payment records, and send personal notifications.
    - `amount = court_price × courts × participations / total_participations`
    - `is_paid = false`, `paid_at = null`, `reminder_count = 0`
 6. Bot updates event status → finalized
-7. Bot sends personal payment notification to each participant (see payment-personal-notifications)
+7. Bot sends personal payment notification to each participant (see event-payment-notifications)
    - Collects list of failed deliveries
 8. If any deliveries failed → send fallback message (see fallback-notification)
 9. Bot updates announcement message:
@@ -362,42 +531,7 @@ Participants (4):
 - No participants → callback answer: "No participants to finalize"
 - Event already locked → callback answer: "⏳ Operation already in progress"
 
----
-
-### event-cancel-via-button ✅
-
-Cancel event via inline button.
-
-**Actor:** Any user
-**Chat:** Main (under announcement message)
-
-**Flow:**
-1. User clicks [❌ Cancel] button
-2. Bot updates event status → cancelled
-3. Bot updates announcement message (adds "❌ Event cancelled")
-4. Bot shows [🔄 Restore] button
-5. Bot unpins message
-6. Bot logs action
-
----
-
-### event-restore ✅
-
-Restore cancelled event.
-
-**Actor:** Any user
-**Chat:** Main (under cancelled announcement message)
-
-**Flow:**
-1. User clicks [🔄 Restore] button
-2. Bot updates event status → announced
-3. Bot restores full announcement with action buttons
-4. Bot pins message
-5. Bot logs action
-
----
-
-### event-unfinalize ✅
+#### Unfinalize
 
 Unfinalize session and clean up payment records.
 
@@ -426,7 +560,74 @@ Unfinalize session and clean up payment records.
 
 ## Payments
 
-### payment-personal-notifications ✅
+### event-payment ✅
+
+Mark payment as paid or cancel payment mark via personal message.
+
+#### Mark paid
+
+**Actor:** Any user (marks own payment)
+**Chat:** Private (personal payment message)
+
+**Flow:**
+1. User clicks [✅ I paid] button in personal message
+2. Bot acquires event lock
+3. Bot finds user's Payment record by event_id + telegram_id
+4. Bot sets is_paid = true, paid_at = now()
+5. Bot updates personal message:
+   - Adds line: "✓ Paid on 04.02 at 12:00"
+   - Changes button: [✅ I paid] → [↩️ Undo] with callback payment:cancel:{event_id}
+6. Bot updates announcement message in Main chat:
+   - Adds checkmark to participant: "@pasha (×2) ✓"
+7. Bot releases event lock
+
+**Updated personal message:**
+```
+💰 Payment for Squash 21.01 21:00
+
+Courts: 2 × 2000 din = 4000 din
+Participants: 4
+Full details: [link]
+
+Your amount: 1000 din
+
+✓ Paid on 04.02 at 12:00
+
+[↩️ Undo]
+```
+
+**Updated announcement:**
+```
+Participants (4):
+@pasha (×2) ✓, @vasya, @petya ✓
+```
+
+**Errors:**
+- Event locked → callback answer: "⏳ In Progress"
+
+#### Cancel payment
+
+**Actor:** Any user (cancels own payment)
+**Chat:** Private (personal payment message)
+
+**Flow:**
+1. User clicks [↩️ Undo] button in personal message
+2. Bot acquires event lock
+3. Bot finds user's Payment record
+4. Bot sets is_paid = false, paid_at = null
+5. Bot updates personal message:
+   - Removes line: "✓ Paid on..."
+   - Changes button: [↩️ Undo] → [✅ I paid]
+6. Bot updates announcement message in Main chat:
+   - Removes checkmark: "@pasha (×2) ✓" → "@pasha (×2)"
+7. Bot releases event lock
+
+**Errors:**
+- Event locked → callback answer: "⏳ Operation already in progress"
+
+---
+
+### event-payment-notifications ✅
 
 Send personal payment notification to each participant after finalization.
 
@@ -492,72 +693,24 @@ Please start a chat with me: [Bot Name]
 
 ---
 
-### payment-mark-paid ✅
+## Admin
 
-Mark payment as paid via personal message.
+### admin ✅
 
-**Actor:** Any user (marks own payment)
-**Chat:** Private (personal payment message)
+Admin command routing middleware.
 
-**Flow:**
-1. User clicks [✅ I paid] button in personal message
-2. Bot acquires event lock
-3. Bot finds user's Payment record by event_id + telegram_id
-4. Bot sets is_paid = true, paid_at = now()
-5. Bot updates personal message:
-   - Adds line: "✓ Paid on 04.02 at 12:00"
-   - Changes button: [✅ I paid] → [↩️ Undo] with callback payment:cancel:{event_id}
-6. Bot updates announcement message in Main chat:
-   - Adds checkmark to participant: "@pasha (×2) ✓"
-7. Bot releases event lock
-
-**Updated personal message:**
-```
-💰 Payment for Squash 21.01 21:00
-
-Courts: 2 × 2000 din = 4000 din
-Participants: 4
-Full details: [link]
-
-Your amount: 1000 din
-
-✓ Paid on 04.02 at 12:00
-
-[↩️ Undo]
-```
-
-**Updated announcement:**
-```
-Participants (4):
-@pasha (×2) ✓, @vasya, @petya ✓
-```
-
-**Errors:**
-- Event locked → callback answer: "⏳ In Progress"
-
----
-
-### payment-cancel ✅
-
-Cancel payment mark via personal message.
-
-**Actor:** Any user (cancels own payment)
-**Chat:** Private (personal payment message)
+**Actor:** Admin
+**Chat:** Any
 
 **Flow:**
-1. User clicks [↩️ Undo] button in personal message
-2. Bot acquires event lock
-3. Bot finds user's Payment record
-4. Bot sets is_paid = false, paid_at = null
-5. Bot updates personal message:
-   - Removes line: "✓ Paid on..."
-   - Changes button: [↩️ Undo] → [✅ I paid]
-6. Bot updates announcement message in Main chat:
-   - Removes checkmark: "@pasha (×2) ✓" → "@pasha (×2)"
-7. Bot releases event lock
+1. User sends `/admin <command> <subcommand> [args...]`
+2. Bot checks if user is the global admin
+3. Bot routes to the corresponding command handler
 
 **Errors:**
-- Event locked → callback answer: "⏳ Operation already in progress"
+- Not admin → "This command is only available to administrators"
+- No inner command → "Usage: /admin <command> <subcommand> [args...]"
+- Unknown command → "Unknown admin command"
 
 ---
 
@@ -809,7 +962,7 @@ View any user's history.
 
 ---
 
-### admin-repay
+### admin-repay ❓❓❓
 
 Mark debt as repaid (without linking to specific event).
 
@@ -886,7 +1039,7 @@ Initialize conversation with bot to enable personal messages.
 - User manually sends /start to bot
 - First-time interaction with bot
 
-**Related:** `fallback-notification`, `payment-personal-notifications`
+**Related:** `fallback-notification`, `event-payment-notifications`
 
 **Flow:**
 1. User sends `/start` command to bot (in private chat)
@@ -914,6 +1067,56 @@ To see your history: /my history
 - Critical for payment-personal-notifications delivery
 
 **Link to this feature:** Used in fallback-notification as deep link `https://t.me/{bot_username}?start`
+
+---
+
+## Service commands
+
+### say
+
+/admin say любой текст, разделённый пробелами до конца строки. — Текст отправляется в общий чат от имени бота.
+/admin say @username любой текст — Текст отправляется в личку человеку.
+
+---
+
+## Interactive Input
+
+### wizard-input
+
+Interactive parameter collection for commands. When a command is called without required arguments, bot guides the user through a step-by-step wizard to collect missing parameters.
+
+**Actor:** Any user
+**Chat:** Private or Main
+
+**Two modes:**
+- All args provided → execute immediately (backward compatible)
+- Args missing → wizard collects parameters one by one
+
+**Step types:**
+- `select` — inline keyboard with options (e.g., choose day of week, choose scaffold)
+- `text` — free text input (e.g., enter time, enter number of courts)
+
+**Wizard flows:**
+- `/event create` → day (select) → time (text) → courts (text) → event created
+- `/scaffold create` → day (select) → time (text) → courts (text) → scaffold created
+- `/event update ev_1` → edit menu with instant and wizard-based field changes
+- `/scaffold update sc_1` → edit menu with instant and wizard-based field changes
+
+**Cancel:**
+- User clicks [Cancel] button on any step → wizard cancelled, handler not called
+- User sends `/cancel` during wizard → wizard cancelled
+- Bot replies: "Cancelled."
+
+**Validation:**
+- Invalid input → bot shows error and re-prompts same step
+- Example: courts = "abc" → "Must be a positive number", re-prompt
+
+**Timeout:**
+- Wizard abandoned after N minutes of inactivity → state cleared
+
+**Testing:**
+- Unit: WizardService (collect, handleInput, cancel, timeout), CommandService (orchestration), CommandRegistry, Wizard Renderer
+- Integration: wizard flows tested in feature-specific files (e.g., `tests/integration/specs/scaffold-create.test.ts`)
 
 ---
 

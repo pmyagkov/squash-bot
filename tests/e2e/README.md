@@ -46,7 +46,7 @@ npm run test:e2e:ui
 npx playwright test scaffold.spec.ts
 
 # Запустить с дополнительными опциями
-ENVIRONMENT=test playwright test tests/e2e --headed --config=playwright.mjs
+ENVIRONMENT=test playwright test tests/e2e --headed --config=playwright.config.mjs
 ```
 
 ## Структура

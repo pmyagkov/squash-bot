@@ -134,4 +134,107 @@ test.describe('Event Lifecycle Flow', () => {
     expect(eventCommands.isEventCancelled(cancelResponse)).toBe(true)
     console.log('Event cancelled successfully')
   })
+
+  test('should create event via interactive wizard (/event create)', async ({ eventCommands }) => {
+    // Step 1: /event create (no args) → day picker
+    console.log('Step 1: Starting event create wizard...')
+    const dayPrompt = await eventCommands.sendAndExpect('/event create', 'Choose a day')
+    expect(dayPrompt).toContain('Choose a day')
+
+    // Step 2: Select day → time prompt
+    console.log('Step 2: Selecting day...')
+    await eventCommands.clickInlineButton('Wed')
+    const timePrompt = await eventCommands.expectNewResponse('Enter time')
+    expect(timePrompt).toContain('Enter time')
+
+    // Step 3: Enter time → courts prompt
+    console.log('Step 3: Entering time...')
+    const courtsPrompt = await eventCommands.sendAndExpect('20:00', 'Choose number of courts')
+    expect(courtsPrompt).toContain('Choose number of courts')
+
+    // Step 4: Enter courts → event created
+    console.log('Step 4: Entering courts...')
+    const confirmation = await eventCommands.sendAndExpect('2', 'Created event')
+    expect(eventCommands.isEventCreated(confirmation)).toBe(true)
+
+    const eventId = eventCommands.parseEventId(confirmation)
+    expect(eventId).toBeTruthy()
+    console.log(`Created event via wizard: ${eventId}`)
+
+    // Cleanup
+    if (eventId) await eventCommands.cancelEvent(eventId)
+    console.log('✅ Event create wizard completed')
+  })
+
+  test('should cancel event create wizard', async ({ eventCommands }) => {
+    // Start wizard
+    const dayPrompt = await eventCommands.sendAndExpect('/event create', 'Choose a day')
+    expect(dayPrompt).toContain('Choose a day')
+
+    // Click Cancel
+    await eventCommands.clickInlineButton('❌ Cancel')
+    const cancelMessage = await eventCommands.expectNewResponse('Cancelled.')
+    expect(cancelMessage).toContain('Cancelled.')
+    console.log('✅ Event create wizard cancel completed')
+  })
+
+  test('should finalize and unfinalize event via UI buttons', async ({
+    eventCommands,
+    participantActions,
+  }) => {
+    // Create and announce event
+    const createResponse = await eventCommands.addEvent('tomorrow', '20:00', 2)
+    const eventId = eventCommands.parseEventId(createResponse)
+    expect(eventId).toBeTruthy()
+
+    await eventCommands.announceEvent(eventId!)
+    await eventCommands.waitForAnnouncement()
+
+    // Register participant (required for finalize)
+    await participantActions.clickImIn()
+    console.log('Participant registered')
+
+    // Finalize
+    console.log('Finalizing event...')
+    await participantActions.finalizeEvent()
+
+    // Verify finalized state — announcement should show "Finalized"
+    const afterFinalize = await eventCommands.waitForMessageContaining('Finalized')
+    expect(afterFinalize).toContain('Finalized')
+    console.log('Event finalized')
+
+    // Unfinalize
+    console.log('Unfinalizing event...')
+    await participantActions.clickInlineButton('↩️ Unfinalize')
+    // Wait for announcement to revert (should have "I'm in" button again)
+    await eventCommands.waitForMessageContaining("I'm in")
+    console.log('✅ Finalize → unfinalize completed')
+  })
+
+  test('should cancel and restore event via UI buttons', async ({
+    eventCommands,
+    participantActions,
+  }) => {
+    // Create and announce event
+    const createResponse = await eventCommands.addEvent('tomorrow', '20:00', 2)
+    const eventId = eventCommands.parseEventId(createResponse)
+    expect(eventId).toBeTruthy()
+
+    await eventCommands.announceEvent(eventId!)
+    await eventCommands.waitForAnnouncement()
+
+    // Cancel via inline button
+    console.log('Cancelling event via UI...')
+    await participantActions.clickInlineButton('❌ Cancel')
+    const afterCancel = await eventCommands.waitForMessageContaining('cancelled')
+    expect(afterCancel).toContain('cancelled')
+    console.log('Event cancelled via UI')
+
+    // Restore via inline button
+    console.log('Restoring event...')
+    await participantActions.clickInlineButton('🔄 Restore')
+    // Wait for announcement to be restored (should have "I'm in" button again)
+    await eventCommands.waitForMessageContaining("I'm in")
+    console.log('✅ Cancel → restore completed')
+  })
 })

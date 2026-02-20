@@ -16,6 +16,9 @@ async function main() {
       },
     })
 
+    // Set HTML parse mode globally for all outgoing messages
+    bot.api.config.use((prev, method, payload) => prev(method, { ...payload, parse_mode: 'HTML' }))
+
     // 2. Create container
     const container = createAppContainer(bot)
     const logger = container.resolve('logger')
@@ -28,7 +31,35 @@ async function main() {
     container.resolve('scaffoldBusiness').init()
     container.resolve('utilityBusiness').init()
 
-    // 5. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
+    // 5. Register bot commands menu
+    const settingsRepo = container.resolve('settingsRepository')
+    const adminId = await settingsRepo.getAdminId()
+
+    const commonCommands = [
+      { command: 'start', description: 'Start the bot' },
+      { command: 'help', description: 'Show available commands' },
+      { command: 'myid', description: 'Show your user info' },
+      { command: 'event', description: 'Manage events' },
+      { command: 'scaffold', description: 'Manage schedules' },
+    ]
+
+    await bot.api.setMyCommands(commonCommands, {
+      scope: { type: 'all_private_chats' },
+    })
+
+    if (adminId) {
+      await bot.api.setMyCommands(
+        [...commonCommands, { command: 'admin', description: 'Admin commands' }],
+        {
+          scope: {
+            type: 'chat',
+            chat_id: Number(adminId),
+          },
+        }
+      )
+    }
+
+    // 6. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
     bot.start({
       onStart: (botInfo) => {
         logger.log(`Telegram bot started as @${botInfo.username}`)

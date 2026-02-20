@@ -1,4 +1,5 @@
 import type { LogEvent } from '~/types/logEvent'
+import { code } from '~/helpers/format'
 
 export function formatLogEvent(event: LogEvent): string {
   switch (event.type) {
@@ -19,13 +20,13 @@ export function formatLogEvent(event: LogEvent): string {
     case 'event_restored':
       return `🔄 Event restored: ${event.date}`
     case 'participant_joined':
-      return `👋 ${event.userName} joined ${event.eventId}`
+      return `👋 ${event.userName} joined ${code(event.eventId)}`
     case 'participant_left':
-      return `👋 ${event.userName} left ${event.eventId}`
+      return `👋 ${event.userName} left ${code(event.eventId)}`
     case 'court_added':
-      return `➕ Court added: ${event.eventId} (now ${event.courts})`
+      return `➕ Court added: ${code(event.eventId)} (now ${event.courts})`
     case 'court_removed':
-      return `➖ Court removed: ${event.eventId} (now ${event.courts})`
+      return `➖ Court removed: ${code(event.eventId)} (now ${event.courts})`
     case 'payment_received':
       return `💰 Payment received: ${event.amount} din from ${event.userName}`
     case 'payment_check_completed':
@@ -33,8 +34,8 @@ export function formatLogEvent(event: LogEvent): string {
     case 'scaffold_created':
       return `📋 Scaffold created: ${event.day} ${event.time}, ${event.courts} courts`
     case 'scaffold_toggled':
-      return `🔀 Scaffold ${event.scaffoldId}: ${event.active ? 'activated' : 'deactivated'}`
-    case 'scaffold_removed':
-      return `🗑 Scaffold removed: ${event.scaffoldId}`
+      return `🔀 Scaffold ${code(event.scaffoldId)}: ${event.active ? 'activated' : 'deactivated'}`
+    case 'scaffold_deleted':
+      return `🗑 Scaffold deleted: ${code(event.scaffoldId)}`
   }
 }

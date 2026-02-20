@@ -19,7 +19,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async clickImIn(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton("I'm in")
+    await this.clickInlineButton("✋ I'm in")
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -32,7 +32,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async clickImOut(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton("I'm out")
+    await this.clickInlineButton("👋 I'm out")
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -44,7 +44,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async addCourt(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton('+court')
+    await this.clickInlineButton('➕ Court')
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -56,7 +56,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async removeCourt(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton('-court')
+    await this.clickInlineButton('➖ Court')
     await this.waitForAnnouncementChange(textBefore)
   }
 
