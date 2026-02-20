@@ -9,6 +9,7 @@ import type { config as configType } from '~/config'
 import type { WizardService } from '~/services/wizard/wizardService'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { CommandService } from '~/services/command/commandService'
+import type { SettingsRepo } from '~/storage/repo/settings'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -28,7 +29,8 @@ export class TelegramTransport {
     private config: typeof configType,
     private wizardService: WizardService,
     private commandRegistry: CommandRegistry,
-    private commandService: CommandService
+    private commandService: CommandService,
+    private settingsRepository: SettingsRepo
   ) {
     // Intercept plain text for wizard input (registered before bot.command handlers)
     this.bot.on('message:text', async (ctx, next) => {
@@ -72,6 +74,13 @@ export class TelegramTransport {
     const baseCommand = command.includes(':') ? command.split(':')[0] : command
 
     // Register base command in bot only once
+    if (!this.registeredBaseCommands.has(baseCommand)) {
+      this.registeredBaseCommands.add(baseCommand)
+      this.bot.command(baseCommand, (ctx) => this.handleCommand(ctx, baseCommand))
+    }
+  }
+
+  ensureBaseCommand(baseCommand: string): void {
     if (!this.registeredBaseCommands.has(baseCommand)) {
       this.registeredBaseCommands.add(baseCommand)
       this.bot.command(baseCommand, (ctx) => this.handleCommand(ctx, baseCommand))
@@ -202,6 +211,46 @@ export class TelegramTransport {
     }
 
     const args = ctx.message?.text?.split(/\s+/).slice(1) ?? []
+
+    // Admin routing: /admin <base> <sub> <args...> → check admin, re-route
+    if (baseCommand === 'admin') {
+      const adminId = await this.settingsRepository.getAdminId()
+      if (!userId || String(userId) !== adminId) {
+        await ctx.reply('This command is only available to administrators')
+        return
+      }
+
+      const innerBase = args[0]
+      const innerArgs = args.slice(1)
+      const innerSub = innerArgs[0]
+
+      if (!innerBase) {
+        await ctx.reply('Usage: /admin <command> <subcommand> [args...]')
+        return
+      }
+
+      const innerKey = innerSub ? `${innerBase}:${innerSub}` : innerBase
+      const registered = this.commandRegistry.get(innerKey)
+      if (registered) {
+        this.commandService
+          .run({
+            registered,
+            args: innerArgs.slice(1),
+            ctx,
+          })
+          .catch(async (error) => {
+            await this.logger.error(
+              `Admin command error: ${error instanceof Error ? error.message : String(error)}`
+            )
+            await ctx.reply('An error occurred')
+          })
+        return
+      }
+
+      await ctx.reply('Unknown admin command')
+      return
+    }
+
     const subcommand = args[0]
 
     // Try CommandRegistry first (wizard-enabled commands take priority)

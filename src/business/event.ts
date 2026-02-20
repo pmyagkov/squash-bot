@@ -233,6 +233,8 @@ export class EventBusiness {
         await this.handlePaymentCancelFromDef(data as { eventId: string }, source)
       }
     )
+
+    this.transport.ensureBaseCommand('admin')
   }
 
   // === Callback Handlers ===
