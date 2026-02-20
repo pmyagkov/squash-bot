@@ -33,7 +33,7 @@ export const eventDateStep: WizardStep<string> = {
       parseDate(normalized)
     } catch {
       throw new ParseError(
-        'Invalid date format. Use: YYYY-MM-DD, day name (sat, tue), today, tomorrow, or next <day>'
+        'Invalid date format. Use: YYYY-MM-DD, day name (sat, tue), today, tomorrow, or next (day)'
       )
     }
     return normalized

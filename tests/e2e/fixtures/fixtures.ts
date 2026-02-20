@@ -39,6 +39,7 @@ export const test = base.extend<TestFixtures>({
   chatPage: async ({ page, chatId }, use) => {
     const chatPage = new ChatPage(page)
     await chatPage.navigateToChat(chatId)
+    await chatPage.cancelActiveWizard()
     await use(chatPage)
   },
 
@@ -49,6 +50,7 @@ export const test = base.extend<TestFixtures>({
   scaffoldCommands: async ({ page, chatId }, use) => {
     const scaffoldCommands = new ScaffoldCommands(page)
     await scaffoldCommands.navigateToChat(chatId)
+    await scaffoldCommands.cancelActiveWizard()
     await use(scaffoldCommands)
   },
 
@@ -59,6 +61,7 @@ export const test = base.extend<TestFixtures>({
   eventCommands: async ({ page, chatId }, use) => {
     const eventCommands = new EventCommands(page)
     await eventCommands.navigateToChat(chatId)
+    await eventCommands.cancelActiveWizard()
     await use(eventCommands)
   },
 

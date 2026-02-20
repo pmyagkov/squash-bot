@@ -1,5 +1,6 @@
 import { ChatPage } from '@e2e/pages/ChatPage'
 import { Page } from '@playwright/test'
+import { TIMEOUTS } from '@e2e/config/config'
 
 /**
  * Page Object for Event commands
@@ -151,7 +152,7 @@ export class EventCommands extends ChatPage {
    * Courts: 2
    * Participants: (nobody yet)
    */
-  async waitForAnnouncement(timeout = 10000): Promise<string> {
+  async waitForAnnouncement(timeout = TIMEOUTS.announcement): Promise<string> {
     return await this.waitForMessageContaining('🎾 Squash', timeout)
   }
 

@@ -203,46 +203,46 @@ export class EventBusiness {
 
     // Register commands via CommandRegistry
     this.commandRegistry.register('event:join', eventJoinDef, async (data, source) => {
-      await this.handleJoinFromDef(data as { eventId: string }, source)
+      await this.handleJoinFromDef(data, source)
     })
 
     this.commandRegistry.register('event:create', eventCreateDef, async (data, source) => {
-      await this.handleCreateFromDef(data as { day: string; time: string; courts: number }, source)
+      await this.handleCreateFromDef(data, source)
     })
 
     this.commandRegistry.register('event:leave', eventActionDef, async (data, source) => {
-      await this.handleLeaveFromDef(data as { eventId: string }, source)
+      await this.handleLeaveFromDef(data, source)
     })
 
     this.commandRegistry.register('event:add-court', eventActionDef, async (data, source) => {
-      await this.handleAddCourtFromDef(data as { eventId: string }, source)
+      await this.handleAddCourtFromDef(data, source)
     })
 
     this.commandRegistry.register('event:remove-court', eventActionDef, async (data, source) => {
-      await this.handleRemoveCourtFromDef(data as { eventId: string }, source)
+      await this.handleRemoveCourtFromDef(data, source)
     })
 
     this.commandRegistry.register('event:finalize', eventActionDef, async (data, source) => {
-      await this.handleFinalizeFromDef(data as { eventId: string }, source)
+      await this.handleFinalizeFromDef(data, source)
     })
 
     this.commandRegistry.register('event:undo-cancel', eventActionDef, async (data, source) => {
-      await this.handleRestoreFromDef(data as { eventId: string }, source)
+      await this.handleRestoreFromDef(data, source)
     })
 
     this.commandRegistry.register('event:undo-finalize', eventActionDef, async (data, source) => {
-      await this.handleUnfinalizeFromDef(data as { eventId: string }, source)
+      await this.handleUnfinalizeFromDef(data, source)
     })
 
     this.commandRegistry.register('payment:mark-paid', eventActionDef, async (data, source) => {
-      await this.handlePaymentMarkFromDef(data as { eventId: string }, source)
+      await this.handlePaymentMarkFromDef(data, source)
     })
 
     this.commandRegistry.register(
       'payment:undo-mark-paid',
       eventActionDef,
       async (data, source) => {
-        await this.handlePaymentCancelFromDef(data as { eventId: string }, source)
+        await this.handlePaymentCancelFromDef(data, source)
       }
     )
 
@@ -251,37 +251,34 @@ export class EventBusiness {
     })
 
     this.commandRegistry.register('event:announce', eventAnnounceDef, async (data, source) => {
-      await this.handleAnnounceFromDef(data as { eventId: string }, source)
+      await this.handleAnnounceFromDef(data, source)
     })
 
     this.commandRegistry.register('event:spawn', eventSpawnDef, async (data, source) => {
-      await this.handleSpawnFromDef(data as { scaffoldId: string }, source)
+      await this.handleSpawnFromDef(data, source)
     })
 
     this.commandRegistry.register('event:cancel', eventCancelDef, async (data, source) => {
-      await this.handleCancelCommandFromDef(data as { eventId: string }, source)
+      await this.handleCancelCommandFromDef(data, source)
     })
 
     this.commandRegistry.register('event:transfer', eventTransferDef, async (data, source) => {
-      await this.handleTransferFromDef(data as { eventId: string; targetUsername: string }, source)
+      await this.handleTransferFromDef(data, source)
     })
 
     this.commandRegistry.register('event:delete', eventDeleteDef, async (data, source) => {
-      await this.handleDeleteFromDef(data as { eventId: string }, source)
+      await this.handleDeleteFromDef(data, source)
     })
 
     this.commandRegistry.register('event:undo-delete', eventUndoDeleteDef, async (data, source) => {
-      await this.handleUndoDeleteFromDef(data as { eventId: string }, source)
+      await this.handleUndoDeleteFromDef(data, source)
     })
 
     this.commandRegistry.register(
       'admin:payment:mark-paid',
       adminPaymentMarkPaidDef,
       async (data, source) => {
-        await this.handleAdminPayFromDef(
-          data as { eventId: string; targetUsername: string },
-          source
-        )
+        await this.handleAdminPayFromDef(data, source)
       }
     )
 
@@ -289,15 +286,12 @@ export class EventBusiness {
       'admin:payment:undo-mark-paid',
       adminPaymentUndoMarkPaidDef,
       async (data, source) => {
-        await this.handleAdminUnpayFromDef(
-          data as { eventId: string; targetUsername: string },
-          source
-        )
+        await this.handleAdminUnpayFromDef(data, source)
       }
     )
 
     this.commandRegistry.register('event:update', eventActionDef, async (data, source) => {
-      await this.handleEventEditMenu(data as { eventId: string }, source)
+      await this.handleEventEditMenu(data, source)
     })
 
     this.transport.onEdit('event', (action, entityId, ctx) =>
@@ -1254,7 +1248,8 @@ export class EventBusiness {
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)}: ${dateFormatted}, ${formatCourts(data.courts)}\nTo announce: /event announce ${code(event.id)}`
+    const message = `✅ Created event ${code(event.id)}: ${dateFormatted}, ${formatCourts(data.courts)}
+To announce: ${code(`/event announce ${event.id}`)}`
     await this.transport.sendMessage(source.chat.id, message)
     void this.transport.logEvent({
       type: 'event_created',

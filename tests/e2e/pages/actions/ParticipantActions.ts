@@ -1,5 +1,6 @@
 import { TelegramWebPage } from '@e2e/pages/base/TelegramWebPage'
 import { Page } from '@playwright/test'
+import { TIMEOUTS } from '@e2e/config/config'
 
 /**
  * Page Object for Participant actions on event announcements
@@ -179,40 +180,49 @@ export class ParticipantActions extends TelegramWebPage {
   }
 
   /**
-   * Get current announcement text via browser evaluate (avoids Playwright auto-wait overhead)
+   * Get current announcement text via browser evaluate (avoids Playwright auto-wait overhead).
+   * Matches on "🎾" prefix to distinguish announcements from payment messages
+   * (which also contain "Participants" and have .reply-markup).
    */
   private async getAnnouncementText(): Promise<string> {
-    const selector = this.selectors.messageText
-    return await this.page.evaluate((sel) => {
-      const elements = document.querySelectorAll(sel)
-      for (let i = elements.length - 1; i >= 0; i--) {
-        const el = elements[i] as HTMLElement
-        if (el.innerText.includes('Participants')) {
-          return el.innerText
+    return await this.page.evaluate(() => {
+      const bubbles = document.querySelectorAll('.bubble')
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const bubble = bubbles[i] as HTMLElement
+        if (!bubble.querySelector('.reply-markup')) continue
+        const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+        if (msgEl && msgEl.innerText.includes('🎾')) {
+          return msgEl.innerText
         }
       }
       return ''
-    }, selector)
+    })
   }
 
   /**
    * Wait for announcement text to change from a known previous value.
    * Uses page.waitForFunction for efficient in-browser polling.
    */
-  private async waitForAnnouncementChange(previousText: string, timeout = 15000): Promise<string> {
-    const selector = this.selectors.messageText
+  private async waitForAnnouncementChange(
+    previousText: string,
+    timeout = TIMEOUTS.announcementChange
+  ): Promise<string> {
     await this.page.waitForFunction(
-      ({ sel, prevText }) => {
-        const elements = document.querySelectorAll(sel)
-        for (let i = elements.length - 1; i >= 0; i--) {
-          const el = elements[i] as HTMLElement
-          if (el.innerText.includes('Participants') && el.innerText !== prevText) {
-            return true
+      (prevText) => {
+        const bubbles = document.querySelectorAll('.bubble')
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+          const bubble = bubbles[i] as HTMLElement
+          if (!bubble.querySelector('.reply-markup')) continue
+          const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+          if (msgEl && msgEl.innerText.includes('🎾')) {
+            // Only check the MOST RECENT announcement — old ones from previous tests
+            // have different text and would cause false positives
+            return msgEl.innerText !== prevText
           }
         }
         return false
       },
-      { sel: selector, prevText: previousText },
+      previousText,
       { timeout, polling: 250 }
     )
     return await this.getAnnouncementText()

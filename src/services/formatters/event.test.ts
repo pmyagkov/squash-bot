@@ -490,7 +490,7 @@ describe('event formatters', () => {
       expect(result).toContain('🏟 Courts: 2 × 2000 din = 4000 din')
       expect(result).toContain('Participants: 4')
       expect(result).toContain('Your amount: 2000 din')
-      expect(result).toContain('https://t.me/c/1234567890/42')
+      expect(result).toContain('tg://privatepost?channel=1234567890&post=42')
     })
   })
 
@@ -512,7 +512,7 @@ describe('event formatters', () => {
 
       expect(result).toContain("can't reach")
       expect(result).toContain('@alice, @bob')
-      expect(result).toContain('https://t.me/test_bot?start')
+      expect(result).toContain('tg://resolve?domain=test_bot&start')
       expect(result).toContain('/start')
     })
   })

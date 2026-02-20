@@ -1,5 +1,5 @@
 import { Page, Locator } from '@playwright/test'
-import { getTelegramWebUrl } from '@e2e/config/config'
+import { getTelegramWebUrl, TIMEOUTS } from '@e2e/config/config'
 
 /**
  * Base class for all Telegram Web page objects
@@ -41,7 +41,7 @@ export class TelegramWebPage {
   /**
    * Wait for page to be loaded
    */
-  async waitForLoad(timeout = 10000): Promise<void> {
+  async waitForLoad(timeout = TIMEOUTS.pageLoad): Promise<void> {
     await this.page.waitForSelector(this.selectors.messageComposer, { timeout })
   }
 
@@ -50,12 +50,14 @@ export class TelegramWebPage {
    */
   async navigateToChat(chatId: string): Promise<void> {
     await this.page.goto(getTelegramWebUrl(chatId), { waitUntil: 'domcontentloaded' })
-    await this.page.waitForSelector(this.selectors.chatItem, { timeout: 15000 })
+    await this.page.waitForSelector(this.selectors.chatItem, { timeout: TIMEOUTS.pageLoad })
 
     // Try hash-based navigation first (reload for Web K)
     await this.page.evaluate(() => window.location.reload())
     try {
-      await this.page.waitForSelector(this.selectors.messageComposer, { timeout: 5000 })
+      await this.page.waitForSelector(this.selectors.messageComposer, {
+        timeout: TIMEOUTS.inlineButton,
+      })
       return
     } catch {
       // Hash navigation failed — fall back to clicking the first chat in the list
@@ -93,7 +95,7 @@ export class TelegramWebPage {
    * @param timeout - Maximum time to wait in milliseconds
    * @returns Text content of the new message
    */
-  async waitForNewMessage(timeout = 10000): Promise<string> {
+  async waitForNewMessage(timeout = TIMEOUTS.messageWait): Promise<string> {
     return new Promise((resolve, reject) => {
       const checkInterval = 200
       let elapsed = 0
@@ -130,18 +132,27 @@ export class TelegramWebPage {
    * @param timeout - Maximum time to wait in milliseconds
    * @returns Text content of the matching message
    */
-  async waitForMessageContaining(text: string, timeout = 10000): Promise<string> {
+  async waitForMessageContaining(text: string, timeout = TIMEOUTS.messageWait): Promise<string> {
+    const selector = this.selectors.messageText
     const startTime = Date.now()
 
     while (Date.now() - startTime < timeout) {
-      const messages = await this.getAllMessages().all()
-      // Search from newest to oldest
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const messageText = await messages[i].innerText()
-        if (messageText && messageText.includes(text)) {
-          return messageText
-        }
-      }
+      const result = await this.page.evaluate(
+        ({ sel, searchText }) => {
+          const elements = document.querySelectorAll(sel)
+          for (let i = elements.length - 1; i >= 0; i--) {
+            const el = elements[i] as HTMLElement
+            if (el.innerText && el.innerText.includes(searchText)) {
+              return el.innerText
+            }
+          }
+          return null
+        },
+        { sel: selector, searchText: text }
+      )
+
+      if (result) return result
+
       await this.page.waitForTimeout(200)
     }
 
@@ -149,12 +160,14 @@ export class TelegramWebPage {
   }
 
   /**
-   * Find inline button by text
-   * @param buttonText - Text on the button to find
+   * Find inline button by text.
+   * Searches ALL keyboards in the chat (not just the last one) and returns the
+   * last matching button, since multiple keyboards accumulate across test runs.
    */
   protected findInlineButton(buttonText: string): Locator {
-    const lastKeyboard = this.page.locator(this.selectors.inlineKeyboard).last()
-    return lastKeyboard.locator(this.selectors.inlineButton, { hasText: buttonText })
+    return this.page
+      .locator(`.bubble ${this.selectors.inlineButton}`, { hasText: buttonText })
+      .last()
   }
 
   /**
@@ -163,8 +176,18 @@ export class TelegramWebPage {
    */
   async clickInlineButton(buttonText: string): Promise<void> {
     const button = this.findInlineButton(buttonText)
-    await button.waitFor({ state: 'visible', timeout: 5000 })
+    await button.waitFor({ state: 'visible', timeout: TIMEOUTS.inlineButton })
     await button.click()
+  }
+
+  /**
+   * Wait for an inline button with specific text to appear
+   * @param buttonText - Text on the button to wait for
+   * @param timeout - Maximum time to wait
+   */
+  async waitForInlineButton(buttonText: string, timeout = TIMEOUTS.inlineButton): Promise<void> {
+    const button = this.findInlineButton(buttonText)
+    await button.waitFor({ state: 'visible', timeout })
   }
 
   /**
@@ -174,7 +197,7 @@ export class TelegramWebPage {
   async takeScreenshot(name: string): Promise<void> {
     await this.page.screenshot({
       path: `test-results/screenshots/${name}.png`,
-      fullPage: true
+      fullPage: true,
     })
   }
 

@@ -23,20 +23,14 @@ export function getTelegramWebUrl(chatId?: string): string {
  * Timeouts (in milliseconds)
  */
 export const TIMEOUTS = {
-  // Default timeout for waiting for messages
-  messageWait: 10000,
-
-  // Timeout for page load
   pageLoad: 10000,
-
-  // Timeout for bot response
-  botResponse: 10000,
-
-  // Timeout for announcement message
-  announcement: 10000,
-
-  // Timeout for payment message
-  payment: 10000,
+  botResponse: 2000,
+  messageWait: 2000,
+  announcement: 2000,
+  announcementChange: 2000,
+  payment: 2000,
+  paymentUpdate: 2000,
+  inlineButton: 2000,
 } as const
 
 /**

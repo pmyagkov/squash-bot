@@ -138,8 +138,8 @@ test.describe('Event Lifecycle Flow', () => {
   test('should create event via interactive wizard (/event create)', async ({ eventCommands }) => {
     // Step 1: /event create (no args) → day picker
     console.log('Step 1: Starting event create wizard...')
-    const dayPrompt = await eventCommands.sendAndExpect('/event create', 'Choose a day')
-    expect(dayPrompt).toContain('Choose a day')
+    const dayPrompt = await eventCommands.sendAndExpect('/event create', 'Choose a date')
+    expect(dayPrompt).toContain('Choose a date')
 
     // Step 2: Select day → time prompt
     console.log('Step 2: Selecting day...')
@@ -168,8 +168,8 @@ test.describe('Event Lifecycle Flow', () => {
 
   test('should cancel event create wizard', async ({ eventCommands }) => {
     // Start wizard
-    const dayPrompt = await eventCommands.sendAndExpect('/event create', 'Choose a day')
-    expect(dayPrompt).toContain('Choose a day')
+    const dayPrompt = await eventCommands.sendAndExpect('/event create', 'Choose a date')
+    expect(dayPrompt).toContain('Choose a date')
 
     // Click Cancel
     await eventCommands.clickInlineButton('❌ Cancel')
@@ -207,7 +207,7 @@ test.describe('Event Lifecycle Flow', () => {
     console.log('Unfinalizing event...')
     await participantActions.clickInlineButton('↩️ Unfinalize')
     // Wait for announcement to revert (should have "I'm in" button again)
-    await eventCommands.waitForMessageContaining("I'm in")
+    await eventCommands.waitForInlineButton("I'm in")
     console.log('✅ Finalize → unfinalize completed')
   })
 
@@ -234,7 +234,7 @@ test.describe('Event Lifecycle Flow', () => {
     console.log('Restoring event...')
     await participantActions.clickInlineButton('🔄 Restore')
     // Wait for announcement to be restored (should have "I'm in" button again)
-    await eventCommands.waitForMessageContaining("I'm in")
+    await eventCommands.waitForInlineButton("I'm in")
     console.log('✅ Cancel → restore completed')
   })
 })

@@ -162,14 +162,15 @@ export function formatPersonalPaymentText(
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const totalCost = courts * courtPrice
 
-  // Convert chatId for t.me link (remove -100 prefix for supergroups)
+  // Convert chatId for deep link (remove -100 prefix for supergroups)
+  // tg:// protocol works in both web and production mobile app
   const chatIdStr = String(chatId).replace(/^-100/, '')
-  const link = `https://t.me/c/${chatIdStr}/${messageId}`
+  const link = `tg://privatepost?channel=${chatIdStr}&post=${messageId}`
 
   let text = `💰 Payment for Squash ${formatDate(eventDate)}\n\n`
   text += `${formatCourts(courts)} × ${courtPrice} din = ${totalCost} din\n`
   text += `Participants: ${totalParticipants}\n`
-  text += `Full details: ${link}\n\n`
+  text += `<a href="${link}">Full details</a>\n\n`
   text += `Your amount: ${amount} din`
 
   return text
@@ -191,7 +192,7 @@ export function formatFallbackNotificationText(
   botUsername: string
 ): string {
   const mentions = participantNames.join(', ')
-  const link = `https://t.me/${botUsername}?start`
+  const link = `tg://resolve?domain=${botUsername}&start`
 
-  return `⚠️ I can't reach you personally, guys\n\n${mentions}\n\nPlease start a chat with me: ${link}\n\n(Click the link and send /start)`
+  return `⚠️ I can't reach you personally, guys\n\n${mentions}\n\nPlease <a href="${link}">start a chat with me</a>\n\n(Click the link and send /start)`
 }
