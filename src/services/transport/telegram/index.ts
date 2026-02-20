@@ -1,7 +1,7 @@
 import { Bot, Context } from 'grammy'
 import type { InlineKeyboardMarkup } from 'grammy/types'
-import type { CallbackTypes, CommandTypes, CallbackAction, CommandName } from './types'
-import { callbackParsers, commandParsers, ParseError } from './parsers'
+import type { CallbackTypes, CallbackAction } from './types'
+import { callbackParsers, ParseError } from './parsers'
 import type { Logger } from '~/services/logger'
 import type { LogEvent } from '~/types/logEvent'
 import { formatLogEvent } from '~/services/formatters/logEvent'
@@ -16,9 +16,9 @@ export class TelegramTransport {
     CallbackAction,
     (data: CallbackTypes[CallbackAction]) => Promise<void>
   >()
-  private commandHandlers = new Map<
-    CommandName,
-    (data: CommandTypes[CommandName]) => Promise<void>
+  private editHandlers = new Map<
+    string,
+    (action: string, entityId: string, ctx: Context) => Promise<void>
   >()
   private callbackListenerRegistered = false
   private registeredBaseCommands = new Set<string>()
@@ -64,27 +64,18 @@ export class TelegramTransport {
     }
   }
 
-  onCommand<K extends CommandName>(
-    command: K,
-    handler: (data: CommandTypes[K]) => Promise<void>
-  ): void {
-    this.commandHandlers.set(command, handler as (data: CommandTypes[CommandName]) => Promise<void>)
-
-    // Extract base command: 'event:create' -> 'event', 'start' -> 'start'
-    const baseCommand = command.includes(':') ? command.split(':')[0] : command
-
-    // Register base command in bot only once
+  ensureBaseCommand(baseCommand: string): void {
     if (!this.registeredBaseCommands.has(baseCommand)) {
       this.registeredBaseCommands.add(baseCommand)
       this.bot.command(baseCommand, (ctx) => this.handleCommand(ctx, baseCommand))
     }
   }
 
-  ensureBaseCommand(baseCommand: string): void {
-    if (!this.registeredBaseCommands.has(baseCommand)) {
-      this.registeredBaseCommands.add(baseCommand)
-      this.bot.command(baseCommand, (ctx) => this.handleCommand(ctx, baseCommand))
-    }
+  onEdit(
+    entityType: string,
+    handler: (action: string, entityId: string, ctx: Context) => Promise<void>
+  ): void {
+    this.editHandlers.set(entityType, handler)
   }
 
   // === Output Methods ===
@@ -153,6 +144,24 @@ export class TelegramTransport {
       if (userId) {
         const value = rawAction.slice('wizard:select:'.length)
         this.wizardService.handleInput(ctx, value)
+      }
+      await ctx.answerCallbackQuery()
+      return
+    }
+
+    // Edit menu routing: edit:<entityType>:<action>:<entityId>
+    if (rawAction.startsWith('edit:')) {
+      const parts = rawAction.split(':')
+      const entityType = parts[1]
+      const editAction = parts[2]
+      const entityId = parts.slice(3).join(':')
+      const handler = this.editHandlers.get(entityType)
+      if (handler) {
+        void handler(editAction, entityId, ctx).catch(async (error) => {
+          await this.logger.error(
+            `Edit menu error: ${error instanceof Error ? error.message : String(error)}`
+          )
+        })
       }
       await ctx.answerCallbackQuery()
       return
@@ -230,7 +239,8 @@ export class TelegramTransport {
       }
 
       const innerKey = innerSub ? `${innerBase}:${innerSub}` : innerBase
-      const registered = this.commandRegistry.get(innerKey)
+      const registered =
+        this.commandRegistry.get(`admin:${innerKey}`) ?? this.commandRegistry.get(innerKey)
       if (registered) {
         this.commandService
           .run({
@@ -269,47 +279,10 @@ export class TelegramTransport {
       return
     }
 
-    // Fall back to old command parsers
-    const fullCommand = `${baseCommand}:${subcommand}` as CommandName
-    let commandKey: CommandName
-    let commandArgs: string[]
-
-    if (subcommand && fullCommand in commandParsers) {
-      commandKey = fullCommand
-      commandArgs = args.slice(1)
-    } else if (baseCommand in commandParsers) {
-      commandKey = baseCommand as CommandName
-      commandArgs = args
-    } else {
-      await ctx.reply('Unknown command')
-      return
-    }
-
-    const parser = commandParsers[commandKey]
-    const handler = this.commandHandlers.get(commandKey)
-
-    if (!handler) {
-      await ctx.reply('Command not available')
-      return
-    }
-
-    try {
-      const data = parser(ctx, commandArgs)
-      await handler(data)
-    } catch (error) {
-      if (error instanceof ParseError) {
-        await this.logger.warn(`Parse error: ${error.message}`)
-        await ctx.reply(error.message)
-        return
-      }
-      await this.logger.error(
-        `Command error: ${error instanceof Error ? error.message : String(error)}`
-      )
-      await ctx.reply('An error occurred')
-    }
+    await ctx.reply('Unknown command')
   }
 }
 
 // Re-export types for convenience
-export type { CallbackTypes, CommandTypes, CallbackAction, CommandName, ChatType } from './types'
+export type { CallbackTypes, CallbackAction, ChatType } from './types'
 export { ParseError } from './parsers'

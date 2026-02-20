@@ -6,7 +6,7 @@ Builds on: `2026-02-11-interactive-command-flows-design.md` (architecture), `202
 
 ## Overview
 
-Five sequential phases to deliver the full interactive command flows feature: wizard infrastructure, unified naming, command parity, full migration, and new features (soft delete + edit menu).
+Six sequential phases to deliver the full interactive command flows feature: wizard infrastructure, unified naming, command parity, full migration, new features (soft delete + edit menu), and wizard UX improvements.
 
 Each phase has a clear deliverable and is implemented as a separate plan document.
 
@@ -45,13 +45,74 @@ Adapt existing `handleAddEvent` logic:
 - Create event in DB (status: created)
 - Reply with formatted success + "To announce: /event announce ev_xxx"
 
-#### 3. Integration tests
+#### 3. Parser validation (remove validation from handlers)
+
+Currently `handleCreateFromDef` in both ScaffoldBusiness and EventBusiness contains validation logic that duplicates what step `parse()` functions already do:
+
+```typescript
+// scaffold.ts — validates day, courts in handler
+const dayOfWeek = parseDayOfWeek(data.day)
+if (!dayOfWeek) { sendMessage(...); return }
+if (isNaN(data.courts) || data.courts < 1) { sendMessage(...); return }
+
+// event.ts — validates time, date in handler
+if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(data.time)) { sendMessage(...); return }
+eventDate = parseDate(data.day) // catch → sendMessage
+```
+
+This happens because the `CommandDef.parser()` only splits args without validation. When all args are provided, `missing: []` → wizard skipped → handler gets unvalidated data.
+
+**Fix:** Add `error` field to `ParseResult`. Parser validates using step `parse()` functions. On failure, returns human-readable error. `CommandService` shows error to user and aborts.
+
+```typescript
+// ParseResult gains error field
+export interface ParseResult<T> {
+  parsed: Partial<T>
+  missing: (keyof T)[]
+  error?: string         // validation error message for the user
+}
+```
+
+```typescript
+// scaffoldCreateDef.parser — validates using step parse()
+parser: ({ args }) => {
+  if (args.length < 3) return { parsed: {}, missing: ['day', 'time', 'courts'] }
+
+  try {
+    const day = dayStep.parse!(args[0])
+    const time = timeStep.parse!(args[1])
+    const courts = courtsStep.parse!(args[2])
+    return { parsed: { day, time, courts }, missing: [] }
+  } catch (e) {
+    return { parsed: {}, missing: [], error: e instanceof ParseError ? e.message : 'Invalid input' }
+  }
+}
+```
+
+```typescript
+// CommandService.run — check error before wizard/handler
+const result = await registered.parser(input)
+if (result.error) {
+  await ctx.reply(result.error)
+  return
+}
+```
+
+**Type alignment:** `ScaffoldCreateData.day` becomes `DayOfWeek` (matches `dayStep.parse` return type). `eventDayStep.parse` should validate via `parseDate()` instead of just trimming.
+
+**Result:**
+- `/scaffold create badday 21:00 2` → error message: "Invalid day: badday. Use Mon, Tue, ..."
+- Handlers receive only valid, typed data — no validation code
+- Remove validation blocks from `handleCreateFromDef` in both ScaffoldBusiness and EventBusiness
+
+#### 4. Integration tests
 
 - Event create wizard flow (no args → day → time → courts → created)
 - Event join wizard flow (select event → joined)
+- Parser validation error tests (invalid args → error message, no handler call)
 - Feature-specific test files (following `scaffold-create.test.ts` pattern)
 
-#### 4. E2E tests
+#### 5. E2E tests
 
 | Scenario | File | Status |
 |----------|------|--------|
@@ -306,6 +367,65 @@ No important E2E scenarios.
 | Event delete + undo-delete | event.spec.ts |
 | Event edit menu | event.spec.ts |
 | Full UI: finalize → pay → unpay (DM) | event.spec.ts |
+
+---
+
+## Phase 6: Wizard UX Improvements
+
+**Goal:** Compact keyboard layouts, predefined courts buttons, real date picker for events.
+
+### 6.1 Multi-column keyboard layout
+
+Add optional `columns` field to `WizardStep` / `HydratedStep`. Update `renderStep()` to group options into rows of N instead of one-per-row.
+
+**Files:** `src/services/wizard/types.ts`, `src/services/formatters/wizard.ts`
+
+### 6.2 Compact day-of-week keyboard (scaffold)
+
+Set `columns: 4` on `dayStep`:
+
+```
+[ Mon ] [ Tue ] [ Wed ] [ Thu ]
+[ Fri ] [ Sat ] [ Sun ]
+[ Cancel ]
+```
+
+**File:** `src/commands/scaffold/steps.ts`
+
+### 6.3 Courts as predefined select buttons
+
+Change both `courtsStep` and `eventCourtsStep` from `type: 'text'` to `type: 'select'` with options `[2, 3, 4]` and `columns: 3`. Text input still works via parse function.
+
+```
+[ 2 ] [ 3 ] [ 4 ]
+[ Cancel ]
+```
+
+**Files:** `src/commands/scaffold/steps.ts`, `src/commands/event/steps.ts`
+
+### 6.4 Event date: quick picks + text input
+
+Replace `eventDayStep` (day-of-week buttons) with `eventDateStep`:
+- `type: 'select'`, `columns: 4`
+- `createLoader`: dynamically generates next 7 days with formatted labels (e.g., `Wed 19 Feb`)
+- `parse`: uses `parseDate()` to validate any typed date (supports `2026-03-15`, `tomorrow`, `next sat`)
+- Prompt includes hint about typing a custom date
+
+```
+Choose a date (or type any date, e.g. 2026-03-15):
+
+[ Wed 19 ] [ Thu 20 ] [ Fri 21 ] [ Sat 22 ]
+[ Sun 23 ] [ Mon 24 ] [ Tue 25 ]
+[ Cancel ]
+```
+
+Select steps already accept text input via `handleInput()` — no wizard changes needed.
+
+**Files:** `src/commands/event/steps.ts`, `src/commands/event/create.ts`
+
+### E2E tests Phase 6
+
+Update existing wizard E2E tests (button labels change for courts and event date).
 
 ---
 

@@ -359,32 +359,22 @@ describe('scaffold-create', () => {
       expect(listCall![1]).toContain(scaffoldId)
       expect(listCall![1]).toContain('✅ active')
 
-      // Step 3: Toggle scaffold
+      // Step 3: Edit menu (scaffold update now shows edit menu)
       api.sendMessage.mockClear()
-      const toggleUpdate = createTextMessageUpdate(`/scaffold update ${scaffoldId}`, {
+      const editUpdate = createTextMessageUpdate(`/scaffold update ${scaffoldId}`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
 
-      await bot.handleUpdate(toggleUpdate)
+      await bot.handleUpdate(editUpdate)
 
-      const toggleCall = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes('is now inactive')
+      const editCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('Editing scaffold')
       )
-      expect(toggleCall).toBeDefined()
-      expect(toggleCall![1]).toContain(scaffoldId)
+      expect(editCall).toBeDefined()
+      expect(editCall![1]).toContain(scaffoldId)
 
-      // Step 4: Verify toggle in list
-      api.sendMessage.mockClear()
-      await bot.handleUpdate(listUpdate)
-
-      const listCall2 = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes('📋 Scaffold list')
-      )
-      expect(listCall2).toBeDefined()
-      expect(listCall2![1]).toContain('❌ inactive')
-
-      // Step 5: Remove scaffold
+      // Step 4: Remove scaffold
       api.sendMessage.mockClear()
       const removeUpdate = createTextMessageUpdate(`/scaffold delete ${scaffoldId}`, {
         userId: ADMIN_ID,
@@ -399,7 +389,7 @@ describe('scaffold-create', () => {
         expect.anything()
       )
 
-      // Step 6: Verify removal in list
+      // Step 5: Verify removal in list
       api.sendMessage.mockClear()
       await bot.handleUpdate(listUpdate)
 

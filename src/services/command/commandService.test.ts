@@ -6,7 +6,7 @@ import { WizardCancelledError } from '~/services/wizard/types'
 function mockCtx(overrides: Record<string, unknown> = {}) {
   return {
     from: { id: 123 },
-    chat: { id: 456 },
+    chat: { id: 456, type: 'group', title: undefined },
     callbackQuery: undefined,
     ...overrides,
   } as never
@@ -51,7 +51,7 @@ describe('CommandService', () => {
       { eventId: 'ev_1' },
       {
         type: 'command',
-        chat: { id: 456 },
+        chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
       }
     )
@@ -96,7 +96,7 @@ describe('CommandService', () => {
       { eventId: 'ev_1' },
       {
         type: 'command',
-        chat: { id: 456 },
+        chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
       }
     )
@@ -147,7 +147,7 @@ describe('CommandService', () => {
       {
         type: 'callback',
         callbackId: 'cb_123',
-        chat: { id: 456 },
+        chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
       }
     )
@@ -162,7 +162,7 @@ describe('CommandService', () => {
     }
     const ctx = mockCtx({
       from: { id: 42, username: 'johndoe', first_name: 'John', last_name: 'Doe' },
-      chat: { id: 100 },
+      chat: { id: 100, type: 'group', title: undefined },
     })
 
     await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
@@ -171,7 +171,7 @@ describe('CommandService', () => {
       { x: 1 },
       {
         type: 'command',
-        chat: { id: 100 },
+        chat: { id: 100, type: 'group', title: undefined },
         user: { id: 42, username: 'johndoe', firstName: 'John', lastName: 'Doe' },
       }
     )
@@ -186,7 +186,7 @@ describe('CommandService', () => {
     }
     const ctx = mockCtx({
       from: { id: 42, username: 'janedoe', first_name: 'Jane' },
-      chat: { id: 100 },
+      chat: { id: 100, type: 'group', title: undefined },
       callbackQuery: { id: 'cb_1' },
     })
 
@@ -197,7 +197,7 @@ describe('CommandService', () => {
       {
         type: 'callback',
         callbackId: 'cb_1',
-        chat: { id: 100 },
+        chat: { id: 100, type: 'group', title: undefined },
         user: { id: 42, username: 'janedoe', firstName: 'Jane', lastName: undefined },
       }
     )

@@ -1,21 +1,36 @@
 import { test, describe, expect } from '@tests/setup'
 import { TEST_CONFIG } from '@fixtures/config'
 import { UtilityBusiness } from '~/business/utility'
-import type { MockProxy } from 'vitest-mock-extended'
-import type { TelegramTransport, CommandName, CommandTypes } from '~/services/transport/telegram'
-
-type MockTransport = MockProxy<InstanceType<typeof TelegramTransport>>
+import type { MockAppContainer } from '@mocks'
+import type { SourceContext } from '~/services/command/types'
 
 /**
- * Helper to extract handler registered via transport.onCommand
+ * Helper to extract handler registered via commandRegistry.register
  */
-function getHandler<K extends CommandName>(
-  transport: MockTransport,
-  command: K
-): (data: CommandTypes[K]) => Promise<void> {
-  const call = transport.onCommand.mock.calls.find((c) => c[0] === command)
+function getHandler(
+  container: MockAppContainer,
+  key: string
+): (data: unknown, source: SourceContext) => Promise<void> {
+  const registry = container.resolve('commandRegistry')
+  const call = registry.register.mock.calls.find((c) => c[0] === key)
   expect(call).toBeDefined()
-  return call![1] as (data: CommandTypes[K]) => Promise<void>
+  return call![2] as (data: unknown, source: SourceContext) => Promise<void>
+}
+
+function makeSource(overrides?: {
+  chat?: SourceContext['chat']
+  user?: SourceContext['user']
+}): SourceContext {
+  return {
+    type: 'command',
+    chat: overrides?.chat ?? { id: TEST_CONFIG.chatId, type: 'group', title: 'Test Chat' },
+    user: overrides?.user ?? {
+      id: TEST_CONFIG.userId,
+      username: undefined,
+      firstName: 'Test',
+      lastName: undefined,
+    },
+  }
 }
 
 describe('UtilityBusiness', () => {
@@ -27,12 +42,8 @@ describe('UtilityBusiness', () => {
     const business = new UtilityBusiness(container)
     business.init()
 
-    const handler = getHandler(transport, 'start')
-    await handler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.chatId,
-      chatType: 'private' as const,
-    })
+    const handler = getHandler(container, 'start')
+    await handler({}, makeSource())
 
     expect(transport.sendMessage).toHaveBeenCalledWith(
       TEST_CONFIG.chatId,
@@ -48,12 +59,8 @@ describe('UtilityBusiness', () => {
     const business = new UtilityBusiness(container)
     business.init()
 
-    const handler = getHandler(transport, 'help')
-    await handler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.chatId,
-      chatType: 'private' as const,
-    })
+    const handler = getHandler(container, 'help')
+    await handler({}, makeSource())
 
     expect(transport.sendMessage).toHaveBeenCalledWith(
       TEST_CONFIG.chatId,
@@ -73,15 +80,18 @@ describe('UtilityBusiness', () => {
     const business = new UtilityBusiness(container)
     business.init()
 
-    const handler = getHandler(transport, 'myid')
-    await handler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.chatId,
-      chatType: 'private' as const,
-      username: 'testuser',
-      firstName: 'Test',
-      lastName: 'User',
-    })
+    const handler = getHandler(container, 'myid')
+    await handler(
+      {},
+      makeSource({
+        user: {
+          id: TEST_CONFIG.userId,
+          username: 'testuser',
+          firstName: 'Test',
+          lastName: 'User',
+        },
+      })
+    )
 
     const message = transport.sendMessage.mock.calls[0][1]
     expect(message).toContain(String(TEST_CONFIG.userId))
@@ -94,14 +104,17 @@ describe('UtilityBusiness', () => {
     const business = new UtilityBusiness(container)
     business.init()
 
-    const handler = getHandler(transport, 'myid')
-    await handler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.chatId,
-      chatType: 'private' as const,
-      firstName: 'John',
-      lastName: 'Doe',
-    })
+    const handler = getHandler(container, 'myid')
+    await handler(
+      {},
+      makeSource({
+        user: {
+          id: TEST_CONFIG.userId,
+          firstName: 'John',
+          lastName: 'Doe',
+        },
+      })
+    )
 
     const message = transport.sendMessage.mock.calls[0][1]
     expect(message).toContain(String(TEST_CONFIG.userId))
@@ -118,13 +131,13 @@ describe('UtilityBusiness', () => {
     const business = new UtilityBusiness(container)
     business.init()
 
-    const handler = getHandler(transport, 'getchatid')
-    await handler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.chatId,
-      chatType: 'group' as const,
-      chatTitle: 'Test Squash Group',
-    })
+    const handler = getHandler(container, 'getchatid')
+    await handler(
+      {},
+      makeSource({
+        chat: { id: TEST_CONFIG.chatId, type: 'group', title: 'Test Squash Group' },
+      })
+    )
 
     const message = transport.sendMessage.mock.calls[0][1]
     expect(message).toContain(String(TEST_CONFIG.chatId))
@@ -138,12 +151,13 @@ describe('UtilityBusiness', () => {
     const business = new UtilityBusiness(container)
     business.init()
 
-    const handler = getHandler(transport, 'getchatid')
-    await handler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.privateChatId,
-      chatType: 'private' as const,
-    })
+    const handler = getHandler(container, 'getchatid')
+    await handler(
+      {},
+      makeSource({
+        chat: { id: TEST_CONFIG.privateChatId, type: 'private' },
+      })
+    )
 
     const message = transport.sendMessage.mock.calls[0][1]
     expect(message).toContain(String(TEST_CONFIG.privateChatId))
@@ -164,12 +178,13 @@ describe('UtilityBusiness', () => {
     for (const command of commands) {
       transport.sendMessage.mockClear()
 
-      const handler = getHandler(transport, command)
-      await handler({
-        userId: TEST_CONFIG.userId,
-        chatId: targetChatId,
-        chatType: 'private' as const,
-      })
+      const handler = getHandler(container, command)
+      await handler(
+        {},
+        makeSource({
+          chat: { id: targetChatId, type: 'private' },
+        })
+      )
 
       expect(transport.sendMessage).toHaveBeenCalledWith(targetChatId, expect.any(String))
     }
@@ -182,12 +197,8 @@ describe('UtilityBusiness', () => {
     business.init()
 
     // Start message includes bot name and help suggestion
-    const startHandler = getHandler(transport, 'start')
-    await startHandler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.chatId,
-      chatType: 'private' as const,
-    })
+    const startHandler = getHandler(container, 'start')
+    await startHandler({}, makeSource())
 
     const startMessage = transport.sendMessage.mock.calls[0][1]
     expect(startMessage).toContain('Squash Bot')
@@ -195,12 +206,8 @@ describe('UtilityBusiness', () => {
 
     // Help message includes all command groups
     transport.sendMessage.mockClear()
-    const helpHandler = getHandler(transport, 'help')
-    await helpHandler({
-      userId: TEST_CONFIG.userId,
-      chatId: TEST_CONFIG.chatId,
-      chatType: 'private' as const,
-    })
+    const helpHandler = getHandler(container, 'help')
+    await helpHandler({}, makeSource())
 
     const helpMessage = transport.sendMessage.mock.calls[0][1]
     expect(helpMessage).toContain('/event')

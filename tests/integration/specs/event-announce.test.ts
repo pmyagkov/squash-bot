@@ -7,6 +7,8 @@ import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { EventBusiness } from '~/business/event'
 
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 describe('event-announce', () => {
   let bot: Bot
   let api: BotApiMock
@@ -60,6 +62,7 @@ describe('event-announce', () => {
       })
 
       await bot.handleUpdate(update)
+      await tick()
 
       // Check success message
       expect(api.sendMessage).toHaveBeenCalledWith(
@@ -110,7 +113,7 @@ describe('event-announce', () => {
       expect(buttons[1].text).toBe("I'm out")
     })
 
-    it('should reject announce without event ID', async () => {
+    it('should show wizard prompt when no event ID provided', async () => {
       const update = createTextMessageUpdate('/event announce', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -118,10 +121,10 @@ describe('event-announce', () => {
 
       await bot.handleUpdate(update)
 
-      // Check usage message
+      // Wizard prompts for event selection
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Usage: /event announce'),
+        expect.stringContaining('Choose an event:'),
         expect.anything()
       )
     })

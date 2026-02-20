@@ -9,7 +9,7 @@ import type { EventRepo } from '~/storage/repo/event'
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-describe('/admin routing', () => {
+describe('admin', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer
@@ -110,20 +110,18 @@ describe('/admin routing', () => {
 
     api.sendMessage.mockClear()
 
-    // Admin route: /admin payment mark-paid ev_xxx
-    // This goes through admin wrapper -> payment:mark-paid -> self-service handler (marks admin's own payment)
+    // Admin route: /admin payment mark-paid ev_xxx @username
     await bot.handleUpdate(
-      createTextMessageUpdate(`/admin payment mark-paid ${finalized!.id}`, {
+      createTextMessageUpdate(`/admin payment mark-paid ${finalized!.id} @admin`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
     )
     await tick()
 
-    // Should get success message (payment marked as paid)
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('Payment marked as paid'),
+      expect.stringContaining('marked as paid'),
       expect.anything()
     )
   })

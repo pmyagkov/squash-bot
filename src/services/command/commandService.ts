@@ -40,7 +40,9 @@ export class CommandService {
       }
 
       // 4. Build source context
-      const chat = { id: ctx.chat?.id ?? 0 }
+      const chatType = ctx.chat?.type === 'private' ? ('private' as const) : ('group' as const)
+      const chatTitle = ctx.chat && 'title' in ctx.chat ? ctx.chat.title : undefined
+      const chat = { id: ctx.chat?.id ?? 0, type: chatType, title: chatTitle }
       const user = {
         id: ctx.from?.id ?? 0,
         username: ctx.from?.username,

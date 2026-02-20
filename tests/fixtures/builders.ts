@@ -18,6 +18,7 @@ export function buildEvent(overrides?: Partial<Event>): Event {
     paymentMessageId: undefined,
     announcementDeadline: undefined,
     ownerId: String(TEST_CONFIG.adminId),
+    deletedAt: undefined,
     ...overrides,
   }
 }
@@ -33,6 +34,7 @@ export function buildScaffold(overrides?: Partial<Scaffold>): Scaffold {
     defaultCourts: 2,
     isActive: true,
     announcementDeadline: undefined,
+    deletedAt: undefined,
     ...overrides,
   }
 }

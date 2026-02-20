@@ -75,7 +75,7 @@ describe('scaffold-delete', () => {
       )
     })
 
-    it('should show usage when no id provided', async () => {
+    it('should show wizard prompt when no id provided', async () => {
       const update = createTextMessageUpdate('/scaffold delete', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -85,7 +85,7 @@ describe('scaffold-delete', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Usage: /scaffold delete'),
+        expect.stringContaining('Choose a scaffold:'),
         expect.anything()
       )
     })
@@ -101,6 +101,149 @@ describe('scaffold-delete', () => {
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
         expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+        expect.anything()
+      )
+    })
+
+    it('should soft delete: scaffold hidden from getScaffolds and findById', async () => {
+      const scaffold = await scaffoldRepository.createScaffold('Fri', '21:00', 2)
+
+      const update = createTextMessageUpdate(`/scaffold delete ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(update)
+
+      // Verify scaffold is hidden from normal queries
+      const found = await scaffoldRepository.findById(scaffold.id)
+      expect(found).toBeUndefined()
+
+      const all = await scaffoldRepository.getScaffolds()
+      expect(all.find((s) => s.id === scaffold.id)).toBeUndefined()
+    })
+
+    it('should soft delete: scaffold still exists via findByIdIncludingDeleted', async () => {
+      const scaffold = await scaffoldRepository.createScaffold('Fri', '21:00', 2)
+
+      const update = createTextMessageUpdate(`/scaffold delete ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(update)
+
+      // Verify scaffold still exists in DB
+      const found = await scaffoldRepository.findByIdIncludingDeleted(scaffold.id)
+      expect(found).toBeDefined()
+      expect(found?.deletedAt).toBeInstanceOf(Date)
+    })
+  })
+
+  describe('/scaffold undo-delete', () => {
+    it('should restore a soft-deleted scaffold', async () => {
+      const scaffold = await scaffoldRepository.createScaffold('Fri', '21:00', 2)
+
+      // Delete it
+      const deleteUpdate = createTextMessageUpdate(`/scaffold delete ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(deleteUpdate)
+
+      // Verify it's deleted
+      expect(await scaffoldRepository.findById(scaffold.id)).toBeUndefined()
+
+      // Restore it
+      api.sendMessage.mockClear()
+      const restoreUpdate = createTextMessageUpdate(`/scaffold undo-delete ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(restoreUpdate)
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`✅ Scaffold ${scaffold.id} restored`),
+        expect.anything()
+      )
+
+      // Verify it's visible again
+      const found = await scaffoldRepository.findById(scaffold.id)
+      expect(found).toBeDefined()
+      expect(found?.deletedAt).toBeUndefined()
+    })
+
+    it('should error on non-deleted scaffold', async () => {
+      const scaffold = await scaffoldRepository.createScaffold('Fri', '21:00', 2)
+
+      const update = createTextMessageUpdate(`/scaffold undo-delete ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(update)
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`❌ Scaffold ${scaffold.id} is not deleted`),
+        expect.anything()
+      )
+    })
+
+    it('should error on nonexistent scaffold', async () => {
+      const update = createTextMessageUpdate('/scaffold undo-delete sc_nonexistent', {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(update)
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('❌ Scaffold sc_nonexistent not found'),
+        expect.anything()
+      )
+    })
+
+    it('should reject non-owner non-admin', async () => {
+      const OWNER_ID = 222222222
+      const scaffold = await scaffoldRepository.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(OWNER_ID)
+      )
+
+      // Soft delete the scaffold (as admin)
+      const deleteUpdate = createTextMessageUpdate(`/scaffold delete ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(deleteUpdate)
+
+      // Try restoring as non-owner non-admin
+      api.sendMessage.mockClear()
+      const restoreUpdate = createTextMessageUpdate(`/scaffold undo-delete ${scaffold.id}`, {
+        userId: NON_ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(restoreUpdate)
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Only the owner or admin can restore this scaffold'),
+        expect.anything()
+      )
+    })
+
+    it('should show error when no ID provided', async () => {
+      const update = createTextMessageUpdate('/scaffold undo-delete', {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+      await bot.handleUpdate(update)
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Usage: /scaffold undo-delete'),
         expect.anything()
       )
     })

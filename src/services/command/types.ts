@@ -18,6 +18,8 @@ export interface ParseResult<T> {
 
 export interface ChatContext {
   id: number
+  type: 'private' | 'group'
+  title?: string
 }
 
 export interface UserContext {

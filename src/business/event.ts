@@ -1,4 +1,4 @@
-import { InlineKeyboard } from 'grammy'
+import { InlineKeyboard, type Context } from 'grammy'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
@@ -7,9 +7,13 @@ import { config } from '~/config'
 import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import type { TelegramTransport, CallbackTypes, CommandTypes } from '~/services/transport/telegram'
+import type { TelegramTransport, CallbackTypes } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
+import type { WizardService } from '~/services/wizard/wizardService'
+import type { WizardStep } from '~/services/wizard/types'
+import type { HydratedStep } from '~/services/wizard/types'
+import { WizardCancelledError } from '~/services/wizard/types'
 import type { AppContainer } from '../container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
@@ -29,6 +33,18 @@ import {
 import { eventJoinDef } from '~/commands/event/join'
 import { eventActionDef } from '~/commands/event/eventAction'
 import { eventCreateDef } from '~/commands/event/create'
+import {
+  eventListDef,
+  eventAnnounceDef,
+  eventCancelDef,
+  eventSpawnDef,
+  eventTransferDef,
+  eventDeleteDef,
+  eventUndoDeleteDef,
+} from '~/commands/event/defs'
+import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
+import { eventDayStep, eventTimeStep } from '~/commands/event/steps'
+import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
 
 // Extend dayjs with plugins
 dayjs.extend(utc)
@@ -150,6 +166,8 @@ export class EventBusiness {
   private transport: TelegramTransport
   private logger: Logger
   private commandRegistry: CommandRegistry
+  private wizardService: WizardService
+  private container: AppContainer
   private eventLock = new EventLock()
 
   constructor(container: AppContainer) {
@@ -161,6 +179,8 @@ export class EventBusiness {
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
     this.commandRegistry = container.resolve('commandRegistry')
+    this.wizardService = container.resolve('wizardService')
+    this.container = container
   }
 
   /**
@@ -179,17 +199,7 @@ export class EventBusiness {
     this.transport.onCallback('payment:mark-paid', (data) => this.handlePaymentMark(data))
     this.transport.onCallback('payment:undo-mark-paid', (data) => this.handlePaymentCancel(data))
 
-    // Register commands
-    this.transport.onCommand('event:list', (data) => this.handleList(data))
-    // event:create handled via CommandRegistry (wizard-enabled)
-    this.transport.onCommand('event:announce', (data) => this.handleAnnounce(data))
-    this.transport.onCommand('event:spawn', (data) => this.handleAddByScaffold(data))
-    this.transport.onCommand('event:cancel', (data) => this.handleCancelCommand(data))
-    this.transport.onCommand('event:transfer', (data) => this.handleTransfer(data))
-
-    this.transport.onCommand('payment:mark-paid', (data) => this.handleAdminPay(data))
-    this.transport.onCommand('payment:undo-mark-paid', (data) => this.handleAdminUnpay(data))
-
+    // Register commands via CommandRegistry
     this.commandRegistry.register('event:join', eventJoinDef, async (data, source) => {
       await this.handleJoinFromDef(data as { eventId: string }, source)
     })
@@ -234,7 +244,67 @@ export class EventBusiness {
       }
     )
 
+    this.commandRegistry.register('event:list', eventListDef, async (_data, source) => {
+      await this.handleListFromDef(source)
+    })
+
+    this.commandRegistry.register('event:announce', eventAnnounceDef, async (data, source) => {
+      await this.handleAnnounceFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:spawn', eventSpawnDef, async (data, source) => {
+      await this.handleSpawnFromDef(data as { scaffoldId: string }, source)
+    })
+
+    this.commandRegistry.register('event:cancel', eventCancelDef, async (data, source) => {
+      await this.handleCancelCommandFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:transfer', eventTransferDef, async (data, source) => {
+      await this.handleTransferFromDef(data as { eventId: string; targetUsername: string }, source)
+    })
+
+    this.commandRegistry.register('event:delete', eventDeleteDef, async (data, source) => {
+      await this.handleDeleteFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register('event:undo-delete', eventUndoDeleteDef, async (data, source) => {
+      await this.handleUndoDeleteFromDef(data as { eventId: string }, source)
+    })
+
+    this.commandRegistry.register(
+      'admin:payment:mark-paid',
+      adminPaymentMarkPaidDef,
+      async (data, source) => {
+        await this.handleAdminPayFromDef(
+          data as { eventId: string; targetUsername: string },
+          source
+        )
+      }
+    )
+
+    this.commandRegistry.register(
+      'admin:payment:undo-mark-paid',
+      adminPaymentUndoMarkPaidDef,
+      async (data, source) => {
+        await this.handleAdminUnpayFromDef(
+          data as { eventId: string; targetUsername: string },
+          source
+        )
+      }
+    )
+
+    this.commandRegistry.register('event:update', eventActionDef, async (data, source) => {
+      await this.handleEventEditMenu(data as { eventId: string }, source)
+    })
+
+    this.transport.onEdit('event', (action, entityId, ctx) =>
+      this.handleEventEditAction(action, entityId, ctx)
+    )
+
+    this.transport.ensureBaseCommand('event')
     this.transport.ensureBaseCommand('admin')
+    this.transport.ensureBaseCommand('payment')
   }
 
   // === Callback Handlers ===
@@ -1194,37 +1264,34 @@ export class EventBusiness {
 
   // === Admin Command Handlers ===
 
-  private async handleAdminPay(data: CommandTypes['payment:mark-paid']): Promise<void> {
-    const adminId = await this.settingsRepository.getAdminId()
-    if (String(data.userId) !== adminId) {
-      await this.transport.sendMessage(
-        data.chatId,
-        '❌ This command is only available to administrators'
-      )
-      return
-    }
-
+  private async handleAdminPayFromDef(
+    data: { eventId: string; targetUsername: string },
+    source: SourceContext
+  ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
       return
     }
     if (event.status !== 'finalized') {
-      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} is not finalized`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} is not finalized`)
       return
     }
 
-    const participant = await this.participantRepository.findByUsername(data.username)
+    const participant = await this.participantRepository.findByUsername(data.targetUsername)
     if (!participant) {
-      await this.transport.sendMessage(data.chatId, `❌ Participant @${data.username} not found`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `❌ Participant @${data.targetUsername} not found`
+      )
       return
     }
 
     const payment = await this.paymentRepository.findByEventAndParticipant(event.id, participant.id)
     if (!payment) {
       await this.transport.sendMessage(
-        data.chatId,
-        `❌ No payment found for @${data.username} in ${event.id}`
+        source.chat.id,
+        `❌ No payment found for @${data.targetUsername} in ${event.id}`
       )
       return
     }
@@ -1268,8 +1335,8 @@ export class EventBusiness {
     await this.updateAnnouncementWithPayments(event.id)
 
     await this.transport.sendMessage(
-      data.chatId,
-      `✅ @${data.username} marked as paid for ${event.id}`
+      source.chat.id,
+      `✅ @${data.targetUsername} marked as paid for ${event.id}`
     )
 
     void this.transport.logEvent({
@@ -1280,37 +1347,34 @@ export class EventBusiness {
     })
   }
 
-  private async handleAdminUnpay(data: CommandTypes['payment:undo-mark-paid']): Promise<void> {
-    const adminId = await this.settingsRepository.getAdminId()
-    if (String(data.userId) !== adminId) {
-      await this.transport.sendMessage(
-        data.chatId,
-        '❌ This command is only available to administrators'
-      )
-      return
-    }
-
+  private async handleAdminUnpayFromDef(
+    data: { eventId: string; targetUsername: string },
+    source: SourceContext
+  ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
       return
     }
     if (event.status !== 'finalized') {
-      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} is not finalized`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} is not finalized`)
       return
     }
 
-    const participant = await this.participantRepository.findByUsername(data.username)
+    const participant = await this.participantRepository.findByUsername(data.targetUsername)
     if (!participant) {
-      await this.transport.sendMessage(data.chatId, `❌ Participant @${data.username} not found`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `❌ Participant @${data.targetUsername} not found`
+      )
       return
     }
 
     const payment = await this.paymentRepository.findByEventAndParticipant(event.id, participant.id)
     if (!payment) {
       await this.transport.sendMessage(
-        data.chatId,
-        `❌ No payment found for @${data.username} in ${event.id}`
+        source.chat.id,
+        `❌ No payment found for @${data.targetUsername} in ${event.id}`
       )
       return
     }
@@ -1350,20 +1414,19 @@ export class EventBusiness {
     await this.updateAnnouncementWithPayments(event.id)
 
     await this.transport.sendMessage(
-      data.chatId,
-      `✅ @${data.username} marked as unpaid for ${event.id}`
+      source.chat.id,
+      `✅ @${data.targetUsername} marked as unpaid for ${event.id}`
     )
   }
 
   // === Command Handlers ===
 
-  private async handleList(data: CommandTypes['event:list']): Promise<void> {
+  private async handleListFromDef(source: SourceContext): Promise<void> {
     const events = await this.eventRepository.getEvents()
-    // Include all non-cancelled events (created, announced, finalized)
     const activeEvents = events.filter((e) => e.status !== 'cancelled')
 
     if (activeEvents.length === 0) {
-      await this.transport.sendMessage(data.chatId, '📋 Event list\n\nNo events found')
+      await this.transport.sendMessage(source.chat.id, '📋 Event list\n\nNo events found')
       return
     }
 
@@ -1376,36 +1439,42 @@ export class EventBusiness {
       })
     )
 
-    await this.transport.sendMessage(data.chatId, `📋 Event list\n\n${list.join('\n')}`)
+    await this.transport.sendMessage(source.chat.id, `📋 Event list\n\n${list.join('\n')}`)
   }
 
-  private async handleAnnounce(data: CommandTypes['event:announce']): Promise<void> {
+  private async handleAnnounceFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
       return
     }
 
     if (event.status === 'announced') {
-      await this.transport.sendMessage(data.chatId, `ℹ️ Event ${event.id} is already announced`)
+      await this.transport.sendMessage(source.chat.id, `ℹ️ Event ${event.id} is already announced`)
       return
     }
 
     try {
       await this.announceEvent(event.id)
-      await this.transport.sendMessage(data.chatId, `✅ Event ${event.id} announced`)
+      await this.transport.sendMessage(source.chat.id, `✅ Event ${event.id} announced`)
     } catch (error) {
       await this.transport.sendMessage(
-        data.chatId,
+        source.chat.id,
         `❌ Failed to announce event: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }
 
-  private async handleAddByScaffold(data: CommandTypes['event:spawn']): Promise<void> {
+  private async handleSpawnFromDef(
+    data: { scaffoldId: string },
+    source: SourceContext
+  ): Promise<void> {
     const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
     if (!scaffold) {
-      await this.transport.sendMessage(data.chatId, `❌ Scaffold ${data.scaffoldId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Scaffold ${data.scaffoldId} not found`)
       return
     }
 
@@ -1416,7 +1485,7 @@ export class EventBusiness {
     const events = await this.eventRepository.getEvents()
     if (eventExists(events, scaffold.id, nextOccurrence)) {
       await this.transport.sendMessage(
-        data.chatId,
+        source.chat.id,
         `❌ Event already exists for scaffold ${scaffold.id}`
       )
       return
@@ -1426,7 +1495,7 @@ export class EventBusiness {
     const ownerId = scaffold.ownerId ?? (await this.settingsRepository.getAdminId())
     if (!ownerId) {
       await this.transport.sendMessage(
-        data.chatId,
+        source.chat.id,
         '❌ Cannot determine event owner. Set scaffold owner or global admin.'
       )
       return
@@ -1444,7 +1513,7 @@ export class EventBusiness {
     // Format success message
     const dateFormatted = dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm')
     const message = `✅ Created event ${event.id} from ${scaffold.id} (${dateFormatted}, ${scaffold.defaultCourts} courts). To announce: /event announce ${event.id}`
-    await this.transport.sendMessage(data.chatId, message)
+    await this.transport.sendMessage(source.chat.id, message)
     void this.transport.logEvent({
       type: 'event_created',
       eventId: event.id,
@@ -1453,17 +1522,20 @@ export class EventBusiness {
     })
   }
 
-  private async handleCancelCommand(data: CommandTypes['event:cancel']): Promise<void> {
+  private async handleCancelCommandFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
       return
     }
 
     // Cancel the event
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
-    await this.transport.sendMessage(data.chatId, `✅ Event ${event.id} cancelled`)
+    await this.transport.sendMessage(source.chat.id, `✅ Event ${event.id} cancelled`)
 
     // If event was announced, send cancellation notification to the main chat
     if (event.status === 'announced') {
@@ -1770,16 +1842,80 @@ export class EventBusiness {
     return createdCount
   }
 
-  private async handleTransfer(data: CommandTypes['event:transfer']): Promise<void> {
+  private async handleDeleteFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    try {
+      const event = await this.eventRepository.findById(data.eventId)
+      if (!event) {
+        await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+        return
+      }
+
+      if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+        await this.transport.sendMessage(
+          source.chat.id,
+          '❌ Only the owner or admin can delete this event'
+        )
+        return
+      }
+
+      await this.eventRepository.remove(data.eventId)
+
+      await this.transport.sendMessage(source.chat.id, `✅ Event ${data.eventId} deleted`)
+      await this.logger.log(`User ${source.user.id} deleted event ${data.eventId}`)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(`Error deleting event from user ${source.user.id}: ${errorMessage}`)
+    }
+  }
+
+  private async handleUndoDeleteFromDef(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    try {
+      const event = await this.eventRepository.findByIdIncludingDeleted(data.eventId)
+      if (!event) {
+        await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+        return
+      }
+      if (!event.deletedAt) {
+        await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} is not deleted`)
+        return
+      }
+      if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+        await this.transport.sendMessage(
+          source.chat.id,
+          '❌ Only the owner or admin can restore this event'
+        )
+        return
+      }
+      await this.eventRepository.restore(data.eventId)
+      await this.transport.sendMessage(source.chat.id, `✅ Event ${data.eventId} restored`)
+      await this.logger.log(`User ${source.user.id} restored event ${data.eventId}`)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(`Error restoring event from user ${source.user.id}: ${errorMessage}`)
+    }
+  }
+
+  private async handleTransferFromDef(
+    data: { eventId: string; targetUsername: string },
+    source: SourceContext
+  ): Promise<void> {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
-      await this.transport.sendMessage(data.chatId, `❌ Event ${data.eventId} not found`)
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
       return
     }
 
-    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
       await this.transport.sendMessage(
-        data.chatId,
+        source.chat.id,
         '❌ Only the owner or admin can transfer ownership'
       )
       return
@@ -1788,7 +1924,7 @@ export class EventBusiness {
     const target = await this.participantRepository.findByUsername(data.targetUsername)
     if (!target || !target.telegramId) {
       await this.transport.sendMessage(
-        data.chatId,
+        source.chat.id,
         `❌ User @${data.targetUsername} not found. They need to interact with the bot first.`
       )
       return
@@ -1797,11 +1933,11 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { ownerId: target.telegramId })
 
     await this.transport.sendMessage(
-      data.chatId,
+      source.chat.id,
       `✅ Event ${event.id} transferred to @${data.targetUsername}`
     )
     await this.logger.log(
-      `User ${data.userId} transferred event ${event.id} to @${data.targetUsername}`
+      `User ${source.user.id} transferred event ${event.id} to @${data.targetUsername}`
     )
   }
 
@@ -1809,5 +1945,99 @@ export class EventBusiness {
     const owner = await this.participantRepository.findByTelegramId(ownerId)
     if (!owner) return undefined
     return owner.telegramUsername ? `@${owner.telegramUsername}` : owner.displayName
+  }
+
+  // === Edit Menu ===
+
+  private async handleEventEditMenu(
+    data: { eventId: string },
+    source: SourceContext
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(data.eventId)
+    if (!event) {
+      await this.transport.sendMessage(source.chat.id, `❌ Event ${data.eventId} not found`)
+      return
+    }
+    await this.transport.sendMessage(
+      source.chat.id,
+      formatEventEditMenu(event),
+      buildEventEditKeyboard(data.eventId)
+    )
+  }
+
+  private async handleEventEditAction(
+    action: string,
+    entityId: string,
+    ctx: Context
+  ): Promise<void> {
+    const event = await this.eventRepository.findById(entityId)
+    if (!event) return
+
+    const chatId = ctx.chat!.id
+    const messageId = ctx.callbackQuery!.message!.message_id
+
+    // Only allow editing events in editable statuses
+    if (['cancelled', 'finalized', 'paid'].includes(event.status)) {
+      if (action !== 'done') return
+    }
+
+    switch (action) {
+      case '+court':
+        await this.eventRepository.updateEvent(entityId, { courts: event.courts + 1 })
+        break
+      case '-court':
+        if (event.courts <= 1) return
+        await this.eventRepository.updateEvent(entityId, { courts: event.courts - 1 })
+        break
+      case 'date': {
+        const hydratedDay = this.hydrateStep(eventDayStep)
+        try {
+          const newDay = await this.wizardService.collect(hydratedDay, ctx)
+          const newDate = parseDate(newDay)
+          const existingTime = dayjs(event.datetime)
+          const combined = dayjs(newDate)
+            .hour(existingTime.hour())
+            .minute(existingTime.minute())
+            .toDate()
+          await this.eventRepository.updateEvent(entityId, { datetime: combined })
+        } catch (e) {
+          if (e instanceof WizardCancelledError) return
+          throw e
+        }
+        break
+      }
+      case 'time': {
+        const hydratedTime = this.hydrateStep(eventTimeStep)
+        try {
+          const newTime = await this.wizardService.collect(hydratedTime, ctx)
+          const [h, m] = newTime.split(':').map(Number)
+          const combined = dayjs(event.datetime).hour(h).minute(m).toDate()
+          await this.eventRepository.updateEvent(entityId, { datetime: combined })
+        } catch (e) {
+          if (e instanceof WizardCancelledError) return
+          throw e
+        }
+        break
+      }
+      case 'done':
+        await this.transport.editMessage(chatId, messageId, formatEventEditMenu(event))
+        return // Don't re-render with keyboard
+    }
+
+    // Re-render edit menu with updated data
+    const updated = await this.eventRepository.findById(entityId)
+    if (updated) {
+      await this.transport.editMessage(
+        chatId,
+        messageId,
+        formatEventEditMenu(updated),
+        buildEventEditKeyboard(entityId)
+      )
+    }
+  }
+
+  private hydrateStep<T>(step: WizardStep<T>): HydratedStep<T> {
+    const { createLoader, ...rest } = step
+    return { ...rest, load: createLoader?.(this.container) }
   }
 }

@@ -8,7 +8,7 @@ import type { EventRepo } from '~/storage/repo/event'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { EventBusiness } from '~/business/event'
 
-describe('payment-personal-notifications', () => {
+describe('event-payment-notifications', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer

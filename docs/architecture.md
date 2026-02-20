@@ -109,10 +109,10 @@ src/
 │                          Business Layer                                      │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────────────┐│
 │  │ EventBusiness   │ │ ScaffoldBusiness│ │ UtilityBusiness                 ││
-│  │ - handleJoin()  │ │ - handleAdd()   │ │ - handleStart()                 ││
+│  │ - handleJoin()  │ │ - handleCreate()│ │ - handleStart()                 ││
 │  │ - handleLeave() │ │ - handleList()  │ │ - handleHelp()                  ││
-│  │ - handleAdd()   │ │ - handleToggle()│ │ - handleMyId()                  ││
-│  │ - ...           │ │ - handleRemove()│ │ - handleGetChatId()             ││
+│  │ - handleCreate()│ │ - handleEdit()  │ │ - handleMyId()                  ││
+│  │ - handleEdit()  │ │ - handleRemove()│ │ - handleGetChatId()             ││
 │  └─────────────────┘ └─────────────────┘ └─────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
                 │
@@ -150,6 +150,7 @@ The `TelegramTransport` class provides:
 1. **Type-safe handler registration:**
    - `onCallback<K>(action, handler)` — register callback handlers with typed data
    - `onCommand<K>(command, handler)` — register command handlers with subcommand support
+   - `onEdit(entityType, handler)` — register edit menu callback handlers (see Edit Menu Routing below)
 
 2. **Output methods:**
    - `sendMessage(chatId, text, keyboard?)` — send message, returns message ID
@@ -166,6 +167,14 @@ The `TelegramTransport` class provides:
    - `logEvent(event: LogEvent)` — send typed business/system event to Telegram log chat
    - Uses `formatLogEvent()` for human-readable formatting
    - Event types: `SystemEvent` (bot_started, bot_stopped, unhandled_error) and `BusinessEvent` (event_created, event_finalized, event_cancelled, payment_received, payment_check_completed)
+
+5. **Edit menu routing:**
+   - Callback data format: `edit:<entityType>:<action>:<entityId>` (e.g., `edit:scaffold:+court:sc_abc123`)
+   - Business classes register handlers via `transport.onEdit('scaffold', handler)` and `transport.onEdit('event', handler)`
+   - Transport parses the callback data and routes to the registered handler
+   - Handler receives `(action, entityId, ctx)` and performs the edit action
+   - After each action, the edit menu message is re-rendered via `editMessage()` with updated data
+   - Fire-and-forget pattern: edit handlers are called with `void handler(...).catch(...)` to avoid Grammy deadlock
 
 ### Dependency Injection
 
@@ -266,26 +275,31 @@ Record of participant's payment for a specific session.
 **Commands:**
 
 ```
-/scaffold add <day> <time> <courts>
+/scaffold create <day> <time> <courts>
 /scaffold list
-/scaffold toggle <id>
-/scaffold remove <id>
+/scaffold update <id>
+/scaffold delete <id>
+/scaffold undo-delete <id>
+/scaffold transfer <id> <username>
 ```
 
 **Examples:**
 ```
-/scaffold add Tue 21:00 2
+/scaffold create Tue 21:00 2
 → Created scaffold sc_1: Tue 21:00, 2 courts
 
 /scaffold list
 → sc_1: Tue 21:00, 2 courts, active
 → sc_2: Sat 18:00, 3 courts, inactive
 
-/scaffold toggle sc_2
-→ sc_2 is now active
+/scaffold update sc_2
+→ Shows interactive edit menu with inline buttons
 
-/scaffold remove sc_1
-→ sc_1 removed
+/scaffold delete sc_1
+→ Scaffold sc_1 removed (soft delete)
+
+/scaffold undo-delete sc_1
+→ Scaffold sc_1 restored
 ```
 
 **Scaffold Data Structure:**
@@ -936,6 +950,7 @@ Templates for regular sessions. Generate Events automatically.
 | time | Text | Start time in HH:MM format (e.g., "21:00") |
 | default_courts | Number | Default number of courts |
 | is_active | Checkbox | Whether template is active (inactive ones don't generate events) |
+| deleted_at | Timestamp | Soft delete timestamp (NULL = active, set = soft-deleted) |
 | announce_hours_before | Number | How many hours before session to create event (default: 12:00 previous day) |
 | admin_id | Relation → Participants | Participant who created/manages this scaffold |
 | min_participants | Number | Minimum participants required (0 = solo training allowed) |
@@ -952,6 +967,7 @@ Specific sessions — created from scaffold or manually.
 | status | Select | Status: created, announced, cancelled, finished, finalized, paid |
 | telegram_message_id | Text | ID of announcement message in Telegram (for updating) |
 | payment_message_id | Text | ID of payment message in Telegram |
+| deleted_at | Timestamp | Soft delete timestamp (NULL = active, set = soft-deleted) |
 | admin_id | Relation → Participants | Event admin (inherited from scaffold or set by creator for ad-hoc) |
 | min_participants | Number | Minimum participants required (inherited from scaffold, 0 = solo allowed) |
 | overcapacity_notified | Checkbox | Whether admin was notified about participant/court imbalance (reset on any change) |
@@ -1031,10 +1047,10 @@ Bot selects table set by chat_id:
 ## Open Questions — RESOLVED
 
 1. **Is there a need to edit scaffold (not just toggle/remove)?**
-   → No, admin will fix manually in database if needed.
+   → Yes, implemented via interactive edit menu (`/scaffold update <id>`). Supports changing day, time, courts, and active status via inline keyboard.
 
 2. **What to do with historical events when scaffold is deleted?**
-   → Nothing, events remain.
+   → Nothing, events remain. Scaffolds and events use soft delete (deletedAt timestamp) so they can be restored with `/scaffold undo-delete` or `/event undo-delete`.
 
 3. **Is rollback of "Paid" marking needed?**
    → Yes, needed. See scenario 8.

@@ -35,36 +35,5 @@ export interface CallbackTypes {
   'payment:undo-mark-paid': CallbackBaseData & { eventId: string }
 }
 
-// === Command Types ===
-export interface CommandTypes {
-  // Utility commands
-  start: BaseData
-  help: BaseData
-  myid: BaseData & { username?: string; firstName?: string; lastName?: string }
-  getchatid: BaseData & { chatTitle?: string }
-
-  // Event subcommands
-  'event:list': BaseData
-  'event:create': BaseData & { day: string; time: string; courts: number }
-  'event:announce': BaseData & { eventId: string }
-  'event:spawn': BaseData & { scaffoldId: string }
-  'event:cancel': BaseData & { eventId: string }
-
-  // Payment commands
-  'payment:mark-paid': BaseData & { eventId: string; username: string }
-  'payment:undo-mark-paid': BaseData & { eventId: string; username: string }
-
-  // Scaffold subcommands
-  'scaffold:create': BaseData & { day: string; time: string; courts: number }
-  'scaffold:list': BaseData
-  'scaffold:update': BaseData & { scaffoldId: string }
-  'scaffold:delete': BaseData & { scaffoldId: string }
-  'scaffold:transfer': BaseData & { scaffoldId: string; targetUsername: string }
-
-  // Transfer commands
-  'event:transfer': BaseData & { eventId: string; targetUsername: string }
-}
-
 // === Type helpers ===
 export type CallbackAction = keyof CallbackTypes
-export type CommandName = keyof CommandTypes

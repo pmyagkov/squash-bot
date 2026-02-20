@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
-import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
+import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
-describe('scaffold-toggle', () => {
+describe('scaffold-update (edit menu)', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer
@@ -35,7 +35,7 @@ describe('scaffold-toggle', () => {
   })
 
   describe('/scaffold update', () => {
-    it('should toggle scaffold active status', async () => {
+    it('should show edit menu with keyboard', async () => {
       const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2)
 
       const update = createTextMessageUpdate(`/scaffold update ${scaffold.id}`, {
@@ -45,14 +45,43 @@ describe('scaffold-toggle', () => {
 
       await bot.handleUpdate(update)
 
-      const toggleCall = api.sendMessage.mock.calls.find(
-        ([, text]) => text.includes(scaffold.id) && text.includes('inactive')
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining(`Editing scaffold ${scaffold.id}`),
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({ text: 'Change day' }),
+                expect.objectContaining({ text: 'Change time' }),
+              ]),
+            ]),
+          }),
+        })
       )
-      expect(toggleCall).toBeDefined()
-      expect(toggleCall![1]).toContain('is now inactive')
     })
 
-    it('should show usage when no id provided', async () => {
+    it('should show scaffold details in edit menu', async () => {
+      const scaffold = await scaffoldRepository.createScaffold('Fri', '19:00', 3)
+
+      const update = createTextMessageUpdate(`/scaffold update ${scaffold.id}`, {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+
+      await bot.handleUpdate(update)
+
+      const call = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes(`Editing scaffold ${scaffold.id}`)
+      )
+      expect(call).toBeDefined()
+      expect(call![1]).toContain('Day: Fri')
+      expect(call![1]).toContain('Time: 19:00')
+      expect(call![1]).toContain('Courts: 3')
+      expect(call![1]).toContain('Active')
+    })
+
+    it('should show wizard prompt when no id provided', async () => {
       const update = createTextMessageUpdate('/scaffold update', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -62,53 +91,7 @@ describe('scaffold-toggle', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Usage: /scaffold update'),
-        expect.anything()
-      )
-    })
-
-    it('should allow owner to toggle scaffold', async () => {
-      const OWNER_ID = 222222222
-      const scaffold = await scaffoldRepository.createScaffold(
-        'Tue',
-        '21:00',
-        2,
-        undefined,
-        String(OWNER_ID)
-      )
-
-      const update = createTextMessageUpdate(`/scaffold update ${scaffold.id}`, {
-        userId: OWNER_ID,
-        chatId: TEST_CHAT_ID,
-      })
-      await bot.handleUpdate(update)
-
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('is now inactive'),
-        expect.anything()
-      )
-    })
-
-    it('should reject non-owner non-admin', async () => {
-      const OWNER_ID = 222222222
-      const scaffold = await scaffoldRepository.createScaffold(
-        'Tue',
-        '21:00',
-        2,
-        undefined,
-        String(OWNER_ID)
-      )
-
-      const update = createTextMessageUpdate(`/scaffold update ${scaffold.id}`, {
-        userId: NON_ADMIN_ID,
-        chatId: TEST_CHAT_ID,
-      })
-      await bot.handleUpdate(update)
-
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('Only the owner or admin'),
+        expect.stringContaining('Choose a scaffold:'),
         expect.anything()
       )
     })

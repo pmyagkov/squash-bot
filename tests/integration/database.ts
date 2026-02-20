@@ -52,7 +52,8 @@ function createTables(db: ReturnType<typeof drizzle>) {
       default_courts INTEGER NOT NULL,
       is_active INTEGER DEFAULT 1 NOT NULL,
       announcement_deadline TEXT,
-      owner_id TEXT
+      owner_id TEXT,
+      deleted_at TEXT
     )
   `)
 
@@ -67,6 +68,7 @@ function createTables(db: ReturnType<typeof drizzle>) {
       payment_message_id TEXT,
       announcement_deadline TEXT,
       owner_id TEXT NOT NULL,
+      deleted_at TEXT,
       FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id)
     )
   `)
