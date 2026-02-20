@@ -34,6 +34,7 @@ export const dayStep: WizardStep<DayOfWeek> = {
   param: 'day',
   type: 'select',
   prompt: 'Choose a day of the week:',
+  columns: 4,
   createLoader: () => async () => DAYS.map((d) => ({ value: d, label: d })),
   parse: (input: string): DayOfWeek => {
     const day = parseDayOfWeek(input)
@@ -56,8 +57,14 @@ export const timeStep: WizardStep<string> = {
 
 export const courtsStep: WizardStep<number> = {
   param: 'courts',
-  type: 'text',
+  type: 'select',
   prompt: 'How many courts?',
+  columns: 3,
+  createLoader: () => async () => [
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
+    { value: '4', label: '4' },
+  ],
   parse: (input: string): number => {
     const n = parseInt(input, 10)
     if (isNaN(n) || n < 1) throw new ParseError('Number of courts must be a positive number')

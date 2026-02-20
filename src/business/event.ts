@@ -43,7 +43,7 @@ import {
   eventUndoDeleteDef,
 } from '~/commands/event/defs'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
-import { eventDayStep, eventTimeStep } from '~/commands/event/steps'
+import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
 import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
 
 // Extend dayjs with plugins
@@ -1990,7 +1990,7 @@ export class EventBusiness {
         await this.eventRepository.updateEvent(entityId, { courts: event.courts - 1 })
         break
       case 'date': {
-        const hydratedDay = this.hydrateStep(eventDayStep)
+        const hydratedDay = this.hydrateStep(eventDateStep)
         try {
           const newDay = await this.wizardService.collect(hydratedDay, ctx)
           const newDate = parseDate(newDay)

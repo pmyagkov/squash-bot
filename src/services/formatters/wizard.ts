@@ -10,10 +10,14 @@ export interface StepRenderResult {
 
 export function renderStep(step: HydratedStep<unknown>, options?: StepOption[]): StepRenderResult {
   const keyboard = new InlineKeyboard()
+  const columns = step.columns ?? 1
 
   if (step.type === 'select' && options && options.length > 0) {
-    for (const opt of options) {
-      keyboard.text(opt.label, `wizard:select:${opt.value}`).row()
+    for (let i = 0; i < options.length; i++) {
+      keyboard.text(options[i].label, `wizard:select:${options[i].value}`)
+      if ((i + 1) % columns === 0 || i === options.length - 1) {
+        keyboard.row()
+      }
     }
   }
 

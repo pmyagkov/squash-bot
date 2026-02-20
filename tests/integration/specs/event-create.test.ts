@@ -533,8 +533,14 @@ describe('event-create', () => {
         expect(registry.get('event:create')).toBeDefined()
       })
 
-      it('full flow: select day → enter time → enter courts → event created', async () => {
-        // Step 1: /event create (no args) → wizard starts at dayStep
+      it('full flow: select date → enter time → enter courts → event created', async () => {
+        // Compute expected first date option (tomorrow in configured timezone)
+        const tz = config.timezone
+        const tomorrow = dayjs.tz(new Date(), tz).add(1, 'day')
+        const tomorrowValue = tomorrow.format('YYYY-MM-DD')
+        const tomorrowLabel = tomorrow.format('ddd D')
+
+        // Step 1: /event create (no args) → wizard starts at dateStep
         const commandDone = bot.handleUpdate(
           createTextMessageUpdate('/event create', {
             userId: ADMIN_ID,
@@ -543,29 +549,32 @@ describe('event-create', () => {
         )
         await tick()
 
-        // Verify day prompt with inline keyboard
+        // Verify date prompt with inline keyboard (dynamic date buttons)
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('Choose a day'),
+          expect.stringContaining('Choose a date'),
           expect.objectContaining({
             reply_markup: expect.objectContaining({
               inline_keyboard: expect.arrayContaining([
                 expect.arrayContaining([
-                  expect.objectContaining({ text: 'Mon', callback_data: 'wizard:select:Mon' }),
+                  expect.objectContaining({
+                    text: tomorrowLabel,
+                    callback_data: `wizard:select:${tomorrowValue}`,
+                  }),
                 ]),
               ]),
             }),
           })
         )
 
-        // Step 2: Select day via callback → timeStep
+        // Step 2: Select date via callback → timeStep
         api.sendMessage.mockClear()
         await bot.handleUpdate(
           createCallbackQueryUpdate({
             userId: ADMIN_ID,
             chatId: TEST_CHAT_ID,
             messageId: 1,
-            data: 'wizard:select:Wed',
+            data: `wizard:select:${tomorrowValue}`,
           })
         )
         await tick()

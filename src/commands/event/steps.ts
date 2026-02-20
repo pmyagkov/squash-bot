@@ -1,22 +1,31 @@
-import type { WizardStep, StepOption } from '~/services/wizard/types'
+import type { WizardStep } from '~/services/wizard/types'
 import { ParseError } from '~/services/wizard/types'
 import { parseDate } from '~/utils/dateParser'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 
-const DAY_OPTIONS: StepOption[] = [
-  { value: 'Mon', label: 'Mon' },
-  { value: 'Tue', label: 'Tue' },
-  { value: 'Wed', label: 'Wed' },
-  { value: 'Thu', label: 'Thu' },
-  { value: 'Fri', label: 'Fri' },
-  { value: 'Sat', label: 'Sat' },
-  { value: 'Sun', label: 'Sun' },
-]
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
-export const eventDayStep: WizardStep<string> = {
+export const eventDateStep: WizardStep<string> = {
   param: 'day',
   type: 'select',
-  prompt: 'Choose a day:',
-  createLoader: () => async () => DAY_OPTIONS,
+  prompt: 'Choose a date (or type any date, e.g. 2026-03-15):',
+  columns: 4,
+  createLoader: (container) => async () => {
+    const tz = container.resolve('config').timezone
+    const now = dayjs.tz(new Date(), tz)
+    const days = []
+    for (let i = 1; i <= 7; i++) {
+      const date = now.add(i, 'day')
+      days.push({
+        value: date.format('YYYY-MM-DD'),
+        label: date.format('ddd D'),
+      })
+    }
+    return days
+  },
   parse: (input: string): string => {
     const normalized = input.trim()
     if (!normalized) throw new ParseError('Day cannot be empty')
@@ -45,8 +54,14 @@ export const eventTimeStep: WizardStep<string> = {
 
 export const eventCourtsStep: WizardStep<number> = {
   param: 'courts',
-  type: 'text',
+  type: 'select',
   prompt: 'How many courts?',
+  columns: 3,
+  createLoader: () => async () => [
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
+    { value: '4', label: '4' },
+  ],
   parse: (input: string): number => {
     const n = parseInt(input, 10)
     if (isNaN(n) || n < 1) throw new ParseError('Number of courts must be a positive number')
