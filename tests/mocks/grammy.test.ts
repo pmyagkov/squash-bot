@@ -36,11 +36,11 @@ describe('grammy mocks', () => {
 
     it('should create message context', () => {
       const ctx = mockContext({
-        messageText: '/event add',
+        messageText: '/event create',
         messageId: 123,
       })
 
-      expect(ctx.message?.text).toBe('/event add')
+      expect(ctx.message?.text).toBe('/event create')
       expect(ctx.message?.message_id).toBe(123)
     })
   })

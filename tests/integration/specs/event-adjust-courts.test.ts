@@ -59,7 +59,7 @@ describe('event-adjust-courts', () => {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
       messageId,
-      data: 'event:add_court',
+      data: 'event:add-court',
       username: 'admin',
     })
 
@@ -77,7 +77,7 @@ describe('event-adjust-courts', () => {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
       messageId,
-      data: 'event:rm_court',
+      data: 'event:remove-court',
       username: 'admin',
     })
 
@@ -95,7 +95,7 @@ describe('event-adjust-courts', () => {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
       messageId,
-      data: 'event:rm_court',
+      data: 'event:remove-court',
       username: 'admin',
     })
 

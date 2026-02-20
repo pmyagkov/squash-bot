@@ -37,90 +37,6 @@ function getCommandHandler(
 }
 
 describe('EventBusiness', () => {
-  // ── handleAdd ──────────────────────────────────────────────────────
-
-  describe('handleAdd', () => {
-    test('happy path: parses date, creates event, sends success', async ({ container }) => {
-      const eventRepo = container.resolve('eventRepository')
-      const transport = container.resolve('transport')
-
-      const event = buildEvent({ id: 'ev_new001', courts: 3 })
-      eventRepo.createEvent.mockResolvedValue(event)
-
-      const business = new EventBusiness(container)
-      business.init()
-
-      const handler = getCommandHandler(transport, 'event:add')
-      await handler({
-        userId: TEST_CONFIG.userId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: '2024-01-20',
-        time: '19:00',
-        courts: 3,
-      })
-
-      expect(eventRepo.createEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          courts: 3,
-          status: 'created',
-        })
-      )
-      expect(transport.sendMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        expect.stringContaining('Created event')
-      )
-    })
-
-    test('invalid date → sends error, no event created', async ({ container }) => {
-      const eventRepo = container.resolve('eventRepository')
-      const transport = container.resolve('transport')
-
-      const business = new EventBusiness(container)
-      business.init()
-
-      const handler = getCommandHandler(transport, 'event:add')
-      await handler({
-        userId: TEST_CONFIG.userId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'not-a-date',
-        time: '19:00',
-        courts: 2,
-      })
-
-      expect(transport.sendMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        expect.stringContaining('Invalid date format')
-      )
-      expect(eventRepo.createEvent).not.toHaveBeenCalled()
-    })
-
-    test('invalid time → sends error', async ({ container }) => {
-      const eventRepo = container.resolve('eventRepository')
-      const transport = container.resolve('transport')
-
-      const business = new EventBusiness(container)
-      business.init()
-
-      const handler = getCommandHandler(transport, 'event:add')
-      await handler({
-        userId: TEST_CONFIG.userId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: '2024-01-20',
-        time: '25:99',
-        courts: 2,
-      })
-
-      expect(transport.sendMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        expect.stringContaining('Invalid time format')
-      )
-      expect(eventRepo.createEvent).not.toHaveBeenCalled()
-    })
-  })
-
   // ── handleList ─────────────────────────────────────────────────────
 
   describe('handleList', () => {
@@ -454,7 +370,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCommandHandler(transport, 'event:add-by-scaffold')
+      const handler = getCommandHandler(transport, 'event:spawn')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -484,7 +400,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCommandHandler(transport, 'event:add-by-scaffold')
+      const handler = getCommandHandler(transport, 'event:spawn')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -519,7 +435,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCommandHandler(transport, 'event:add-by-scaffold')
+      const handler = getCommandHandler(transport, 'event:spawn')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -769,7 +685,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:add_court')
+      const handler = getCallbackHandler(transport, 'event:add-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -807,7 +723,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:rm_court')
+      const handler = getCallbackHandler(transport, 'event:remove-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -835,7 +751,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:rm_court')
+      const handler = getCallbackHandler(transport, 'event:remove-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -1119,7 +1035,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:restore')
+      const handler = getCallbackHandler(transport, 'event:undo-cancel')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -1251,11 +1167,11 @@ describe('EventBusiness', () => {
     const callbackActions = [
       'event:join',
       'event:leave',
-      'event:add_court',
-      'event:rm_court',
+      'event:add-court',
+      'event:remove-court',
       'event:finalize',
       'event:cancel',
-      'event:restore',
+      'event:undo-cancel',
     ] as const
 
     for (const action of callbackActions) {

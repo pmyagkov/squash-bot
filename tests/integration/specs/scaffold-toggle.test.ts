@@ -34,11 +34,11 @@ describe('scaffold-toggle', () => {
     await bot.init()
   })
 
-  describe('/scaffold toggle', () => {
+  describe('/scaffold update', () => {
     it('should toggle scaffold active status', async () => {
       const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2)
 
-      const update = createTextMessageUpdate(`/scaffold toggle ${scaffold.id}`, {
+      const update = createTextMessageUpdate(`/scaffold update ${scaffold.id}`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -53,7 +53,7 @@ describe('scaffold-toggle', () => {
     })
 
     it('should show usage when no id provided', async () => {
-      const update = createTextMessageUpdate('/scaffold toggle', {
+      const update = createTextMessageUpdate('/scaffold update', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -62,16 +62,22 @@ describe('scaffold-toggle', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Usage: /scaffold toggle'),
+        expect.stringContaining('Usage: /scaffold update'),
         expect.anything()
       )
     })
 
     it('should allow owner to toggle scaffold', async () => {
       const OWNER_ID = 222222222
-      const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2, undefined, String(OWNER_ID))
+      const scaffold = await scaffoldRepository.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(OWNER_ID)
+      )
 
-      const update = createTextMessageUpdate(`/scaffold toggle ${scaffold.id}`, {
+      const update = createTextMessageUpdate(`/scaffold update ${scaffold.id}`, {
         userId: OWNER_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -86,9 +92,15 @@ describe('scaffold-toggle', () => {
 
     it('should reject non-owner non-admin', async () => {
       const OWNER_ID = 222222222
-      const scaffold = await scaffoldRepository.createScaffold('Tue', '21:00', 2, undefined, String(OWNER_ID))
+      const scaffold = await scaffoldRepository.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(OWNER_ID)
+      )
 
-      const update = createTextMessageUpdate(`/scaffold toggle ${scaffold.id}`, {
+      const update = createTextMessageUpdate(`/scaffold update ${scaffold.id}`, {
         userId: NON_ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
@@ -102,7 +114,7 @@ describe('scaffold-toggle', () => {
     })
 
     it('should show error for nonexistent scaffold', async () => {
-      const update = createTextMessageUpdate('/scaffold toggle sc_nonexistent', {
+      const update = createTextMessageUpdate('/scaffold update sc_nonexistent', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })

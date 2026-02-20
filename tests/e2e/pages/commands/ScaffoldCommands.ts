@@ -18,11 +18,11 @@ export class ScaffoldCommands extends ChatPage {
    * @returns Response message from bot
    *
    * Example from architecture.md:
-   * /scaffold add Tue 21:00 2
+   * /scaffold create Tue 21:00 2
    * → Created scaffold sc_1: Tue 21:00, 2 courts
    */
   async addScaffold(day: string, time: string, courts: number): Promise<string> {
-    const command = `/scaffold add ${day} ${time} ${courts}`
+    const command = `/scaffold create ${day} ${time} ${courts}`
     return await this.sendCommand(command)
   }
 
@@ -45,11 +45,11 @@ export class ScaffoldCommands extends ChatPage {
    * @returns Response message from bot
    *
    * Example from architecture.md:
-   * /scaffold toggle sc_2
+   * /scaffold update sc_2
    * → sc_2 is now active
    */
   async toggleScaffold(scaffoldId: string): Promise<string> {
-    const command = `/scaffold toggle ${scaffoldId}`
+    const command = `/scaffold update ${scaffoldId}`
     return await this.sendCommand(command)
   }
 
@@ -59,11 +59,11 @@ export class ScaffoldCommands extends ChatPage {
    * @returns Response message from bot
    *
    * Example from architecture.md:
-   * /scaffold remove sc_1
+   * /scaffold delete sc_1
    * → sc_1 removed
    */
   async removeScaffold(scaffoldId: string): Promise<string> {
-    const command = `/scaffold remove ${scaffoldId}`
+    const command = `/scaffold delete ${scaffoldId}`
     return await this.sendCommand(command)
   }
 

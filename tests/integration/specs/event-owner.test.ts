@@ -22,15 +22,15 @@ describe('event-owner', () => {
   })
 
   describe('ad-hoc event — creator becomes owner', () => {
-    it('should set creator as owner for /event add', async () => {
-      const update = createTextMessageUpdate('/event add tomorrow 19:00 2', {
+    it('should set creator as owner for /event create', async () => {
+      const update = createTextMessageUpdate('/event create tomorrow 19:00 2', {
         userId: CREATOR_ID,
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
 
-      const addCall = api.sendMessage.mock.calls.find(
-        ([, text]) => text.includes('✅ Created event')
+      const addCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('✅ Created event')
       )
       const eventId = addCall![1].match(/ev_[\w-]+/)![0]
 
@@ -43,16 +43,22 @@ describe('event-owner', () => {
   describe('scaffold event — inherits scaffold owner', () => {
     it('should inherit owner from scaffold', async () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(CREATOR_ID))
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(CREATOR_ID)
+      )
 
-      const update = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
+      const update = createTextMessageUpdate(`/event spawn ${scaffold.id}`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
 
-      const addCall = api.sendMessage.mock.calls.find(
-        ([, text]) => text.includes('✅ Created event')
+      const addCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('✅ Created event')
       )
       const eventId = addCall![1].match(/ev_[\w-]+/)![0]
 
@@ -65,14 +71,14 @@ describe('event-owner', () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2)
 
-      const update = createTextMessageUpdate(`/event add-by-scaffold ${scaffold.id}`, {
+      const update = createTextMessageUpdate(`/event spawn ${scaffold.id}`, {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
 
-      const addCall = api.sendMessage.mock.calls.find(
-        ([, text]) => text.includes('✅ Created event')
+      const addCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('✅ Created event')
       )
       const eventId = addCall![1].match(/ev_[\w-]+/)![0]
 

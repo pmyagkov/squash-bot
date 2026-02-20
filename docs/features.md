@@ -6,7 +6,7 @@ Detailed feature descriptions for integration and E2E test naming.
 
 ## Scaffold Management
 
-### scaffold-add ✅
+### scaffold-create ✅
 
 Create scaffold template for recurring sessions.
 
@@ -68,7 +68,7 @@ Enable or disable scaffold.
 
 ---
 
-### scaffold-remove ✅
+### scaffold-delete ✅
 
 Remove scaffold.
 
@@ -89,7 +89,7 @@ Remove scaffold.
 
 ## Event Management
 
-### event-add-by-scaffold-api ✅
+### event-create-by-scaffold-api ✅
 
 Auto-create event from scaffold on schedule.
 
@@ -109,9 +109,13 @@ Auto-create event from scaffold on schedule.
 
 **Edge case:** Uses `shouldTrigger` with time offset notation to determine creation time
 
+### event-scaffold-private
+
+эту фичу нужно декомпозировать и разнести в соответствующие фичи. Это про приватый ивент, который не аннаунсится в чат, а только админу.
+
 ---
 
-### event-create-adhoc ✅
+### event-create ✅
 
 Create one-time event outside regular schedule.
 
@@ -136,7 +140,7 @@ Create one-time event outside regular schedule.
 
 ---
 
-### event-add-by-scaffold ✅
+### event-create-by-scaffold ✅
 
 Create event manually from scaffold template.
 
@@ -809,7 +813,7 @@ View any user's history.
 
 ---
 
-### admin-repay
+### admin-repay ❓❓❓
 
 Mark debt as repaid (without linking to specific event).
 
@@ -914,6 +918,56 @@ To see your history: /my history
 - Critical for payment-personal-notifications delivery
 
 **Link to this feature:** Used in fallback-notification as deep link `https://t.me/{bot_username}?start`
+
+---
+
+## Service commands
+
+### say
+
+/admin say любой текст, разделённый пробелами до конца строки. — Текст отправляется в общий чат от имени бота.
+/admin say @username любой текст — Текст отправляется в личку человеку.
+
+---
+
+## Interactive Input
+
+### wizard-input
+
+Interactive parameter collection for commands. When a command is called without required arguments, bot guides the user through a step-by-step wizard to collect missing parameters.
+
+**Actor:** Any user
+**Chat:** Private or Main
+
+**Two modes:**
+- All args provided → execute immediately (backward compatible)
+- Args missing → wizard collects parameters one by one
+
+**Step types:**
+- `select` — inline keyboard with options (e.g., choose day of week, choose scaffold)
+- `text` — free text input (e.g., enter time, enter number of courts)
+
+**Wizard flows:**
+- `/event create` → day (select) → time (text) → courts (text) → event created
+- `/scaffold create` → day (select) → time (text) → courts (text) → scaffold created
+- `/event update ev_1` → edit menu with instant and wizard-based field changes
+- `/scaffold update sc_1` → edit menu with instant and wizard-based field changes
+
+**Cancel:**
+- User clicks [Cancel] button on any step → wizard cancelled, handler not called
+- User sends `/cancel` during wizard → wizard cancelled
+- Bot replies: "Cancelled."
+
+**Validation:**
+- Invalid input → bot shows error and re-prompts same step
+- Example: courts = "abc" → "Must be a positive number", re-prompt
+
+**Timeout:**
+- Wizard abandoned after N minutes of inactivity → state cleared
+
+**Testing:**
+- Unit: WizardService (collect, handleInput, cancel, timeout), CommandService (orchestration), CommandRegistry, Wizard Renderer
+- Integration: wizard flows tested in feature-specific files (e.g., `tests/integration/specs/scaffold-create.test.ts`)
 
 ---
 

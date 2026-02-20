@@ -40,15 +40,8 @@ export default defineConfig({
     // Direct link to Telegram Web (test or production)
     baseURL: telegramBaseURL,
 
-    // Mobile viewport (iPhone 14 Pro Max)
-    viewport: { width: 430, height: 932 },
-
-    // Device scale factor for retina displays
-    deviceScaleFactor: 3,
-
-    // Mobile user agent
-    userAgent:
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+    // Desktop viewport
+    viewport: { width: 1280, height: 800 },
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',

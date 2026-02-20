@@ -44,10 +44,10 @@ Use /help to see available commands.`
 /event list - List active events
 /event create <day> <time> <courts> - Create event
 
-/scaffold add <day> <time> <courts> - Create scaffold (admin)
+/scaffold create <day> <time> <courts> - Create scaffold (admin)
 /scaffold list - List scaffolds (admin)
-/scaffold toggle <id> - Toggle scaffold (admin)
-/scaffold remove <id> - Remove scaffold (admin)`
+/scaffold update <id> - Toggle scaffold (admin)
+/scaffold delete <id> - Delete scaffold (admin)`
 
     await this.transport.sendMessage(data.chatId, helpMessage)
   }

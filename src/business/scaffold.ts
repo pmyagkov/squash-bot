@@ -1,12 +1,14 @@
-import type { Scaffold } from '~/types'
+import type { Scaffold, DayOfWeek } from '~/types'
 import type { TelegramTransport, CommandTypes } from '~/services/transport/telegram'
 import type { AppContainer } from '../container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { Logger } from '~/services/logger'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { SourceContext } from '~/services/command/types'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { parseDayOfWeek } from '~/helpers/dateTime'
+import { scaffoldCreateDef } from '~/commands/scaffold/create'
 
 /**
  * Business logic orchestrator for scaffolds
@@ -17,6 +19,7 @@ export class ScaffoldBusiness {
   private participantRepository: ParticipantRepo
   private transport: TelegramTransport
   private logger: Logger
+  private commandRegistry: CommandRegistry
 
   constructor(container: AppContainer) {
     this.scaffoldRepository = container.resolve('scaffoldRepository')
@@ -24,64 +27,57 @@ export class ScaffoldBusiness {
     this.participantRepository = container.resolve('participantRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
+    this.commandRegistry = container.resolve('commandRegistry')
   }
 
   /**
    * Initialize transport handlers
    */
   init(): void {
-    this.transport.onCommand('scaffold:add', (data) => this.handleAdd(data))
     this.transport.onCommand('scaffold:list', (data) => this.handleList(data))
-    this.transport.onCommand('scaffold:toggle', (data) => this.handleToggle(data))
-    this.transport.onCommand('scaffold:remove', (data) => this.handleRemove(data))
+    this.transport.onCommand('scaffold:update', (data) => this.handleToggle(data))
+    this.transport.onCommand('scaffold:delete', (data) => this.handleRemove(data))
     this.transport.onCommand('scaffold:transfer', (data) => this.handleTransfer(data))
+
+    this.commandRegistry.register('scaffold:create', scaffoldCreateDef, async (data, source) => {
+      await this.handleCreateFromDef(data, source)
+    })
   }
 
   // === Command Handlers ===
 
-  private async handleAdd(data: CommandTypes['scaffold:add']): Promise<void> {
-    const dayOfWeek = parseDayOfWeek(data.day)
-    if (!dayOfWeek) {
-      await this.transport.sendMessage(
-        data.chatId,
-        `Invalid day of week: ${data.day}\n\nValid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
-      )
-      return
-    }
-
-    if (isNaN(data.courts) || data.courts < 1) {
-      await this.transport.sendMessage(data.chatId, 'Number of courts must be a positive number')
-      return
-    }
-
+  private async handleCreateFromDef(
+    data: { day: DayOfWeek; time: string; courts: number },
+    source: SourceContext
+  ): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.createScaffold(
-        dayOfWeek,
+        data.day,
         data.time,
         data.courts,
         undefined,
-        String(data.userId)
+        String(source.user.id)
       )
 
       await this.transport.sendMessage(
-        data.chatId,
-        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} court(s), announcement ${scaffold.announcementDeadline ?? 'default'}`
+        source.chat.id,
+        `✅ Created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} court(s)`
       )
 
       await this.logger.log(
-        `User ${data.userId} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
+        `User ${source.user.id} created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} courts`
       )
       void this.transport.logEvent({
         type: 'scaffold_created',
         scaffoldId: scaffold.id,
-        day: dayOfWeek,
+        day: data.day,
         time: data.time,
         courts: data.courts,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.error(`Error creating scaffold from user ${data.userId}: ${errorMessage}`)
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(`Error creating scaffold: ${errorMessage}`)
     }
   }
 
@@ -119,7 +115,7 @@ export class ScaffoldBusiness {
     }
   }
 
-  private async handleToggle(data: CommandTypes['scaffold:toggle']): Promise<void> {
+  private async handleToggle(data: CommandTypes['scaffold:update']): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
@@ -159,7 +155,7 @@ export class ScaffoldBusiness {
     }
   }
 
-  private async handleRemove(data: CommandTypes['scaffold:remove']): Promise<void> {
+  private async handleRemove(data: CommandTypes['scaffold:delete']): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
