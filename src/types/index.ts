@@ -12,6 +12,8 @@ export interface Scaffold {
   defaultCourts: number
   isActive: boolean
   announcementDeadline?: string
+  ownerId?: string
+  deletedAt?: Date
 }
 
 // Event
@@ -24,6 +26,8 @@ export interface Event {
   telegramMessageId?: string
   paymentMessageId?: string
   announcementDeadline?: string
+  ownerId: string
+  deletedAt?: Date
 }
 
 // Participant
@@ -52,6 +56,7 @@ export interface Payment {
   isPaid: boolean
   paidAt?: Date
   reminderCount: number
+  personalMessageId?: string
 }
 
 // Settings

@@ -33,6 +33,8 @@ export const scaffolds = pgTable('scaffolds', {
     .default(sql`1`)
     .notNull(),
   announcementDeadline: text('announcement_deadline'),
+  ownerId: text('owner_id'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
 // Events table
@@ -45,6 +47,8 @@ export const events = pgTable('events', {
   telegramMessageId: text('telegram_message_id'),
   paymentMessageId: text('payment_message_id'),
   announcementDeadline: text('announcement_deadline'),
+  ownerId: text('owner_id').notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
 // Participants table
@@ -86,6 +90,7 @@ export const payments = pgTable('payments', {
     .notNull(),
   paidAt: timestamp('paid_at', { withTimezone: true }),
   reminderCount: integer('reminder_count').default(0).notNull(),
+  personalMessageId: text('personal_message_id'),
 })
 
 // Settings table

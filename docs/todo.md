@@ -130,7 +130,7 @@ This section maps use cases from [architecture.md](architecture.md) to implement
 
 ### Scenario 1: Create Scaffold ✅ DONE
 **Commands:**
-- [x] `/scaffold add <day> <time> <courts>` - create scaffold
+- [x] `/scaffold create <day> <time> <courts>` - create scaffold
 - [x] `/scaffold list` - list scaffolds
 - [x] `/scaffold toggle <id>` - enable/disable scaffold
 - [x] `/scaffold remove <id>` - remove scaffold

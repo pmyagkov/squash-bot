@@ -38,6 +38,7 @@ describe('Mock System Integration', () => {
       datetime: new Date('2024-01-20T19:00:00Z'),
       courts: 2,
       status: 'created' as const,
+      ownerId: '111111111',
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -48,6 +49,7 @@ describe('Mock System Integration', () => {
       datetime: mockEvent.datetime,
       courts: 2,
       status: 'created',
+      ownerId: '111111111',
     })
     expect(created).toEqual(mockEvent)
 

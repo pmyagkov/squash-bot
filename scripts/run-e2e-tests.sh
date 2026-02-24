@@ -182,9 +182,9 @@ run_tests() {
 
   if [[ "$watch_mode" == "true" ]]; then
     info "Starting tests in UI mode (press Ctrl+C to exit)..."
-    ENVIRONMENT=test npx playwright test tests/e2e --config=playwright.mjs --ui
+    ENVIRONMENT=test npx playwright test tests/e2e --config=playwright.config.mjs --ui
   else
-    ENVIRONMENT=test npx playwright test tests/e2e --config=playwright.mjs
+    ENVIRONMENT=test npx playwright test tests/e2e --config=playwright.config.mjs
   fi
 
   local exit_code=$?

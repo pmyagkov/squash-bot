@@ -4,10 +4,23 @@ import {
   formatEventMessage,
   formatAnnouncementText,
   formatPaymentText,
+  formatPersonalPaymentText,
+  formatPaidPersonalPaymentText,
+  formatFallbackNotificationText,
   type EventParticipantDisplay,
 } from './event'
 import type { Event } from '~/types'
 import type { InlineKeyboardButton } from 'grammy/types'
+import {
+  BTN_JOIN,
+  BTN_LEAVE,
+  BTN_ADD_COURT,
+  BTN_REMOVE_COURT,
+  BTN_FINALIZE,
+  BTN_CANCEL_EVENT,
+  BTN_RESTORE,
+  BTN_UNFINALIZE,
+} from '~/ui/constants'
 
 describe('event formatters', () => {
   describe('buildInlineKeyboard', () => {
@@ -20,33 +33,33 @@ describe('event formatters', () => {
 
       // First row: I'm in, I'm out
       expect(buttons[0]).toHaveLength(2)
-      expect(buttons[0][0].text).toBe("I'm in")
+      expect(buttons[0][0].text).toBe(BTN_JOIN)
       expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
         'event:join'
       )
-      expect(buttons[0][1].text).toBe("I'm out")
+      expect(buttons[0][1].text).toBe(BTN_LEAVE)
       expect((buttons[0][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
         'event:leave'
       )
 
       // Second row: +court, -court
       expect(buttons[1]).toHaveLength(2)
-      expect(buttons[1][0].text).toBe('+court')
+      expect(buttons[1][0].text).toBe(BTN_ADD_COURT)
       expect((buttons[1][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:add_court'
+        'event:add-court'
       )
-      expect(buttons[1][1].text).toBe('-court')
+      expect(buttons[1][1].text).toBe(BTN_REMOVE_COURT)
       expect((buttons[1][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:rm_court'
+        'event:remove-court'
       )
 
       // Third row: Finalize, Cancel
       expect(buttons[2]).toHaveLength(2)
-      expect(buttons[2][0].text).toBe('✅ Finalize')
+      expect(buttons[2][0].text).toBe(BTN_FINALIZE)
       expect((buttons[2][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
         'event:finalize'
       )
-      expect(buttons[2][1].text).toBe('❌ Cancel')
+      expect(buttons[2][1].text).toBe(BTN_CANCEL_EVENT)
       expect((buttons[2][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
         'event:cancel'
       )
@@ -59,20 +72,22 @@ describe('event formatters', () => {
       // Should have 1 row with 1 button
       expect(buttons).toHaveLength(1)
       expect(buttons[0]).toHaveLength(1)
-      expect(buttons[0][0].text).toBe('🔄 Restore')
+      expect(buttons[0][0].text).toBe(BTN_RESTORE)
       expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:restore'
+        'event:undo-cancel'
       )
     })
 
-    it('should show no buttons for finalized status', () => {
+    it('should show Unfinalize button for finalized status', () => {
       const keyboard = buildInlineKeyboard('finalized')
       const buttons = keyboard.inline_keyboard
 
-      // Should have no actual buttons (empty keyboard or single empty row)
-      // InlineKeyboard() creates [[]] - an array with one empty row
       expect(buttons).toHaveLength(1)
-      expect(buttons[0]).toHaveLength(0)
+      expect(buttons[0]).toHaveLength(1)
+      expect(buttons[0][0].text).toBe(BTN_UNFINALIZE)
+      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:undo-finalize'
+      )
     })
 
     it('should show full button set for created status', () => {
@@ -92,15 +107,13 @@ describe('event formatters', () => {
         datetime: new Date('2024-01-20T21:00:00+01:00'),
         courts: 2,
         status: 'created',
+        ownerId: '111111111',
       }
 
       const result = formatEventMessage(event)
 
-      expect(result).toContain('🎾 Squash')
-      expect(result).toContain('Saturday')
-      expect(result).toContain('20 January')
-      expect(result).toContain('21:00')
-      expect(result).toContain('Courts: 2')
+      expect(result).toContain('🎾 Squash: Sat, 20 Jan, 21:00')
+      expect(result).toContain('🏟 Courts: 2')
       expect(result).toContain('(nobody yet)')
     })
   })
@@ -111,16 +124,14 @@ describe('event formatters', () => {
       datetime: new Date('2024-01-20T21:00:00+01:00'),
       courts: 2,
       status: 'announced',
+      ownerId: '111111111',
     }
 
     it('should show "(nobody yet)" when no participants', () => {
       const result = formatAnnouncementText(baseEvent, [])
 
-      expect(result).toContain('🎾 Squash')
-      expect(result).toContain('Saturday')
-      expect(result).toContain('20 January')
-      expect(result).toContain('21:00')
-      expect(result).toContain('Courts: 2')
+      expect(result).toContain('🎾 Squash: Sat, 20 Jan, 21:00')
+      expect(result).toContain('🏟 Courts: 2')
       expect(result).toContain('(nobody yet)')
     })
 
@@ -213,6 +224,7 @@ describe('event formatters', () => {
       datetime: new Date('2024-01-20T21:00:00+01:00'),
       courts: 2,
       status: 'finalized',
+      ownerId: '111111111',
     }
 
     it('should calculate even split correctly (4000 / 4 = 1000 each)', () => {
@@ -249,7 +261,7 @@ describe('event formatters', () => {
 
       const result = formatPaymentText(baseEvent, participants, 2000)
 
-      expect(result).toContain('Courts: 2 × 2000 din = 4000 din')
+      expect(result).toContain('🏟 Courts: 2 × 2000 din = 4000 din')
       expect(result).toContain('Participants: 4')
       expect(result).toContain('Each pays: 1000 din')
       expect(result).toContain('@user1 — 1000 din')
@@ -284,7 +296,7 @@ describe('event formatters', () => {
       const event = { ...baseEvent, courts: 1 }
       const result = formatPaymentText(event, participants, 3000)
 
-      expect(result).toContain('Courts: 1 × 3000 din = 3000 din')
+      expect(result).toContain('🏟 Courts: 1 × 3000 din = 3000 din')
       expect(result).toContain('Participants: 3')
       expect(result).toContain('Each pays: 1000 din')
       expect(result).toContain('@user1 — 2000 din (×2)')
@@ -306,7 +318,7 @@ describe('event formatters', () => {
       const event = { ...baseEvent, courts: 1 }
       const result = formatPaymentText(event, participants, 2000)
 
-      expect(result).toContain('Courts: 1 × 2000 din = 2000 din')
+      expect(result).toContain('🏟 Courts: 1 × 2000 din = 2000 din')
       expect(result).toContain('Participants: 1')
       expect(result).toContain('Each pays: 2000 din')
       expect(result).toContain('@solo_player — 2000 din')
@@ -342,7 +354,7 @@ describe('event formatters', () => {
       const event = { ...baseEvent, courts: 1 }
       const result = formatPaymentText(event, participants, 2500)
 
-      expect(result).toContain('Courts: 1 × 2500 din = 2500 din')
+      expect(result).toContain('🏟 Courts: 1 × 2500 din = 2500 din')
       expect(result).toContain('Participants: 3')
       expect(result).toContain('Each pays: 833 din')
       expect(result).toContain('@user1 — 833 din')
@@ -373,7 +385,7 @@ describe('event formatters', () => {
       const event = { ...baseEvent, courts: 3 }
       const result = formatPaymentText(event, participants, 1500)
 
-      expect(result).toContain('Courts: 3 × 1500 din = 4500 din')
+      expect(result).toContain('🏟 Courts: 3 × 1500 din = 4500 din')
       expect(result).toContain('Participants: 2')
       expect(result).toContain('Each pays: 2250 din')
       expect(result).toContain('@user1 — 2250 din')
@@ -415,6 +427,93 @@ describe('event formatters', () => {
       const result = formatPaymentText(event, participants, 3000)
 
       expect(result).toContain('@user1 — 3000 din (×3)')
+    })
+  })
+
+  describe('formatAnnouncementText with paid checkmarks', () => {
+    const baseEvent: Event = {
+      id: 'ev_test123',
+      datetime: new Date('2024-01-20T21:00:00+01:00'),
+      courts: 2,
+      status: 'finalized',
+      ownerId: '111111111',
+    }
+
+    it('should show checkmark next to paid participant', () => {
+      const participants: EventParticipantDisplay[] = [
+        {
+          participant: { id: 'p_1', telegramUsername: 'alice', displayName: 'Alice' },
+          participations: 1,
+        },
+        {
+          participant: { id: 'p_2', telegramUsername: 'bob', displayName: 'Bob' },
+          participations: 1,
+        },
+      ]
+
+      const paidIds = new Set(['p_1'])
+      const result = formatAnnouncementText(baseEvent, participants, true, false, paidIds)
+
+      expect(result).toContain('@alice ✓')
+      expect(result).not.toContain('@bob ✓')
+    })
+
+    it('should combine multiplier and checkmark', () => {
+      const participants: EventParticipantDisplay[] = [
+        {
+          participant: { id: 'p_1', telegramUsername: 'alice', displayName: 'Alice' },
+          participations: 2,
+        },
+      ]
+
+      const paidIds = new Set(['p_1'])
+      const result = formatAnnouncementText(baseEvent, participants, true, false, paidIds)
+
+      expect(result).toContain('@alice (×2) ✓')
+    })
+  })
+
+  describe('formatPersonalPaymentText', () => {
+    it('should format personal payment DM text', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'finalized',
+        telegramMessageId: '42',
+        ownerId: '111111111',
+      }
+
+      const result = formatPersonalPaymentText(event, 2000, 2, 2000, 4, -1001234567890, '42')
+
+      expect(result).toContain('💰 Payment for Squash Sat, 20 Jan, 21:00')
+      expect(result).toContain('🏟 Courts: 2 × 2000 din = 4000 din')
+      expect(result).toContain('Participants: 4')
+      expect(result).toContain('Your amount: 2000 din')
+      expect(result).toContain('tg://privatepost?channel=1234567890&post=42')
+    })
+  })
+
+  describe('formatPaidPersonalPaymentText', () => {
+    it('should append paid date to base text', () => {
+      const baseText = 'Your amount: 2000 din'
+      const paidDate = new Date('2024-01-21T15:30:00+01:00')
+
+      const result = formatPaidPersonalPaymentText(baseText, paidDate)
+
+      expect(result).toContain('Your amount: 2000 din')
+      expect(result).toContain('✓ Paid on Sun, 21 Jan, 15:30')
+    })
+  })
+
+  describe('formatFallbackNotificationText', () => {
+    it('should format fallback message with participant names and bot link', () => {
+      const result = formatFallbackNotificationText(['@alice', '@bob'], 'test_bot')
+
+      expect(result).toContain("can't reach")
+      expect(result).toContain('@alice, @bob')
+      expect(result).toContain('tg://resolve?domain=test_bot&start')
+      expect(result).toContain('/start')
     })
   })
 })

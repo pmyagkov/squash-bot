@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid'
 import { db } from '~/storage/db'
 import { events } from '~/storage/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, isNull, isNotNull, and } from 'drizzle-orm'
 import type { Event, EventStatus } from '~/types'
 
 const EVENT_STATUSES: EventStatus[] = [
@@ -15,15 +15,27 @@ const EVENT_STATUSES: EventStatus[] = [
 
 export class EventRepo {
   async getEvents(): Promise<Event[]> {
-    const results = await db.select().from(events)
+    const results = await db.select().from(events).where(isNull(events.deletedAt))
     return results.map(this.toDomain)
   }
 
   async findById(id: string): Promise<Event | undefined> {
     const result = await db.query.events.findFirst({
+      where: and(eq(events.id, id), isNull(events.deletedAt)),
+    })
+    return result ? this.toDomain(result) : undefined
+  }
+
+  async findByIdIncludingDeleted(id: string): Promise<Event | undefined> {
+    const result = await db.query.events.findFirst({
       where: eq(events.id, id),
     })
     return result ? this.toDomain(result) : undefined
+  }
+
+  async getDeletedEvents(): Promise<Event[]> {
+    const results = await db.select().from(events).where(isNotNull(events.deletedAt))
+    return results.map(this.toDomain)
   }
 
   async findByMessageId(messageId: string): Promise<Event | undefined> {
@@ -38,6 +50,7 @@ export class EventRepo {
     datetime: Date
     courts: number
     status?: EventStatus
+    ownerId: string
   }): Promise<Event> {
     const id = `ev_${nanoid(8)}`
     const status = data.status || 'created'
@@ -55,7 +68,22 @@ export class EventRepo {
         datetime: data.datetime,
         courts: data.courts,
         status,
+        ownerId: data.ownerId,
       })
+      .returning()
+
+    return this.toDomain(event)
+  }
+
+  async remove(id: string): Promise<void> {
+    await db.update(events).set({ deletedAt: new Date() }).where(eq(events.id, id))
+  }
+
+  async restore(id: string): Promise<Event> {
+    const [event] = await db
+      .update(events)
+      .set({ deletedAt: null })
+      .where(eq(events.id, id))
       .returning()
 
     return this.toDomain(event)
@@ -68,6 +96,8 @@ export class EventRepo {
       telegramMessageId?: string
       paymentMessageId?: string
       courts?: number
+      ownerId?: string
+      datetime?: Date
     }
   ): Promise<Event> {
     // Validate status if provided
@@ -86,6 +116,8 @@ export class EventRepo {
           paymentMessageId: updates.paymentMessageId,
         }),
         ...(updates.courts !== undefined && { courts: updates.courts }),
+        ...(updates.ownerId !== undefined && { ownerId: updates.ownerId }),
+        ...(updates.datetime !== undefined && { datetime: updates.datetime }),
       })
       .where(eq(events.id, id))
       .returning()
@@ -106,6 +138,8 @@ export class EventRepo {
       status: row.status as EventStatus,
       telegramMessageId: row.telegramMessageId ?? undefined,
       paymentMessageId: row.paymentMessageId ?? undefined,
+      ownerId: row.ownerId,
+      deletedAt: row.deletedAt ?? undefined,
     }
   }
 }

@@ -2,14 +2,43 @@ import { test, describe, expect } from '@tests/setup'
 import { buildScaffold } from '@fixtures'
 import { TEST_CONFIG } from '@fixtures/config'
 import { ScaffoldBusiness } from '~/business/scaffold'
+import type { MockAppContainer } from '@mocks'
+import type { SourceContext } from '~/services/command/types'
+
+/**
+ * Helper to extract handler registered via commandRegistry.register
+ */
+function getHandler(
+  container: MockAppContainer,
+  key: string
+): (data: unknown, source: SourceContext) => Promise<void> {
+  const registry = container.resolve('commandRegistry')
+  const call = registry.register.mock.calls.find((c) => c[0] === key)
+  expect(call).toBeDefined()
+  return call![2] as (data: unknown, source: SourceContext) => Promise<void>
+}
+
+function makeSource(overrides?: {
+  chat?: SourceContext['chat']
+  user?: SourceContext['user']
+}): SourceContext {
+  return {
+    type: 'command',
+    chat: overrides?.chat ?? { id: TEST_CONFIG.chatId, type: 'group', title: 'Test Chat' },
+    user: overrides?.user ?? {
+      id: TEST_CONFIG.adminId,
+      username: undefined,
+      firstName: 'Admin',
+      lastName: undefined,
+    },
+  }
+}
 
 describe('ScaffoldBusiness', () => {
-  // ── handleAdd ──────────────────────────────────────────────────────
+  // ── handleCreateFromDef (via CommandRegistry) ────────────────────
 
-  describe('handleAdd', () => {
+  describe('handleCreateFromDef', () => {
     test('happy path: creates scaffold, sends success message', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -19,110 +48,52 @@ describe('ScaffoldBusiness', () => {
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      // Simulate the command handler directly
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
-      expect(addHandler).toBeDefined()
+      const handler = getHandler(container, 'scaffold:create')
+      await handler({ day: 'Tue', time: '18:00', courts: 2 }, makeSource())
 
-      await addHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'Tue',
-        time: '18:00',
-        courts: 2,
-      })
-
-      expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith('Tue', '18:00', 2)
+      expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
+        'Tue',
+        '18:00',
+        2,
+        undefined,
+        String(TEST_CONFIG.adminId)
+      )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
         expect.stringContaining('Created scaffold')
       )
     })
 
-    test('not admin → sends admin-only error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
-      const transport = container.resolve('transport')
+    test('any user can create scaffold (no admin check)', async ({ container }) => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
+      const transport = container.resolve('transport')
+
+      const scaffold = buildScaffold({ id: 'sc_new456' })
+      scaffoldRepo.createScaffold.mockResolvedValue(scaffold)
 
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
+      const handler = getHandler(container, 'scaffold:create')
+      await handler(
+        { day: 'Tue', time: '18:00', courts: 2 },
+        makeSource({ user: { id: 999999, firstName: 'User', lastName: undefined } })
+      )
 
-      await addHandler![1]({
-        userId: 999999,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'Tue',
-        time: '18:00',
-        courts: 2,
-      })
-
+      expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
+        'Tue',
+        '18:00',
+        2,
+        undefined,
+        '999999'
+      )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('only available to administrators')
+        expect.stringContaining('Created scaffold')
       )
-      expect(scaffoldRepo.createScaffold).not.toHaveBeenCalled()
     })
 
-    test('invalid day → sends error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
-      const transport = container.resolve('transport')
-      const scaffoldRepo = container.resolve('scaffoldRepository')
-
-      const business = new ScaffoldBusiness(container)
-      business.init()
-
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
-
-      await addHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'InvalidDay',
-        time: '18:00',
-        courts: 2,
-      })
-
-      expect(transport.sendMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        expect.stringContaining('Invalid day of week')
-      )
-      expect(scaffoldRepo.createScaffold).not.toHaveBeenCalled()
-    })
-
-    test('invalid courts → sends error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
-      const transport = container.resolve('transport')
-      const scaffoldRepo = container.resolve('scaffoldRepository')
-
-      const business = new ScaffoldBusiness(container)
-      business.init()
-
-      const onCommandCalls = transport.onCommand.mock.calls
-      const addHandler = onCommandCalls.find((c) => c[0] === 'scaffold:add')
-
-      await addHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        day: 'Tue',
-        time: '18:00',
-        courts: 0,
-      })
-
-      expect(transport.sendMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        expect.stringContaining('positive number')
-      )
-      expect(scaffoldRepo.createScaffold).not.toHaveBeenCalled()
-    })
+    // Validation tests removed — parser now validates day and courts before handler is called
   })
 
   // ── handleList ─────────────────────────────────────────────────────
@@ -155,25 +126,18 @@ describe('ScaffoldBusiness', () => {
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const listHandler = onCommandCalls.find((c) => c[0] === 'scaffold:list')
-
-      await listHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-      })
+      const handler = getHandler(container, 'scaffold:list')
+      await handler({}, makeSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
         expect.stringContaining('Scaffold list')
       )
-      // Verify both scaffolds appear in the message
       const message = transport.sendMessage.mock.calls[0][1]
       expect(message).toContain('sc_001')
       expect(message).toContain('sc_002')
-      expect(message).toContain('active')
-      expect(message).toContain('inactive')
+      expect(message).toContain('Active')
+      expect(message).toContain('Paused')
     })
 
     test('empty → sends "no scaffolds" message', async ({ container }) => {
@@ -187,14 +151,8 @@ describe('ScaffoldBusiness', () => {
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const listHandler = onCommandCalls.find((c) => c[0] === 'scaffold:list')
-
-      await listHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-      })
+      const handler = getHandler(container, 'scaffold:list')
+      await handler({}, makeSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
@@ -202,68 +160,52 @@ describe('ScaffoldBusiness', () => {
       )
     })
 
-    test('not admin → sends admin-only error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
+    test('any user can list scaffolds (no admin check)', async ({ container }) => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
+
+      scaffoldRepo.getScaffolds.mockResolvedValue([])
 
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const listHandler = onCommandCalls.find((c) => c[0] === 'scaffold:list')
-
-      await listHandler![1]({
-        userId: 999999,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-      })
+      const handler = getHandler(container, 'scaffold:list')
+      await handler(
+        {},
+        makeSource({ user: { id: 999999, firstName: 'User', lastName: undefined } })
+      )
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('only available to administrators')
+        expect.stringContaining('No scaffolds found')
       )
     })
   })
 
-  // ── handleToggle ───────────────────────────────────────────────────
+  // ── handleEditMenu ─────────────────────────────────────────────────
 
-  describe('handleToggle', () => {
-    test('happy path → toggles, sends status', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
+  describe('handleEditMenu', () => {
+    test('happy path → sends edit menu with keyboard', async ({ container }) => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
-      const scaffold = buildScaffold({ id: 'sc_toggle', isActive: true })
+      const scaffold = buildScaffold({ id: 'sc_edit', isActive: true })
       scaffoldRepo.findById.mockResolvedValue(scaffold)
-
-      const toggledScaffold = buildScaffold({ id: 'sc_toggle', isActive: false })
-      scaffoldRepo.setActive.mockResolvedValue(toggledScaffold)
 
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:toggle')
+      const handler = getHandler(container, 'scaffold:update')
+      await handler({ scaffoldId: 'sc_edit' }, makeSource())
 
-      await toggleHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        scaffoldId: 'sc_toggle',
-      })
-
-      expect(scaffoldRepo.setActive).toHaveBeenCalledWith('sc_toggle', false)
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('inactive')
+        expect.stringContaining('Scaffold <code>sc_edit</code>'),
+        expect.anything()
       )
     })
 
     test('not found → sends error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -272,43 +214,12 @@ describe('ScaffoldBusiness', () => {
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:toggle')
-
-      await toggleHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        scaffoldId: 'sc_missing',
-      })
+      const handler = getHandler(container, 'scaffold:update')
+      await handler({ scaffoldId: 'sc_missing' }, makeSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
         expect.stringContaining('not found')
-      )
-    })
-
-    test('not admin → sends admin-only error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
-      const transport = container.resolve('transport')
-
-      const business = new ScaffoldBusiness(container)
-      business.init()
-
-      const onCommandCalls = transport.onCommand.mock.calls
-      const toggleHandler = onCommandCalls.find((c) => c[0] === 'scaffold:toggle')
-
-      await toggleHandler![1]({
-        userId: 999999,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        scaffoldId: 'sc_test123',
-      })
-
-      expect(transport.sendMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        expect.stringContaining('only available to administrators')
       )
     })
   })
@@ -322,52 +233,38 @@ describe('ScaffoldBusiness', () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
+      const scaffold = buildScaffold({ id: 'sc_remove' })
+      scaffoldRepo.findById.mockResolvedValue(scaffold)
       scaffoldRepo.remove.mockResolvedValue(undefined)
 
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const removeHandler = onCommandCalls.find((c) => c[0] === 'scaffold:remove')
-
-      await removeHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        scaffoldId: 'sc_remove',
-      })
+      const handler = getHandler(container, 'scaffold:delete')
+      await handler({ scaffoldId: 'sc_remove' }, makeSource())
 
       expect(scaffoldRepo.remove).toHaveBeenCalledWith('sc_remove')
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('removed')
+        expect.stringContaining('deleted')
       )
     })
 
     test('not found → sends error', async ({ container }) => {
-      const settingsRepo = container.resolve('settingsRepository')
-      settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
-      scaffoldRepo.remove.mockRejectedValue(new Error('Scaffold not found'))
+      scaffoldRepo.findById.mockResolvedValue(undefined)
 
       const business = new ScaffoldBusiness(container)
       business.init()
 
-      const onCommandCalls = transport.onCommand.mock.calls
-      const removeHandler = onCommandCalls.find((c) => c[0] === 'scaffold:remove')
-
-      await removeHandler![1]({
-        userId: TEST_CONFIG.adminId,
-        chatId: TEST_CONFIG.chatId,
-        chatType: 'group' as const,
-        scaffoldId: 'sc_missing',
-      })
+      const handler = getHandler(container, 'scaffold:delete')
+      await handler({ scaffoldId: 'sc_missing' }, makeSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('Error')
+        expect.stringContaining('not found')
       )
     })
   })

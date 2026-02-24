@@ -129,6 +129,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {},
@@ -237,6 +243,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "personal_message_id": {
+          "name": "personal_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -311,6 +323,12 @@
         },
         "announcement_deadline": {
           "name": "announcement_deadline",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "owner_id": {
+          "name": "owner_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false

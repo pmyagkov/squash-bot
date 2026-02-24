@@ -15,6 +15,9 @@ import { EventParticipantRepo } from '~/storage/repo/eventParticipant'
 import { PaymentRepo } from '~/storage/repo/payment'
 import { SettingsRepo } from '~/storage/repo/settings'
 import { ParticipantRepo } from '~/storage/repo/participant'
+import { CommandRegistry } from '~/services/command/commandRegistry'
+import { WizardService } from '~/services/wizard/wizardService'
+import { CommandService } from '~/services/command/commandService'
 
 export type TestContainer = AwilixContainer<Container>
 
@@ -26,6 +29,9 @@ export function createTestContainer(bot: Bot): TestContainer {
   const container = createContainer<Container>({
     injectionMode: InjectionMode.CLASSIC,
   })
+
+  // Set HTML parse mode globally (same as production)
+  bot.api.config.use((prev, method, payload) => prev(method, { ...payload, parse_mode: 'HTML' }))
 
   // Register primitives first so TelegramProvider can resolve them
   container.register({
@@ -50,6 +56,9 @@ export function createTestContainer(bot: Bot): TestContainer {
     paymentRepository: asClass(PaymentRepo).singleton(),
     settingsRepository: asClass(SettingsRepo).singleton(),
     participantRepository: asClass(ParticipantRepo).singleton(),
+    commandRegistry: asClass(CommandRegistry).singleton(),
+    wizardService: asClass(WizardService).singleton(),
+    commandService: asClass(CommandService).singleton(),
     eventBusiness: asClass(EventBusiness).singleton(),
     scaffoldBusiness: asClass(ScaffoldBusiness).singleton(),
     utilityBusiness: asClass(UtilityBusiness).singleton(),

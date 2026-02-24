@@ -1,5 +1,6 @@
 import { TelegramWebPage } from '@e2e/pages/base/TelegramWebPage'
 import { Page } from '@playwright/test'
+import { TIMEOUTS } from '@e2e/config/config'
 
 /**
  * Page Object for Payment actions
@@ -46,7 +47,7 @@ export class PaymentActions extends TelegramWebPage {
    * @pasha (×2) — 2000 ₽
    * @vasya — 1000 ₽ ✓
    */
-  async waitForPaymentMessage(timeout = 10000): Promise<string> {
+  async waitForPaymentMessage(timeout = TIMEOUTS.payment): Promise<string> {
     return await this.waitForMessageContaining('💰 Payment', timeout)
   }
 
@@ -191,7 +192,7 @@ export class PaymentActions extends TelegramWebPage {
    * @param timeout - Maximum time to wait
    * @returns Updated payment message text
    */
-  async waitForPaymentUpdate(timeout = 5000): Promise<string> {
+  async waitForPaymentUpdate(timeout = TIMEOUTS.paymentUpdate): Promise<string> {
     // Wait a bit for the update
     await this.page.waitForTimeout(500)
     return await this.waitForPaymentMessage(timeout)

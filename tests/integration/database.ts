@@ -51,7 +51,9 @@ function createTables(db: ReturnType<typeof drizzle>) {
       time TEXT NOT NULL,
       default_courts INTEGER NOT NULL,
       is_active INTEGER DEFAULT 1 NOT NULL,
-      announcement_deadline TEXT
+      announcement_deadline TEXT,
+      owner_id TEXT,
+      deleted_at TEXT
     )
   `)
 
@@ -65,6 +67,8 @@ function createTables(db: ReturnType<typeof drizzle>) {
       telegram_message_id TEXT,
       payment_message_id TEXT,
       announcement_deadline TEXT,
+      owner_id TEXT NOT NULL,
+      deleted_at TEXT,
       FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id)
     )
   `)
@@ -99,6 +103,7 @@ function createTables(db: ReturnType<typeof drizzle>) {
       is_paid INTEGER DEFAULT 0 NOT NULL,
       paid_at TEXT,
       reminder_count INTEGER DEFAULT 0 NOT NULL,
+      personal_message_id TEXT,
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
       FOREIGN KEY (participant_id) REFERENCES participants(id)
     )

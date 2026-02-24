@@ -36,7 +36,10 @@ docs/
 ├── architecture.md          # Architecture and use cases
 ├── features.md              # Feature list (for tests)
 ├── testing.md               # Testing strategy
-└── plans/                   # Design documents (YYYY-MM-DD-<topic>-design.md)
+└── plans/                   # Design documents (one folder per feature)
+    └── YYYY-MM-DD-<feature>/ # e.g. 2026-02-20-command-menu/
+        ├── design.md         # Requirements and design (brainstorming output)
+        └── plan.md           # Implementation plan (writing-plans output)
 ```
 
 ### Naming
@@ -52,6 +55,7 @@ docs/
 - **Language**: All code, comments, and documentation must be in English
 - **No `any`**: Using `any` type is forbidden
 - **Strict TypeScript**: `strict: true`, `noUnusedLocals`, `noUnusedParameters`
+- **Architecture invariants**: Layer boundaries and dependency rules are defined in [docs/architecture.md](docs/architecture.md) — verify during code review
 
 ## Important Documents
 
@@ -66,16 +70,22 @@ Before starting work, check these documents for context:
 
 ### Design Documents
 
-Design docs are stored in `docs/plans/` with naming: `YYYY-MM-DD-<topic>-design.md`
+Design docs are stored in `docs/plans/` grouped by feature:
 
-Example: `2025-01-17-participant-registration-design.md`
+```
+docs/plans/YYYY-MM-DD-<feature>/
+├── design.md    # Requirements and design (brainstorming output)
+└── plan.md      # Implementation plan (writing-plans output)
+```
+
+Example: `docs/plans/2026-02-20-command-menu/design.md`
 
 ## Feature Development Workflow
 
 ### Steps
 
 1. **Brainstorm** — clarify requirements, explore approaches
-2. **Design document** — write design doc in `docs/plans/YYYY-MM-DD-<topic>-design.md`
+2. **Design document** — write design doc in `docs/plans/YYYY-MM-DD-<feature>/design.md`
 3. **Update documentation** (mandatory):
    - `docs/architecture.md` — if architecture changes
    - `docs/features.md` — add new feature to the list
@@ -83,6 +93,7 @@ Example: `2025-01-17-participant-registration-design.md`
 5. **Implement** — write code following project patterns
 6. **Write tests** — see Testing section for requirements
 7. **Review** — verify implementation against design doc
+8. **Architecture review** — verify layer boundaries (see Architecture Invariants in docs/architecture.md)
 
 ### Working with Git Worktrees
 

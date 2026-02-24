@@ -25,36 +25,15 @@ interface UserInfo {
 export interface CallbackTypes {
   'event:join': CallbackBaseData & UserInfo
   'event:leave': CallbackBaseData & UserInfo
-  'event:add_court': CallbackBaseData
-  'event:rm_court': CallbackBaseData
+  'event:add-court': CallbackBaseData
+  'event:remove-court': CallbackBaseData
   'event:finalize': CallbackBaseData
   'event:cancel': CallbackBaseData
-  'event:restore': CallbackBaseData
-}
-
-// === Command Types ===
-export interface CommandTypes {
-  // Utility commands
-  start: BaseData
-  help: BaseData
-  myid: BaseData & { username?: string; firstName?: string; lastName?: string }
-  getchatid: BaseData & { chatTitle?: string }
-
-  // Event subcommands
-  'event:list': BaseData
-  'event:create': BaseData & { day: string; time: string; courts: number }
-  'event:add': BaseData & { day: string; time: string; courts: number }
-  'event:announce': BaseData & { eventId: string }
-  'event:add-by-scaffold': BaseData & { scaffoldId: string }
-  'event:cancel': BaseData & { eventId: string }
-
-  // Scaffold subcommands
-  'scaffold:add': BaseData & { day: string; time: string; courts: number }
-  'scaffold:list': BaseData
-  'scaffold:toggle': BaseData & { scaffoldId: string }
-  'scaffold:remove': BaseData & { scaffoldId: string }
+  'event:undo-cancel': CallbackBaseData
+  'event:undo-finalize': CallbackBaseData
+  'payment:mark-paid': CallbackBaseData & { eventId: string }
+  'payment:undo-mark-paid': CallbackBaseData & { eventId: string }
 }
 
 // === Type helpers ===
 export type CallbackAction = keyof CallbackTypes
-export type CommandName = keyof CommandTypes

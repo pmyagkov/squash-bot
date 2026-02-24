@@ -31,6 +31,7 @@ describe('PaymentRepo', () => {
     const event = await eventRepo.createEvent({
       datetime: new Date('2024-01-20T21:00:00Z'),
       courts: 2,
+      ownerId: '111111111',
     })
     testEventId = event.id
 
@@ -86,6 +87,7 @@ describe('PaymentRepo', () => {
       const event2 = await eventRepo.createEvent({
         datetime: new Date('2024-01-21T21:00:00Z'),
         courts: 2,
+        ownerId: '111111111',
       })
       const participant2 = await participantRepo.findOrCreateParticipant('456', 'user2', 'User Two')
 
@@ -111,6 +113,7 @@ describe('PaymentRepo', () => {
       const emptyEvent = await eventRepo.createEvent({
         datetime: new Date('2024-01-22T21:00:00Z'),
         courts: 2,
+        ownerId: '111111111',
       })
 
       await paymentRepo.createPayment(testEventId, testParticipantId, 2000)

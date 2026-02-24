@@ -18,11 +18,11 @@ export class ScaffoldCommands extends ChatPage {
    * @returns Response message from bot
    *
    * Example from architecture.md:
-   * /scaffold add Tue 21:00 2
+   * /scaffold create Tue 21:00 2
    * → Created scaffold sc_1: Tue 21:00, 2 courts
    */
   async addScaffold(day: string, time: string, courts: number): Promise<string> {
-    const command = `/scaffold add ${day} ${time} ${courts}`
+    const command = `/scaffold create ${day} ${time} ${courts}`
     return await this.sendCommand(command)
   }
 
@@ -40,17 +40,25 @@ export class ScaffoldCommands extends ChatPage {
   }
 
   /**
-   * Toggle scaffold active/inactive status
+   * Toggle scaffold active/inactive status via edit menu
    * @param scaffoldId - Scaffold ID (e.g., "sc_1")
-   * @returns Response message from bot
+   * @returns Edit menu response text
    *
-   * Example from architecture.md:
-   * /scaffold toggle sc_2
-   * → sc_2 is now active
+   * Opens the edit menu, clicks the toggle button, then clicks Done.
    */
   async toggleScaffold(scaffoldId: string): Promise<string> {
-    const command = `/scaffold toggle ${scaffoldId}`
-    return await this.sendCommand(command)
+    const editMenu = await this.sendCommand(`/scaffold update ${scaffoldId}`)
+
+    // Click the contextual toggle button
+    const toggleText = editMenu.includes('Active') ? '⏸ Turn off' : '▶️ Turn on'
+    await this.clickInlineButton(toggleText)
+    await this.page.waitForTimeout(1000)
+
+    // Dismiss the edit menu
+    await this.clickInlineButton('✅ Done')
+    await this.page.waitForTimeout(500)
+
+    return editMenu
   }
 
   /**
@@ -59,11 +67,11 @@ export class ScaffoldCommands extends ChatPage {
    * @returns Response message from bot
    *
    * Example from architecture.md:
-   * /scaffold remove sc_1
+   * /scaffold delete sc_1
    * → sc_1 removed
    */
   async removeScaffold(scaffoldId: string): Promise<string> {
-    const command = `/scaffold remove ${scaffoldId}`
+    const command = `/scaffold delete ${scaffoldId}`
     return await this.sendCommand(command)
   }
 
@@ -76,7 +84,7 @@ export class ScaffoldCommands extends ChatPage {
    * "Created scaffold sc_1: Tue 21:00, 2 courts" → "sc_1"
    */
   parseScaffoldId(response: string): string | null {
-    const match = response.match(/scaffold (sc_\w+)/)
+    const match = response.match(/scaffold (sc_[\w-]+)/)
     return match ? match[1] : null
   }
 
@@ -86,7 +94,7 @@ export class ScaffoldCommands extends ChatPage {
    * @returns Array of scaffold objects
    *
    * Example:
-   * "sc_1: Tue 21:00, 2 courts, active" → [{ id: "sc_1", day: "Tue", time: "21:00", courts: 2, active: true }]
+   * "sc_1: Tue, 21:00, 🏟 Courts: 2, 🟢 Active" → [{ id: "sc_1", day: "Tue", time: "21:00", courts: 2, active: true }]
    */
   parseScaffoldList(response: string): {
     id: string
@@ -103,10 +111,8 @@ export class ScaffoldCommands extends ChatPage {
       active: boolean
     }[] = []
 
-    // Match pattern: sc_1: Tue 21:00, 2 court(s), ✅ active
-    // The format includes emoji and court(s) instead of courts
-    const regex =
-      /(sc_\w+):\s+(\w+)\s+([\d:]+),\s+(\d+)\s+court\(s\),\s+[✅❌]?\s*(active|inactive)/gi
+    // Match pattern: sc_1: Tue, 21:00, 🏟 Courts: 2, 🟢 Active (optional: , 👑 @owner)
+    const regex = /(sc_[\w-]+):\s+(\w+),\s+([\d:]+),\s+🏟 Courts:\s+(\d+),\s+(🟢 Active|⏸ Paused)/g
     let match
 
     while ((match = regex.exec(response)) !== null) {
@@ -115,7 +121,7 @@ export class ScaffoldCommands extends ChatPage {
         day: match[2],
         time: match[3],
         courts: parseInt(match[4], 10),
-        active: match[5] === 'active',
+        active: match[5] === '🟢 Active',
       })
     }
 
@@ -146,6 +152,7 @@ export class ScaffoldCommands extends ChatPage {
    * @returns True if scaffold was toggled
    */
   isScaffoldToggled(response: string): boolean {
-    return response.includes('is now active') || response.includes('is now inactive')
+    // Toggle happens via edit menu — response is the edit menu text
+    return response.includes('Scaffold') && response.includes('sc_')
   }
 }

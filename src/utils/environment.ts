@@ -13,3 +13,14 @@ export async function isAdmin(
   if (!adminId) return false
   return userId.toString() === adminId
 }
+
+export async function isOwnerOrAdmin(
+  userId: number | string,
+  ownerId: string | undefined,
+  settingsRepo: Pick<SettingsRepo, 'getAdminId'>
+): Promise<boolean> {
+  if (ownerId && userId.toString() === ownerId) {
+    return true
+  }
+  return isAdmin(userId, settingsRepo)
+}

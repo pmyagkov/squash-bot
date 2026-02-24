@@ -30,6 +30,7 @@ describe('EventParticipantRepo', () => {
     const event = await eventRepo.createEvent({
       datetime: new Date('2024-01-20T21:00:00Z'),
       courts: 2,
+      ownerId: '111111111',
     })
     testEventId = event.id
 
@@ -227,6 +228,7 @@ describe('EventParticipantRepo', () => {
       const event2 = await eventRepo.createEvent({
         datetime: new Date('2024-01-21T21:00:00Z'),
         courts: 2,
+        ownerId: '111111111',
       })
 
       // Add participant to both events
