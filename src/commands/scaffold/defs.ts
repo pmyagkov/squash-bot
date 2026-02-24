@@ -5,6 +5,7 @@ import {
   resolveDeletedScaffoldId,
 } from './parsers'
 import { scaffoldSelectStep, usernameStep } from './steps'
+import { subcommandStep } from '~/commands/shared/menuStep'
 
 export const scaffoldListDef: CommandDef<Record<string, never>> = {
   parser: () => ({ parsed: {}, missing: [] }),
@@ -24,4 +25,9 @@ export const scaffoldTransferDef: CommandDef<{ scaffoldId: string; targetUsernam
 export const scaffoldUndoDeleteDef: CommandDef<{ scaffoldId: string }> = {
   parser: resolveDeletedScaffoldId,
   steps: [],
+}
+
+export const scaffoldMenuDef: CommandDef<{ subcommand: string }> = {
+  parser: () => ({ parsed: {}, missing: ['subcommand'] }),
+  steps: [subcommandStep],
 }

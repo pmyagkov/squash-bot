@@ -6,6 +6,7 @@ import {
   resolveDeletedEventId,
 } from './parsers'
 import { eventSelectStep, usernameStep, scaffoldSelectStep } from './steps'
+import { subcommandStep } from '~/commands/shared/menuStep'
 
 export const eventListDef: CommandDef<Record<string, never>> = {
   parser: () => ({ parsed: {}, missing: [] }),
@@ -40,4 +41,9 @@ export const eventDeleteDef: CommandDef<{ eventId: string }> = {
 export const eventUndoDeleteDef: CommandDef<{ eventId: string }> = {
   parser: resolveDeletedEventId,
   steps: [],
+}
+
+export const eventMenuDef: CommandDef<{ subcommand: string }> = {
+  parser: () => ({ parsed: {}, missing: ['subcommand'] }),
+  steps: [subcommandStep],
 }
