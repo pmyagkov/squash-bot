@@ -144,8 +144,8 @@ describe('parsers', () => {
       expect(result).not.toHaveProperty('lastName')
     })
 
-    it('event:remove-court should use baseCallbackParser (no user info)', () => {
-      const result = callbackParsers['event:remove-court'](callbackCtx as Context)
+    it('event:delete-court should use baseCallbackParser (no user info)', () => {
+      const result = callbackParsers['event:delete-court'](callbackCtx as Context)
       expect(result).not.toHaveProperty('username')
       expect(result).not.toHaveProperty('firstName')
       expect(result).not.toHaveProperty('lastName')

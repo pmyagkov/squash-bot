@@ -171,12 +171,12 @@ describe('TelegramTransport', () => {
 
   describe('error handling', () => {
     it('should construct ParseError with correct name and message for user-friendly responses', () => {
-      const error = new ParseError('Usage: /event add <day> <time> <courts>')
+      const error = new ParseError('Usage: /event create <day> <time> <courts>')
 
       expect(error).toBeInstanceOf(Error)
       expect(error).toBeInstanceOf(ParseError)
       expect(error.name).toBe('ParseError')
-      expect(error.message).toBe('Usage: /event add <day> <time> <courts>')
+      expect(error.message).toBe('Usage: /event create <day> <time> <courts>')
     })
   })
 })

@@ -82,7 +82,7 @@ describe('event-courts', () => {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
         messageId,
-        data: 'event:remove-court',
+        data: 'event:delete-court',
         username: 'admin',
       })
 
@@ -100,7 +100,7 @@ describe('event-courts', () => {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
         messageId,
-        data: 'event:remove-court',
+        data: 'event:delete-court',
         username: 'admin',
       })
 
@@ -117,7 +117,7 @@ describe('event-courts', () => {
       const { event } = await setupAnnouncedEvent(2)
 
       await bot.handleUpdate(
-        createTextMessageUpdate(`/event add-court ${event.id}`, {
+        createTextMessageUpdate(`/event create-court ${event.id}`, {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -135,7 +135,7 @@ describe('event-courts', () => {
       const { event } = await setupAnnouncedEvent(3)
 
       await bot.handleUpdate(
-        createTextMessageUpdate(`/event remove-court ${event.id}`, {
+        createTextMessageUpdate(`/event delete-court ${event.id}`, {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })
@@ -153,7 +153,7 @@ describe('event-courts', () => {
       const { event } = await setupAnnouncedEvent(1)
 
       await bot.handleUpdate(
-        createTextMessageUpdate(`/event remove-court ${event.id}`, {
+        createTextMessageUpdate(`/event delete-court ${event.id}`, {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
         })

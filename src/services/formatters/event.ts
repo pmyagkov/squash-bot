@@ -51,7 +51,7 @@ export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
     .text(BTN_LEAVE, 'event:leave')
     .row()
     .text(BTN_ADD_COURT, 'event:add-court')
-    .text(BTN_REMOVE_COURT, 'event:remove-court')
+    .text(BTN_REMOVE_COURT, 'event:delete-court')
     .row()
     .text(BTN_FINALIZE, 'event:finalize')
     .text(BTN_CANCEL_EVENT, 'event:cancel')

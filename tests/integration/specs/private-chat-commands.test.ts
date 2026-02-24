@@ -27,7 +27,7 @@ describe('command-private-chat-only', () => {
   })
 
   it('should block commands in group chat with a warning', async () => {
-    const update = createTextMessageUpdate('/event add 2024-01-20 19:00 2', {
+    const update = createTextMessageUpdate('/event create 2024-01-20 19:00 2', {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
       chatType: 'group',
@@ -48,7 +48,7 @@ describe('command-private-chat-only', () => {
   })
 
   it('should allow commands in private chat', async () => {
-    const update = createTextMessageUpdate('/event add 2024-01-20 19:00 2', {
+    const update = createTextMessageUpdate('/event create 2024-01-20 19:00 2', {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
       chatType: 'private',

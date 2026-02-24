@@ -116,7 +116,7 @@ Set up basic infrastructure: project, connections to Telegram and Notion, REST A
 - [x] Bot responds to `/start` and `/help`
 - [x] Bot can send messages to 3 chats (main, test, technical)
 - [x] Notion client reads and writes to scaffold and event tables
-- [x] Event commands implemented (`/event add`, `/event list`, `/event announce`, `/event cancel`)
+- [x] Event commands implemented (`/event create`, `/event list`, `/event announce`, `/event cancel`)
 - [x] Event service with full CRUD operations and announcement logic
 - [x] Date parsing with multiple formats (absolute, relative, day names, "next week")
 - [x] All event tests passing (33/33)
@@ -133,7 +133,7 @@ This section maps use cases from [architecture.md](architecture.md) to implement
 - [x] `/scaffold create <day> <time> <courts>` - create scaffold
 - [x] `/scaffold list` - list scaffolds
 - [x] `/scaffold toggle <id>` - enable/disable scaffold
-- [x] `/scaffold remove <id>` - remove scaffold
+- [x] `/scaffold delete <id>` - remove scaffold
 
 **Tests:** 6 integration tests passing
 
@@ -149,7 +149,7 @@ This section maps use cases from [architecture.md](architecture.md) to implement
 
 ### Scenario 3: Manual Event Creation ✅ DONE
 **Commands:**
-- [x] `/event add <date> <time> <courts>` - create event manually
+- [x] `/event create <date> <time> <courts>` - create event manually
 - [x] `/event list` - list events
 - [x] `/event announce <id>` - announce event
 - [x] `/event cancel <id>` - cancel event

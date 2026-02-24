@@ -26,7 +26,7 @@ export interface CallbackTypes {
   'event:join': CallbackBaseData & UserInfo
   'event:leave': CallbackBaseData & UserInfo
   'event:add-court': CallbackBaseData
-  'event:remove-court': CallbackBaseData
+  'event:delete-court': CallbackBaseData
   'event:finalize': CallbackBaseData
   'event:cancel': CallbackBaseData
   'event:undo-cancel': CallbackBaseData
