@@ -1135,5 +1135,32 @@ describe('event-create', () => {
       // It either shows events or "no events" message
       expect(api.sendMessage).toHaveBeenCalled()
     })
+
+    it('/event menu → cancel wizard → no command dispatched', async () => {
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:cancel',
+        })
+      )
+      await tick()
+
+      // Should only see "Cancelled." message, no subcommand output
+      const cancelCall = api.sendMessage.mock.calls.find(
+        ([, text]: [number, string]) => typeof text === 'string' && text.includes('Cancelled')
+      )
+      expect(cancelCall).toBeDefined()
+    })
   })
 })
