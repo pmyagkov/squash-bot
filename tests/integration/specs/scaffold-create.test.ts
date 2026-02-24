@@ -400,4 +400,51 @@ describe('scaffold-create', () => {
       )
     })
   })
+
+  describe('/scaffold menu', () => {
+    it('/scaffold menu → select create → dispatches to create wizard', async () => {
+      // Step 1: Send /scaffold (no args) — wizard shows menu buttons
+      const commandDone = bot.handleUpdate(
+        createTextMessageUpdate('/scaffold', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      // Verify menu prompt with inline keyboard
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Choose an action'),
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({ text: '🎾 Create', callback_data: 'wizard:select:create' }),
+              ]),
+            ]),
+          }),
+        })
+      )
+
+      // Step 2: Select "create" via callback
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:create',
+        })
+      )
+      await tick()
+
+      // Verify day prompt appeared (from scaffold:create wizard)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Choose a day'),
+        expect.anything()
+      )
+    })
+  })
 })
