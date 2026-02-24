@@ -214,6 +214,12 @@ export class TelegramTransport {
   // === Internal: Command Handling ===
 
   private async handleCommand(ctx: Context, baseCommand: string): Promise<void> {
+    if (ctx.chat?.type !== 'private') {
+      await ctx.reply(
+        'This command is not supported in group chats. Please send it in a private message to the bot.'
+      )
+      return
+    }
     // Wizard routing: intercept text input from users with active wizard
     const userId = ctx.from?.id
     if (userId && this.wizardService.isActive(userId)) {

@@ -404,7 +404,7 @@ For scaffold-based events, both actions are performed in sequence in `/check-eve
 **Commands:**
 
 ```
-/event add <date> <time> <courts>
+/event create <date> <time> <courts>
 /event list
 /event announce <id>
 /event cancel <id>
@@ -416,10 +416,10 @@ For scaffold-based events, both actions are performed in sequence in `/check-eve
 
 **Examples:**
 ```
-/event add 2024-01-20 19:00 2
+/event create 2024-01-20 19:00 2
 → Created event ev_15 (Sat 20 Jan 19:00, 2 courts). To announce: /event announce ev_15
 
-/event add tomorrow 19:00 2
+/event create tomorrow 19:00 2
 → Created event ev_16 (Sun 21 Jan 19:00, 2 courts). To announce: /event announce ev_16
 
 /event list

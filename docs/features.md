@@ -149,7 +149,7 @@ Create one-time event outside regular schedule.
 **Chat:** Test or Main
 
 **Flow:**
-1. User sends `/event add 2024-01-20 19:00 2`
+1. User sends `/event create 2024-01-20 19:00 2`
 2. Bot parses date (absolute or relative: today, tomorrow, sat, next tue)
 3. Bot creates event in Notion (status: created)
 4. Bot replies: `✅ Created event ev_xxx (Sat 20 Jan 19:00, 2 courts). To announce: /event announce ev_xxx`
@@ -159,7 +159,7 @@ Create one-time event outside regular schedule.
 - Relative: today, tomorrow, sat, tue, next tue, next saturday
 
 **Errors:**
-- Missing parameters → `Usage: /event add <date> <time> <courts>\n\nExamples:\n/event add 2024-01-20 19:00 2\n/event add tomorrow 19:00 2\n/event add sat 19:00 2\n/event add next tue 21:00 2`
+- Missing parameters → `Usage: /event create <date> <time> <courts>\n\nExamples:\n/event create 2024-01-20 19:00 2\n/event create tomorrow 19:00 2\n/event create sat 19:00 2\n/event create next tue 21:00 2`
 - Invalid date → `❌ Invalid date format: <date>`
 - Invalid time → `❌ Invalid time format. Use HH:MM (e.g., 19:00)`
 - Invalid courts → `❌ Number of courts must be a positive number`
@@ -176,7 +176,7 @@ Create event manually from scaffold template.
 **Chat:** Test or Main
 
 **Flow:**
-1. User sends `/event add-by-scaffold sc_1`
+1. User sends `/event create-by-scaffold sc_1`
 2. Bot finds scaffold by ID
 3. Bot calculates next occurrence date/time
 4. Bot checks if event already exists for this scaffold + datetime
@@ -184,7 +184,7 @@ Create event manually from scaffold template.
 6. Bot replies: `✅ Created event ev_xxx from scaffold sc_1 (Tue 21 Jan 21:00, 2 courts). To announce: /event announce ev_xxx`
 
 **Errors:**
-- Missing scaffold ID → `Usage: /event add-by-scaffold <scaffold-id>\n\nExample: /event add-by-scaffold sc_a1b2`
+- Missing scaffold ID → `Usage: /event create-by-scaffold <scaffold-id>\n\nExample: /event create-by-scaffold sc_a1b2`
 - Scaffold not found → `❌ Scaffold sc_xxx not found`
 - Event already exists → `❌ Event already exists for scaffold sc_xxx at this time`
 
@@ -1121,6 +1121,25 @@ Interactive parameter collection for commands. When a command is called without 
 ---
 
 ## Non-functional requirements
+
+### private-chat-commands ✅
+
+Commands only work in private chat with the bot. Group chat is reserved for announcements and inline buttons.
+
+**Scope:** All text commands (`/event`, `/scaffold`, `/start`, `/help`, `/myid`, `/getchatid`)
+
+**Group chat behavior:**
+- Text commands → bot replies: "This command is not supported in group chats. Please send it in a private message to the bot."
+- Inline button callbacks → work as before (join, leave, courts, finalize, cancel, restore)
+
+**Private chat behavior:**
+- All commands work normally
+- Command responses (confirmations, lists, errors) go to private chat
+- Announcements and payment messages still go to the group (main chat)
+
+**Implementation:** Single filter in `TelegramTransport.handleCommand()` — checks `ctx.chat.type !== 'private'`
+
+---
 
 ### logging
 

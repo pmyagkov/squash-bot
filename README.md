@@ -78,7 +78,7 @@ Detailed setup and testing instructions can be found in [docs/manual-testing.md]
 - `/getchatid` - get Chat ID (works in any chat)
 - `/test info` - test environment information (only in test chat)
 - `/test config` - configuration check (only in test chat)
-- `/test scaffold add <day> <time> <courts>` - create scaffold in test mode
+- `/test scaffold create <day> <time> <courts>` - create scaffold in test mode
 
 ## Project Structure
 

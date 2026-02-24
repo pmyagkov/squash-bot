@@ -193,7 +193,7 @@ export class EventBusiness {
     this.transport.onCallback('event:join', (data) => this.handleJoin(data))
     this.transport.onCallback('event:leave', (data) => this.handleLeave(data))
     this.transport.onCallback('event:add-court', (data) => this.handleAddCourt(data))
-    this.transport.onCallback('event:remove-court', (data) => this.handleRemoveCourt(data))
+    this.transport.onCallback('event:delete-court', (data) => this.handleRemoveCourt(data))
     this.transport.onCallback('event:finalize', (data) => this.handleFinalize(data))
     this.transport.onCallback('event:cancel', (data) => this.handleCancel(data))
     this.transport.onCallback('event:undo-cancel', (data) => this.handleRestore(data))
@@ -214,11 +214,11 @@ export class EventBusiness {
       await this.handleLeaveFromDef(data, source)
     })
 
-    this.commandRegistry.register('event:add-court', eventActionDef, async (data, source) => {
+    this.commandRegistry.register('event:create-court', eventActionDef, async (data, source) => {
       await this.handleAddCourtFromDef(data, source)
     })
 
-    this.commandRegistry.register('event:remove-court', eventActionDef, async (data, source) => {
+    this.commandRegistry.register('event:delete-court', eventActionDef, async (data, source) => {
       await this.handleRemoveCourtFromDef(data, source)
     })
 
@@ -388,7 +388,7 @@ export class EventBusiness {
     void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
   }
 
-  private async handleRemoveCourt(data: CallbackTypes['event:remove-court']): Promise<void> {
+  private async handleRemoveCourt(data: CallbackTypes['event:delete-court']): Promise<void> {
     const event = await this.eventRepository.findByMessageId(String(data.messageId))
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')

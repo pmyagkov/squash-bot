@@ -50,7 +50,7 @@ describe('event formatters', () => {
       )
       expect(buttons[1][1].text).toBe(BTN_REMOVE_COURT)
       expect((buttons[1][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:remove-court'
+        'event:delete-court'
       )
 
       // Third row: Finalize, Cancel

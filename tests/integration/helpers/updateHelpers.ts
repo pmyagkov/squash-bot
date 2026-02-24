@@ -3,6 +3,7 @@ import { Update, Message } from '@grammyjs/types'
 export interface CreateMessageOptions {
   userId: number
   chatId: number
+  chatType?: 'private' | 'group'
   username?: string
   firstName?: string
   lastName?: string
@@ -31,8 +32,8 @@ export function createTextMessageUpdate(text: string, options: CreateMessageOpti
       date: Math.floor(Date.now() / 1000),
       chat: {
         id: options.chatId,
-        type: 'group',
-        title: 'Test Chat',
+        type: options.chatType ?? 'private',
+        ...(options.chatType === 'group' ? { title: 'Test Chat' } : { first_name: 'Test' }),
       },
       from: {
         id: options.userId,

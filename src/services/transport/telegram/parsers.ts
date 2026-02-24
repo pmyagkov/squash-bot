@@ -57,7 +57,7 @@ export const callbackParsers: CallbackParsers = {
   'event:join': userCallbackParser,
   'event:leave': userCallbackParser,
   'event:add-court': baseCallbackParser,
-  'event:remove-court': baseCallbackParser,
+  'event:delete-court': baseCallbackParser,
   'event:finalize': baseCallbackParser,
   'event:cancel': baseCallbackParser,
   'event:undo-cancel': baseCallbackParser,

@@ -675,7 +675,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:remove-court')
+      const handler = getCallbackHandler(transport, 'event:delete-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -703,7 +703,7 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCallbackHandler(transport, 'event:remove-court')
+      const handler = getCallbackHandler(transport, 'event:delete-court')
       await handler({
         userId: TEST_CONFIG.userId,
         chatId: TEST_CONFIG.chatId,
@@ -1120,7 +1120,7 @@ describe('EventBusiness', () => {
       'event:join',
       'event:leave',
       'event:add-court',
-      'event:remove-court',
+      'event:delete-court',
       'event:finalize',
       'event:cancel',
       'event:undo-cancel',

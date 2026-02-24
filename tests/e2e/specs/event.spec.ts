@@ -4,6 +4,9 @@ import { hasAuth, TEST_DATA } from '@e2e/config/config'
 /**
  * Comprehensive E2E test demonstrating full event lifecycle
  *
+ * Commands are sent in private chat with the bot (DM).
+ * Announcements and inline buttons are verified in the group chat.
+ *
  * This test covers the following scenarios from architecture.md:
  * - Scenario 3: Manual Event Creation (ad-hoc)
  * - Scenario 4: Event Announcement
@@ -18,10 +21,11 @@ test.describe('Event Lifecycle Flow', () => {
   test('should complete full event lifecycle: create → announce → register → finalize → pay', async ({
     eventCommands,
     participantActions,
+    groupChatId,
   }) => {
-    // Page objects are already initialized and navigated via fixtures
+    // eventCommands is already navigated to private chat with bot via fixture
 
-    // Step 1: Create event manually (Scenario 3)
+    // Step 1: Create event manually in DM (Scenario 3)
     console.log('Step 1: Creating event...')
     const createResponse = await eventCommands.addEvent(
       'tomorrow',
@@ -37,20 +41,20 @@ test.describe('Event Lifecycle Flow', () => {
     expect(eventId).toBeTruthy()
     console.log(`Created event: ${eventId}`)
 
-    // Step 2: Announce event (Scenario 4)
+    // Step 2: Announce event in DM (Scenario 4)
     console.log('Step 2: Announcing event...')
-    const announceResponse = await eventCommands.announceEvent(eventId!)
+    await eventCommands.announceEvent(eventId!)
 
-    // Verify announcement was sent
-    expect(eventCommands.isEventAnnounced(announceResponse)).toBe(true)
-
-    // Wait for announcement message to appear
+    // Switch to group chat to verify announcement appeared there
+    await eventCommands.navigateToChat(groupChatId)
     const announcementText = await eventCommands.waitForAnnouncement()
+    expect(eventCommands.isEventAnnounced(announcementText)).toBe(true)
     expect(announcementText).toContain('🎾 Squash')
     expect(announcementText).toContain('Courts: 2')
     console.log('Event announced successfully')
 
-    // Step 3: Register participants (Scenario 5)
+    // Step 3: Register participants in group chat (Scenario 5)
+    // participantActions works on the current page (now in group chat)
     console.log('Step 3: Registering participants...')
 
     // First participant: register once
@@ -87,16 +91,20 @@ test.describe('Event Lifecycle Flow', () => {
   test('should handle participant registration and unregistration', async ({
     eventCommands,
     participantActions,
+    groupChatId,
   }) => {
-    // Page objects are already initialized and navigated via fixtures
+    // eventCommands is already navigated to private chat with bot via fixture
 
-    // Create event
+    // Create event in DM
     const createResponse = await eventCommands.addEvent('tomorrow', '20:00', 2)
     const eventId = eventCommands.parseEventId(createResponse)
     expect(eventId).toBeTruthy()
 
-    // Announce event
+    // Announce event in DM
     await eventCommands.announceEvent(eventId!)
+
+    // Switch to group chat for announcement and inline buttons
+    await eventCommands.navigateToChat(groupChatId)
     await eventCommands.waitForAnnouncement()
 
     // Register 3 participations
@@ -119,14 +127,14 @@ test.describe('Event Lifecycle Flow', () => {
   })
 
   test('should cancel event', async ({ eventCommands }) => {
-    // Page object is already initialized and navigated via fixture
+    // eventCommands is already navigated to private chat with bot via fixture
 
-    // Create event
+    // Create event in DM
     const createResponse = await eventCommands.addEvent('tomorrow', '21:00', 2)
     const eventId = eventCommands.parseEventId(createResponse)
     expect(eventId).toBeTruthy()
 
-    // Cancel event
+    // Cancel event in DM
     console.log(`Cancelling event ${eventId}...`)
     const cancelResponse = await eventCommands.cancelEvent(eventId!)
 
