@@ -208,6 +208,24 @@ describe('CommandService', () => {
     )
   })
 
+  it('passes ctx as 3rd argument to handler', async () => {
+    const handler = vi.fn().mockResolvedValue(undefined)
+    const registered: RegisteredCommand<{ x: number }> = {
+      parser: () => ({ parsed: { x: 1 }, missing: [] }),
+      steps: [],
+      handler,
+    }
+    const ctx = mockCtx()
+
+    await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
+
+    expect(handler).toHaveBeenCalledWith(
+      { x: 1 },
+      expect.objectContaining({ type: 'command' }),
+      ctx
+    )
+  })
+
   it('catches WizardCancelledError and replies Cancelled.', async () => {
     const handler = vi.fn()
     const step = { param: 'eventId', type: 'text' as const, prompt: 'Choose:' }
