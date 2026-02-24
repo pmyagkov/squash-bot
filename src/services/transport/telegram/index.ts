@@ -252,13 +252,21 @@ export class TelegramTransport {
       }
 
       const innerKey = innerSub ? `${innerBase}:${innerSub}` : innerBase
-      const registered =
+      let registered =
         this.commandRegistry.get(`admin:${innerKey}`) ?? this.commandRegistry.get(innerKey)
+      let commandArgs = innerArgs.slice(1)
+
+      // Fallback: try base-only key for commands with freeform args (e.g. "admin:say")
+      if (!registered) {
+        registered = this.commandRegistry.get(`admin:${innerBase}`)
+        commandArgs = innerArgs // don't strip first arg — it's part of the args, not a subcommand
+      }
+
       if (registered) {
         this.commandService
           .run({
             registered,
-            args: innerArgs.slice(1),
+            args: commandArgs,
             ctx,
           })
           .catch(async (error) => {

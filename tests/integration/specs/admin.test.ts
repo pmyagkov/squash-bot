@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Bot } from 'grammy'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
@@ -123,6 +123,30 @@ describe('admin', () => {
       TEST_CHAT_ID,
       expect.stringContaining('marked as paid'),
       expect.anything()
+    )
+  })
+
+  it('should route base-only admin command with freeform args', async () => {
+    const commandRegistry = container.resolve('commandRegistry')
+    const handler = vi.fn()
+    commandRegistry.register(
+      'admin:echo',
+      { parser: ({ args }) => ({ parsed: { text: args.join(' ') }, missing: [] }), steps: [] },
+      handler
+    )
+    container.resolve('transport').ensureBaseCommand('admin')
+
+    await bot.handleUpdate(
+      createTextMessageUpdate('/admin echo hello world', {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+      })
+    )
+    await tick()
+
+    expect(handler).toHaveBeenCalledWith(
+      { text: 'hello world' },
+      expect.objectContaining({ type: 'command' })
     )
   })
 })
