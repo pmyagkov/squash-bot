@@ -21,7 +21,9 @@ import {
   scaffoldActionDef,
   scaffoldTransferDef,
   scaffoldUndoDeleteDef,
+  scaffoldMenuDef,
 } from '~/commands/scaffold/defs'
+import type { CommandService } from '~/services/command/commandService'
 import { dayStep, timeStep } from '~/commands/scaffold/steps'
 import { formatScaffoldEditMenu, buildScaffoldEditKeyboard } from '~/services/formatters/editMenu'
 
@@ -53,6 +55,15 @@ export class ScaffoldBusiness {
    * Initialize command handlers
    */
   init(): void {
+    // Register menu command for bare /scaffold
+    this.commandRegistry.register('scaffold', scaffoldMenuDef, async (data, _source, ctx) => {
+      const { subcommand } = data as { subcommand: string }
+      const registered = this.commandRegistry.get(`scaffold:${subcommand}`)
+      if (!registered) return
+      const commandService: CommandService = this.container.resolve('commandService')
+      await commandService.run({ registered, args: [], ctx })
+    })
+
     this.commandRegistry.register('scaffold:create', scaffoldCreateDef, async (data, source) => {
       await this.handleCreateFromDef(data, source)
     })

@@ -43,7 +43,9 @@ import {
   eventTransferDef,
   eventDeleteDef,
   eventUndoDeleteDef,
+  eventMenuDef,
 } from '~/commands/event/defs'
+import type { CommandService } from '~/services/command/commandService'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
 import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
 import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
@@ -189,6 +191,15 @@ export class EventBusiness {
    * Initialize transport handlers
    */
   init(): void {
+    // Register menu command for bare /event
+    this.commandRegistry.register('event', eventMenuDef, async (data, _source, ctx) => {
+      const { subcommand } = data as { subcommand: string }
+      const registered = this.commandRegistry.get(`event:${subcommand}`)
+      if (!registered) return
+      const commandService: CommandService = this.container.resolve('commandService')
+      await commandService.run({ registered, args: [], ctx })
+    })
+
     // Register callbacks
     this.transport.onCallback('event:join', (data) => this.handleJoin(data))
     this.transport.onCallback('event:leave', (data) => this.handleLeave(data))
