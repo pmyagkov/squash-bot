@@ -139,12 +139,12 @@ describe('event-create', () => {
           expect(call).toBeDefined()
           expect(call![1]).toContain(`✅ Created event <code>${event.id}</code>`)
           expect(call![1]).toContain('🏟 Courts: 2')
-          expect(call![1]).toContain(`To announce: /event announce <code>${event.id}</code>`)
+          expect(call![1]).toContain(`To announce: <code>/event announce ${event.id}</code>`)
           // Check message format: should match pattern
-          // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: /event announce ev_xxx"
+          // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: <code>/event announce ev_xxx</code>"
           // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
           expect(call![1]).toMatch(
-            /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: \/event announce <code>ev_[\w-]+<\/code>$/
+            /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: <code>\/event announce ev_[\w-]+<\/code>$/
           )
         })
 
@@ -500,13 +500,13 @@ describe('event-create', () => {
         // Verify message contains all required parts
         expect(successCall![1]).toContain(`✅ Created event <code>${createdEvent.id}</code>`)
         expect(successCall![1]).toContain('🏟 Courts: 2')
-        expect(successCall![1]).toContain(`To announce: /event announce <code>${createdEvent.id}</code>`)
+        expect(successCall![1]).toContain(`To announce: <code>/event announce ${createdEvent.id}</code>`)
 
         // Check full message format matches expected pattern
-        // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: /event announce ev_xxx"
+        // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: <code>/event announce ev_xxx</code>"
         // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
         expect(successCall![1]).toMatch(
-          /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: \/event announce <code>ev_[\w-]+<\/code>$/
+          /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: <code>\/event announce ev_[\w-]+<\/code>$/
         )
       })
     })
@@ -760,7 +760,7 @@ describe('event-create', () => {
         )
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('To announce: /event announce'),
+          expect.stringContaining('To announce: <code>/event announce'),
           expect.anything()
         )
 

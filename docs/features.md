@@ -14,14 +14,14 @@ Create scaffold template for recurring sessions.
 **Chat:** Test or Main
 
 **Flow:**
-1. Admin sends `/scaffold add Tue 21:00 2`
+1. Admin sends `/scaffold create Tue 21:00 2`
 2. Bot validates: day, time format, courts number
 3. Bot creates scaffold in Notion (status: active)
 4. Bot replies: `✅ Created scaffold sc_xxx: Tue 21:00, 2 court(s), announcement default`
 
 **Errors:**
 - Not admin → `❌ This command is only available to administrators`
-- Missing parameters → `Usage: /scaffold add <day> <time> <courts>\n\nExample: /scaffold add Tue 21:00 2\n\nDays of week: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
+- Missing parameters → `Usage: /scaffold create <day> <time> <courts>\n\nExample: /scaffold create Tue 21:00 2\n\nDays of week: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
 - Invalid day → `Invalid day of week: <day>\n\nValid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
 - Invalid courts (< 1) → `Number of courts must be a positive number`
 

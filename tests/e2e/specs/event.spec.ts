@@ -199,15 +199,16 @@ test.describe('Event Lifecycle Flow', () => {
     await participantActions.finalizeEvent()
 
     // Verify finalized state — announcement should show "Finalized"
-    const afterFinalize = await eventCommands.waitForMessageContaining('Finalized')
+    // Finalize is a heavy operation (payments, DMs, edit) — needs longer timeout
+    const afterFinalize = await eventCommands.waitForMessageContaining('Finalized', 5000)
     expect(afterFinalize).toContain('Finalized')
     console.log('Event finalized')
 
     // Unfinalize
     console.log('Unfinalizing event...')
-    await participantActions.clickInlineButton('↩️ Unfinalize')
+    await participantActions.clickAnnouncementButton('↩️ Unfinalize')
     // Wait for announcement to revert (should have "I'm in" button again)
-    await eventCommands.waitForInlineButton("I'm in")
+    await eventCommands.waitForInlineButton("I'm in", 5000)
     console.log('✅ Finalize → unfinalize completed')
   })
 
@@ -225,16 +226,16 @@ test.describe('Event Lifecycle Flow', () => {
 
     // Cancel via inline button
     console.log('Cancelling event via UI...')
-    await participantActions.clickInlineButton('❌ Cancel')
-    const afterCancel = await eventCommands.waitForMessageContaining('cancelled')
+    await participantActions.clickAnnouncementButton('❌ Cancel')
+    const afterCancel = await eventCommands.waitForMessageContaining('cancelled', 5000)
     expect(afterCancel).toContain('cancelled')
     console.log('Event cancelled via UI')
 
     // Restore via inline button
     console.log('Restoring event...')
-    await participantActions.clickInlineButton('🔄 Restore')
+    await participantActions.clickAnnouncementButton('🔄 Restore')
     // Wait for announcement to be restored (should have "I'm in" button again)
-    await eventCommands.waitForInlineButton("I'm in")
+    await eventCommands.waitForInlineButton("I'm in", 5000)
     console.log('✅ Cancel → restore completed')
   })
 })

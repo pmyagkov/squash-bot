@@ -84,7 +84,7 @@ export class ScaffoldCommands extends ChatPage {
    * "Created scaffold sc_1: Tue 21:00, 2 courts" → "sc_1"
    */
   parseScaffoldId(response: string): string | null {
-    const match = response.match(/scaffold (sc_\w+)/)
+    const match = response.match(/scaffold (sc_[\w-]+)/)
     return match ? match[1] : null
   }
 

@@ -132,31 +132,39 @@ export class TelegramWebPage {
    * @param timeout - Maximum time to wait in milliseconds
    * @returns Text content of the matching message
    */
-  async waitForMessageContaining(text: string, timeout = TIMEOUTS.messageWait): Promise<string> {
+  async waitForMessageContaining(
+    text: string,
+    timeout: number = TIMEOUTS.messageWait
+  ): Promise<string> {
     const selector = this.selectors.messageText
-    const startTime = Date.now()
-
-    while (Date.now() - startTime < timeout) {
-      const result = await this.page.evaluate(
-        ({ sel, searchText }) => {
-          const elements = document.querySelectorAll(sel)
-          for (let i = elements.length - 1; i >= 0; i--) {
-            const el = elements[i] as HTMLElement
-            if (el.innerText && el.innerText.includes(searchText)) {
-              return el.innerText
-            }
+    await this.page.waitForFunction(
+      ({ sel, searchText }) => {
+        const elements = document.querySelectorAll(sel)
+        for (let i = elements.length - 1; i >= 0; i--) {
+          const el = elements[i] as HTMLElement
+          if (el.innerText && el.innerText.includes(searchText)) {
+            return true
           }
-          return null
-        },
-        { sel: selector, searchText: text }
-      )
-
-      if (result) return result
-
-      await this.page.waitForTimeout(200)
-    }
-
-    throw new Error(`Timeout waiting for message containing "${text}"`)
+        }
+        return false
+      },
+      { sel: selector, searchText: text },
+      { timeout }
+    )
+    // Re-read with evaluate to get the actual text
+    return await this.page.evaluate(
+      ({ sel, searchText }) => {
+        const elements = document.querySelectorAll(sel)
+        for (let i = elements.length - 1; i >= 0; i--) {
+          const el = elements[i] as HTMLElement
+          if (el.innerText && el.innerText.includes(searchText)) {
+            return el.innerText
+          }
+        }
+        return ''
+      },
+      { sel: selector, searchText: text }
+    )
   }
 
   /**
@@ -185,7 +193,10 @@ export class TelegramWebPage {
    * @param buttonText - Text on the button to wait for
    * @param timeout - Maximum time to wait
    */
-  async waitForInlineButton(buttonText: string, timeout = TIMEOUTS.inlineButton): Promise<void> {
+  async waitForInlineButton(
+    buttonText: string,
+    timeout: number = TIMEOUTS.inlineButton
+  ): Promise<void> {
     const button = this.findInlineButton(buttonText)
     await button.waitFor({ state: 'visible', timeout })
   }

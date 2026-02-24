@@ -27,7 +27,7 @@ export const TIMEOUTS = {
   botResponse: 2000,
   messageWait: 2000,
   announcement: 2000,
-  announcementChange: 2000,
+  announcementChange: 10000, // callback round-trip: click → server → bot → editMessage → server → web client (~5-7s on test server)
   payment: 2000,
   paymentUpdate: 2000,
   inlineButton: 2000,

@@ -30,7 +30,7 @@ export class ChatPage extends TelegramWebPage {
    * @param timeout - Timeout for waiting for response
    * @returns Bot response text
    */
-  async sendCommand(command: string, timeout = TIMEOUTS.botResponse): Promise<string> {
+  async sendCommand(command: string, timeout: number = TIMEOUTS.botResponse): Promise<string> {
     // Get the last message ID before sending (Web K: .bubble with data-mid)
     const lastMessage = this.page.locator('.bubble[data-mid]').last()
     const lastMessageId = await lastMessage.getAttribute('data-mid')
@@ -49,12 +49,11 @@ export class ChatPage extends TelegramWebPage {
    */
   private async waitForBotMessage(
     afterMessageId: string,
-    timeout = TIMEOUTS.botResponse
+    timeout: number = TIMEOUTS.botResponse
   ): Promise<string> {
-    const startTime = Date.now()
-
-    while (Date.now() - startTime < timeout) {
-      const result = await this.page.evaluate((afterMid) => {
+    // Use waitForFunction with default raf polling for responsive detection
+    await this.page.waitForFunction(
+      (afterMid) => {
         const bubbles = document.querySelectorAll('.bubble[data-mid]:not(.is-out)')
         // Scan oldest-to-newest to return the FIRST bot response after our command,
         // not the last one (important when bot sends multiple messages, e.g. announce)
@@ -67,20 +66,36 @@ export class ChatPage extends TelegramWebPage {
               const text = msgEl.innerText
               // Skip log messages (they start with [ℹ️ INFO], [❌ ERROR], etc.)
               if (!text.trim().startsWith('[')) {
-                return text
+                return true
               }
             }
           }
         }
-        return null
-      }, afterMessageId)
-
-      if (result) return result
-
-      await this.page.waitForTimeout(200)
-    }
-
-    throw new Error(`Timeout waiting for bot response after ${timeout}ms`)
+        return false
+      },
+      afterMessageId,
+      { timeout }
+    )
+    // Re-read the actual text
+    const text = await this.page.evaluate((afterMid) => {
+      const bubbles = document.querySelectorAll('.bubble[data-mid]:not(.is-out)')
+      for (let i = 0; i < bubbles.length; i++) {
+        const bubble = bubbles[i] as HTMLElement
+        const mid = bubble.getAttribute('data-mid')
+        if (mid && parseFloat(mid) > parseFloat(afterMid)) {
+          const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+          if (msgEl && msgEl.innerText) {
+            const t = msgEl.innerText
+            if (!t.trim().startsWith('[')) {
+              return t
+            }
+          }
+        }
+      }
+      return null
+    }, afterMessageId)
+    if (!text) throw new Error('Bot message disappeared after detection')
+    return text
   }
 
   /**
@@ -225,10 +240,15 @@ export class ChatPage extends TelegramWebPage {
   /**
    * Cancel any active wizard by sending /cancel.
    * Prevents wizard state from leaking between tests.
+   * Uses sendCommand to properly consume the bot response so it doesn't
+   * leak into the next sendCommand call.
    */
   async cancelActiveWizard(): Promise<void> {
-    await this.sendMessage('/cancel')
-    await this.page.waitForTimeout(1000)
+    try {
+      await this.sendCommand('/cancel', 1500)
+    } catch {
+      // Ignore timeout — bot may not respond if no wizard is active
+    }
   }
 
   /**

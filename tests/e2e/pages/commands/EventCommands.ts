@@ -51,7 +51,13 @@ export class EventCommands extends ChatPage {
    */
   async announceEvent(eventId: string): Promise<string> {
     const command = `/event announce ${eventId}`
-    return await this.sendCommand(command)
+    const response = await this.sendCommand(command)
+    // The announce handler is fire-and-forget in Grammy (to avoid wizard deadlocks).
+    // sendCommand captures the announcement message, but the DB update (telegramMessageId)
+    // may not be complete yet. Wait for the confirmation message which is sent AFTER
+    // the DB update, ensuring callbacks can find the event by messageId.
+    await this.waitForMessageContaining(`${eventId} announced`, 5000)
+    return response
   }
 
   /**

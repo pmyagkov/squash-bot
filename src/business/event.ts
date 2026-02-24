@@ -327,11 +327,13 @@ export class EventBusiness {
     // Add to event
     await this.participantRepository.addToEvent(event.id, participant.id)
 
-    // Update message
-    await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
-    await this.transport.answerCallback(data.callbackId)
+    // Update message and answer callback concurrently (editMessage is slow on test server)
+    await Promise.all([
+      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.transport.answerCallback(data.callbackId),
+    ])
 
-    await this.logger.log(`User ${data.userId} joined event ${event.id}`)
+    void this.logger.log(`User ${data.userId} joined event ${event.id}`)
     void this.transport.logEvent({
       type: 'participant_joined',
       eventId: event.id,
@@ -354,10 +356,12 @@ export class EventBusiness {
 
     await this.participantRepository.removeFromEvent(event.id, participant.id)
 
-    await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
-    await this.transport.answerCallback(data.callbackId)
+    await Promise.all([
+      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.transport.answerCallback(data.callbackId),
+    ])
 
-    await this.logger.log(`User ${data.userId} left event ${event.id}`)
+    void this.logger.log(`User ${data.userId} left event ${event.id}`)
     void this.transport.logEvent({
       type: 'participant_left',
       eventId: event.id,
@@ -375,10 +379,12 @@ export class EventBusiness {
     const newCourts = event.courts + 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
-    await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
-    await this.transport.answerCallback(data.callbackId)
+    await Promise.all([
+      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.transport.answerCallback(data.callbackId),
+    ])
 
-    await this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
+    void this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
     void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
   }
 
@@ -397,10 +403,12 @@ export class EventBusiness {
     const newCourts = event.courts - 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
-    await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
-    await this.transport.answerCallback(data.callbackId)
+    await Promise.all([
+      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.transport.answerCallback(data.callbackId),
+    ])
 
-    await this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
+    void this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
     void this.transport.logEvent({ type: 'court_removed', eventId: event.id, courts: newCourts })
   }
 
@@ -458,10 +466,12 @@ export class EventBusiness {
       }
 
       // Update announcement message
-      await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, true)
+      await Promise.all([
+        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, true),
+        this.transport.answerCallback(data.callbackId),
+      ])
 
-      await this.transport.answerCallback(data.callbackId)
-      await this.logger.log(`User ${data.userId} finalized event ${event.id}`)
+      void this.logger.log(`User ${data.userId} finalized event ${event.id}`)
 
       const finalizedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
       void this.transport.logEvent({
@@ -484,17 +494,13 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
-    await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false, true)
+    await Promise.all([
+      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false, true),
+      this.transport.answerCallback(data.callbackId),
+      this.transport.unpinMessage(data.chatId, data.messageId).catch(() => {}),
+    ])
 
-    // Unpin message
-    try {
-      await this.transport.unpinMessage(data.chatId, data.messageId)
-    } catch {
-      // Ignore unpin errors
-    }
-
-    await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
+    void this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
 
     const cancelledDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({
@@ -513,17 +519,13 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
 
-    await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId)
+    await Promise.all([
+      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.transport.answerCallback(data.callbackId),
+      this.transport.pinMessage(data.chatId, data.messageId).catch(() => {}),
+    ])
 
-    // Pin message
-    try {
-      await this.transport.pinMessage(data.chatId, data.messageId)
-    } catch {
-      // Ignore pin errors
-    }
-
-    await this.transport.answerCallback(data.callbackId)
-    await this.logger.log(`User ${data.userId} restored event ${event.id}`)
+    void this.logger.log(`User ${data.userId} restored event ${event.id}`)
     const restoredDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
   }
@@ -566,10 +568,12 @@ export class EventBusiness {
       await this.eventRepository.updateEvent(event.id, { status: 'announced' })
 
       // Restore announcement message
-      await this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false)
+      await Promise.all([
+        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false),
+        this.transport.answerCallback(data.callbackId),
+      ])
 
-      await this.transport.answerCallback(data.callbackId)
-      await this.logger.log(`User ${data.userId} unfinalized event ${event.id}`)
+      void this.logger.log(`User ${data.userId} unfinalized event ${event.id}`)
     } finally {
       this.eventLock.release(event.id)
     }
@@ -1521,7 +1525,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)} from ${code(scaffold.id)}: ${dateFormatted}, ${formatCourts(scaffold.defaultCourts)}\nTo announce: /event announce ${code(event.id)}`
+    const message = `✅ Created event ${code(event.id)} from ${code(scaffold.id)}: ${dateFormatted}, ${formatCourts(scaffold.defaultCourts)}\nTo announce: ${code(`/event announce ${event.id}`)}`
     await this.transport.sendMessage(source.chat.id, message)
     void this.transport.logEvent({
       type: 'event_created',

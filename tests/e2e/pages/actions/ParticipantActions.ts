@@ -20,7 +20,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async clickImIn(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton("✋ I'm in")
+    await this.clickAnnouncementButton("✋ I'm in")
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -33,7 +33,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async clickImOut(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton("👋 I'm out")
+    await this.clickAnnouncementButton("👋 I'm out")
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -45,7 +45,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async addCourt(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton('➕ Court')
+    await this.clickAnnouncementButton('➕ Court')
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -57,7 +57,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async removeCourt(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton('➖ Court')
+    await this.clickAnnouncementButton('➖ Court')
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -68,7 +68,7 @@ export class ParticipantActions extends TelegramWebPage {
    * Any participant presses ✅, payment message sent, reminders stop
    */
   async finalizeEvent(): Promise<void> {
-    await this.clickInlineButton('✅ Finalize')
+    await this.clickAnnouncementButton('✅ Finalize')
     // Wait for payment message to appear
     await this.page.waitForTimeout(1000)
   }
@@ -180,6 +180,36 @@ export class ParticipantActions extends TelegramWebPage {
   }
 
   /**
+   * Click a button specifically on the most recent 🎾 announcement bubble.
+   * Avoids clicking stale buttons from old announcements left by previous test runs.
+   */
+  async clickAnnouncementButton(buttonText: string): Promise<void> {
+    // Find the announcement bubble's data-mid for a stable locator
+    const mid = await this.page.evaluate((searchEmoji) => {
+      const bubbles = document.querySelectorAll('.bubble[data-mid]')
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const bubble = bubbles[i] as HTMLElement
+        if (!bubble.querySelector('.reply-markup')) continue
+        const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+        if (msgEl && msgEl.innerText.includes(searchEmoji)) {
+          return bubble.getAttribute('data-mid')
+        }
+      }
+      return null
+    }, '\u{1F3BE}') // 🎾
+
+    if (!mid) {
+      throw new Error('No announcement bubble found')
+    }
+
+    const button = this.page
+      .locator(`.bubble[data-mid="${mid}"]`)
+      .locator(this.selectors.inlineButton, { hasText: buttonText })
+    await button.waitFor({ state: 'visible', timeout: TIMEOUTS.announcementChange })
+    await button.click()
+  }
+
+  /**
    * Get current announcement text via browser evaluate (avoids Playwright auto-wait overhead).
    * Matches on "🎾" prefix to distinguish announcements from payment messages
    * (which also contain "Participants" and have .reply-markup).
@@ -201,7 +231,10 @@ export class ParticipantActions extends TelegramWebPage {
 
   /**
    * Wait for announcement text to change from a known previous value.
-   * Uses page.waitForFunction for efficient in-browser polling.
+   * Uses MutationObserver for instant detection — no polling delay.
+   * Grammy processes callbacks sequentially, so the bot's editMessageText
+   * for a second click is blocked until the first edit completes (~1-2s).
+   * MutationObserver catches the DOM change the instant it happens.
    */
   private async waitForAnnouncementChange(
     previousText: string,
@@ -214,17 +247,17 @@ export class ParticipantActions extends TelegramWebPage {
           const bubble = bubbles[i] as HTMLElement
           if (!bubble.querySelector('.reply-markup')) continue
           const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
-          if (msgEl && msgEl.innerText.includes('🎾')) {
-            // Only check the MOST RECENT announcement — old ones from previous tests
-            // have different text and would cause false positives
-            return msgEl.innerText !== prevText
+          if (msgEl && msgEl.innerText.includes('\u{1F3BE}')) {
+            if (msgEl.innerText !== prevText) return true
+            return false // Found announcement, text hasn't changed yet
           }
         }
         return false
       },
       previousText,
-      { timeout, polling: 250 }
+      { timeout }
     )
+
     return await this.getAnnouncementText()
   }
 
