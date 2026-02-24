@@ -196,17 +196,32 @@ describe('ScaffoldRepo', () => {
   })
 
   describe('remove', () => {
-    it('should remove scaffold', async () => {
+    it('should soft delete scaffold (hidden from findById and getScaffolds)', async () => {
       const scaffold = await scaffoldRepo.createScaffold('Sun', '10:00', 2)
       await scaffoldRepo.remove(scaffold.id)
 
-      // Verify via direct DB query
-      const dbResult = await db.select().from(scaffolds).where(eq(scaffolds.id, scaffold.id))
-      expect(dbResult).toHaveLength(0)
-
-      // Verify repo cannot find it
+      // Verify repo cannot find it via findById
       const found = await scaffoldRepo.findById(scaffold.id)
       expect(found).toBeUndefined()
+
+      // Verify repo cannot find it via getScaffolds
+      const all = await scaffoldRepo.getScaffolds()
+      expect(all.find((s) => s.id === scaffold.id)).toBeUndefined()
+    })
+
+    it('should still exist in DB after soft delete (findByIdIncludingDeleted)', async () => {
+      const scaffold = await scaffoldRepo.createScaffold('Sun', '10:00', 2)
+      await scaffoldRepo.remove(scaffold.id)
+
+      // Verify row still exists via direct DB query
+      const dbResult = await db.select().from(scaffolds).where(eq(scaffolds.id, scaffold.id))
+      expect(dbResult).toHaveLength(1)
+      expect(dbResult[0].deletedAt).not.toBeNull()
+
+      // Verify findByIdIncludingDeleted returns it
+      const found = await scaffoldRepo.findByIdIncludingDeleted(scaffold.id)
+      expect(found).toBeDefined()
+      expect(found?.deletedAt).toBeInstanceOf(Date)
     })
 
     it('should not affect other scaffolds', async () => {
@@ -215,31 +230,74 @@ describe('ScaffoldRepo', () => {
 
       await scaffoldRepo.remove(scaffold1.id)
 
-      // Verify via direct DB query that only scaffold1 was removed
+      // Verify scaffold1 is soft-deleted (still in DB but with deletedAt)
       const dbResult1 = await db.select().from(scaffolds).where(eq(scaffolds.id, scaffold1.id))
-      expect(dbResult1).toHaveLength(0)
+      expect(dbResult1).toHaveLength(1)
+      expect(dbResult1[0].deletedAt).not.toBeNull()
 
+      // Verify scaffold2 is unaffected
       const dbResult2 = await db.select().from(scaffolds).where(eq(scaffolds.id, scaffold2.id))
       expect(dbResult2).toHaveLength(1)
+      expect(dbResult2[0].deletedAt).toBeNull()
 
       // Verify repo can still find scaffold2
       const found = await scaffoldRepo.findById(scaffold2.id)
       expect(found).toBeDefined()
     })
 
-    it('should actually remove scaffold from database', async () => {
+    it('should set deletedAt timestamp on scaffold', async () => {
       const scaffold = await scaffoldRepo.createScaffold('Fri', '22:00', 3)
 
-      // Verify it exists in database first
+      // Verify it exists in database first with no deletedAt
       const beforeRemove = await db.select().from(scaffolds).where(eq(scaffolds.id, scaffold.id))
       expect(beforeRemove).toHaveLength(1)
+      expect(beforeRemove[0].deletedAt).toBeNull()
 
-      // Remove scaffold
+      // Soft delete scaffold
       await scaffoldRepo.remove(scaffold.id)
 
-      // Verify it's gone from database
+      // Verify deletedAt is set
       const afterRemove = await db.select().from(scaffolds).where(eq(scaffolds.id, scaffold.id))
-      expect(afterRemove).toHaveLength(0)
+      expect(afterRemove).toHaveLength(1)
+      expect(afterRemove[0].deletedAt).not.toBeNull()
+    })
+  })
+
+  describe('restore', () => {
+    it('should restore a soft-deleted scaffold', async () => {
+      const scaffold = await scaffoldRepo.createScaffold('Wed', '19:00', 2)
+      await scaffoldRepo.remove(scaffold.id)
+
+      // Verify it's hidden
+      expect(await scaffoldRepo.findById(scaffold.id)).toBeUndefined()
+
+      // Restore it
+      const restored = await scaffoldRepo.restore(scaffold.id)
+      expect(restored.id).toBe(scaffold.id)
+      expect(restored.deletedAt).toBeUndefined()
+
+      // Verify it's visible again
+      const found = await scaffoldRepo.findById(scaffold.id)
+      expect(found).toBeDefined()
+      expect(found?.dayOfWeek).toBe('Wed')
+    })
+  })
+
+  describe('updateFields', () => {
+    it('should update defaultCourts', async () => {
+      const scaffold = await scaffoldRepo.createScaffold('Thu', '20:00', 2)
+      const updated = await scaffoldRepo.updateFields(scaffold.id, { defaultCourts: 4 })
+      expect(updated.defaultCourts).toBe(4)
+    })
+
+    it('should update multiple fields at once', async () => {
+      const scaffold = await scaffoldRepo.createScaffold('Fri', '21:00', 2)
+      const updated = await scaffoldRepo.updateFields(scaffold.id, {
+        dayOfWeek: 'Sat',
+        time: '18:00',
+      })
+      expect(updated.dayOfWeek).toBe('Sat')
+      expect(updated.time).toBe('18:00')
     })
   })
 })

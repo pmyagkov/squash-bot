@@ -51,11 +51,11 @@ describe('scaffold-list', () => {
         ([, text]) => text.includes('📋 Scaffold list')
       )
       expect(listCall).toBeDefined()
-      expect(listCall![1]).toContain('Tue 21:00')
-      expect(listCall![1]).toContain('2 court(s)')
-      expect(listCall![1]).toContain('Sat 18:00')
-      expect(listCall![1]).toContain('3 court(s)')
-      expect(listCall![1]).toContain('✅ active')
+      expect(listCall![1]).toContain('Tue, 21:00')
+      expect(listCall![1]).toContain('🏟 Courts: 2')
+      expect(listCall![1]).toContain('Sat, 18:00')
+      expect(listCall![1]).toContain('🏟 Courts: 3')
+      expect(listCall![1]).toContain('🟢 Active')
     })
 
     it('should show empty message when no scaffolds exist', async () => {

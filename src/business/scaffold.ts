@@ -1,12 +1,29 @@
-import type { Scaffold } from '~/types'
-import type { TelegramTransport, CommandTypes } from '~/services/transport/telegram'
+import type { Context } from 'grammy'
+import type { Scaffold, DayOfWeek } from '~/types'
+import type { TelegramTransport } from '~/services/transport/telegram'
 import type { AppContainer } from '../container'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { Logger } from '~/services/logger'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { SourceContext } from '~/services/command/types'
+import type { WizardService } from '~/services/wizard/wizardService'
+import type { WizardStep } from '~/services/wizard/types'
+import type { HydratedStep } from '~/services/wizard/types'
+import { WizardCancelledError } from '~/services/wizard/types'
+import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { parseDayOfWeek } from '~/helpers/dateTime'
+import { formatCourts, formatActiveStatus } from '~/ui/constants'
+import { scaffoldCreateDef } from '~/commands/scaffold/create'
+import {
+  scaffoldListDef,
+  scaffoldActionDef,
+  scaffoldTransferDef,
+  scaffoldUndoDeleteDef,
+} from '~/commands/scaffold/defs'
+import { dayStep, timeStep } from '~/commands/scaffold/steps'
+import { formatScaffoldEditMenu, buildScaffoldEditKeyboard } from '~/services/formatters/editMenu'
 
 /**
  * Business logic orchestrator for scaffolds
@@ -17,6 +34,9 @@ export class ScaffoldBusiness {
   private participantRepository: ParticipantRepo
   private transport: TelegramTransport
   private logger: Logger
+  private commandRegistry: CommandRegistry
+  private wizardService: WizardService
+  private container: AppContainer
 
   constructor(container: AppContainer) {
     this.scaffoldRepository = container.resolve('scaffoldRepository')
@@ -24,73 +44,97 @@ export class ScaffoldBusiness {
     this.participantRepository = container.resolve('participantRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
+    this.commandRegistry = container.resolve('commandRegistry')
+    this.wizardService = container.resolve('wizardService')
+    this.container = container
   }
 
   /**
-   * Initialize transport handlers
+   * Initialize command handlers
    */
   init(): void {
-    this.transport.onCommand('scaffold:add', (data) => this.handleAdd(data))
-    this.transport.onCommand('scaffold:list', (data) => this.handleList(data))
-    this.transport.onCommand('scaffold:toggle', (data) => this.handleToggle(data))
-    this.transport.onCommand('scaffold:remove', (data) => this.handleRemove(data))
-    this.transport.onCommand('scaffold:transfer', (data) => this.handleTransfer(data))
+    this.commandRegistry.register('scaffold:create', scaffoldCreateDef, async (data, source) => {
+      await this.handleCreateFromDef(data, source)
+    })
+
+    this.commandRegistry.register('scaffold:list', scaffoldListDef, async (_data, source) => {
+      await this.handleList(source)
+    })
+
+    this.commandRegistry.register('scaffold:update', scaffoldActionDef, async (data, source) => {
+      await this.handleEditMenu(data as { scaffoldId: string }, source)
+    })
+
+    this.transport.onEdit('scaffold', (action, entityId, ctx) =>
+      this.handleEditAction(action, entityId, ctx)
+    )
+
+    this.commandRegistry.register('scaffold:delete', scaffoldActionDef, async (data, source) => {
+      await this.handleRemove(data as { scaffoldId: string }, source)
+    })
+
+    this.commandRegistry.register(
+      'scaffold:transfer',
+      scaffoldTransferDef,
+      async (data, source) => {
+        await this.handleTransfer(data as { scaffoldId: string; targetUsername: string }, source)
+      }
+    )
+
+    this.commandRegistry.register(
+      'scaffold:undo-delete',
+      scaffoldUndoDeleteDef,
+      async (data, source) => {
+        await this.handleRestore(data as { scaffoldId: string }, source)
+      }
+    )
+
+    this.transport.ensureBaseCommand('scaffold')
   }
 
   // === Command Handlers ===
 
-  private async handleAdd(data: CommandTypes['scaffold:add']): Promise<void> {
-    const dayOfWeek = parseDayOfWeek(data.day)
-    if (!dayOfWeek) {
-      await this.transport.sendMessage(
-        data.chatId,
-        `Invalid day of week: ${data.day}\n\nValid values: Mon, Tue, Wed, Thu, Fri, Sat, Sun`
-      )
-      return
-    }
-
-    if (isNaN(data.courts) || data.courts < 1) {
-      await this.transport.sendMessage(data.chatId, 'Number of courts must be a positive number')
-      return
-    }
-
+  private async handleCreateFromDef(
+    data: { day: DayOfWeek; time: string; courts: number },
+    source: SourceContext
+  ): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.createScaffold(
-        dayOfWeek,
+        data.day,
         data.time,
         data.courts,
         undefined,
-        String(data.userId)
+        String(source.user.id)
       )
 
       await this.transport.sendMessage(
-        data.chatId,
-        `✅ Created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} court(s), announcement ${scaffold.announcementDeadline ?? 'default'}`
+        source.chat.id,
+        `✅ Created scaffold ${code(scaffold.id)}: ${data.day}, ${data.time}, ${formatCourts(data.courts)}`
       )
 
       await this.logger.log(
-        `User ${data.userId} created scaffold ${scaffold.id}: ${dayOfWeek} ${data.time}, ${data.courts} courts`
+        `User ${source.user.id} created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} courts`
       )
       void this.transport.logEvent({
         type: 'scaffold_created',
         scaffoldId: scaffold.id,
-        day: dayOfWeek,
+        day: data.day,
         time: data.time,
         courts: data.courts,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.error(`Error creating scaffold from user ${data.userId}: ${errorMessage}`)
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(`Error creating scaffold: ${errorMessage}`)
     }
   }
 
-  private async handleList(data: CommandTypes['scaffold:list']): Promise<void> {
+  private async handleList(source: SourceContext): Promise<void> {
     try {
       const scaffolds = await this.scaffoldRepository.getScaffolds()
 
       if (scaffolds.length === 0) {
-        await this.transport.sendMessage(data.chatId, '📋 No scaffolds found')
+        await this.transport.sendMessage(source.chat.id, '📋 No scaffolds found')
         return
       }
 
@@ -105,99 +149,194 @@ export class ScaffoldBusiness {
                 ? `, 👑 ${owner.displayName}`
                 : ''
           }
-          return `${s.id}: ${s.dayOfWeek} ${s.time}, ${s.defaultCourts} court(s), ${
-            s.isActive ? '✅ active' : '❌ inactive'
-          }${ownerLabel}`
+          return `${code(s.id)}: ${s.dayOfWeek}, ${s.time}, ${formatCourts(s.defaultCourts)}, ${formatActiveStatus(s.isActive)}${ownerLabel}`
         })
       )
 
-      await this.transport.sendMessage(data.chatId, `📋 Scaffold list:\n\n${list.join('\n')}`)
+      await this.transport.sendMessage(source.chat.id, `📋 Scaffold list:\n\n${list.join('\n')}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.error(`Error listing scaffolds from user ${data.userId}: ${errorMessage}`)
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(
+        `Error listing scaffolds from user ${source.user.id}: ${errorMessage}`
+      )
     }
   }
 
-  private async handleToggle(data: CommandTypes['scaffold:toggle']): Promise<void> {
+  private async handleEditMenu(data: { scaffoldId: string }, source: SourceContext): Promise<void> {
+    const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
+    if (!scaffold) {
+      await this.transport.sendMessage(
+        source.chat.id,
+        `❌ Scaffold ${code(data.scaffoldId)} not found`
+      )
+      return
+    }
+    await this.transport.sendMessage(
+      source.chat.id,
+      formatScaffoldEditMenu(scaffold),
+      buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive)
+    )
+  }
+
+  private async handleEditAction(action: string, entityId: string, ctx: Context): Promise<void> {
+    const scaffold = await this.scaffoldRepository.findById(entityId)
+    if (!scaffold) return
+
+    const chatId = ctx.chat!.id
+    const messageId = ctx.callbackQuery!.message!.message_id
+
+    switch (action) {
+      case '+court':
+        await this.scaffoldRepository.updateFields(entityId, {
+          defaultCourts: scaffold.defaultCourts + 1,
+        })
+        break
+      case '-court':
+        if (scaffold.defaultCourts <= 1) return
+        await this.scaffoldRepository.updateFields(entityId, {
+          defaultCourts: scaffold.defaultCourts - 1,
+        })
+        break
+      case 'toggle':
+        await this.scaffoldRepository.setActive(entityId, !scaffold.isActive)
+        break
+      case 'day': {
+        const hydratedDay = this.hydrateStep(dayStep)
+        try {
+          const newDay = await this.wizardService.collect(hydratedDay, ctx)
+          await this.scaffoldRepository.updateFields(entityId, { dayOfWeek: newDay })
+        } catch (e) {
+          if (e instanceof WizardCancelledError) break
+          throw e
+        }
+        break
+      }
+      case 'time': {
+        const hydratedTime = this.hydrateStep(timeStep)
+        try {
+          const newTime = await this.wizardService.collect(hydratedTime, ctx)
+          await this.scaffoldRepository.updateFields(entityId, { time: newTime })
+        } catch (e) {
+          if (e instanceof WizardCancelledError) break
+          throw e
+        }
+        break
+      }
+      case 'done':
+        await this.transport.editMessage(chatId, messageId, formatScaffoldEditMenu(scaffold))
+        return // Don't re-render with keyboard
+    }
+
+    // Re-render edit menu with updated data
+    const updated = await this.scaffoldRepository.findById(entityId)
+    if (updated) {
+      await this.transport.editMessage(
+        chatId,
+        messageId,
+        formatScaffoldEditMenu(updated),
+        buildScaffoldEditKeyboard(entityId, updated.isActive)
+      )
+    }
+  }
+
+  private hydrateStep<T>(step: WizardStep<T>): HydratedStep<T> {
+    const { createLoader, ...rest } = step
+    return { ...rest, load: createLoader?.(this.container) }
+  }
+
+  private async handleRemove(data: { scaffoldId: string }, source: SourceContext): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
-        await this.transport.sendMessage(data.chatId, `❌ Scaffold ${data.scaffoldId} not found`)
-        return
-      }
-
-      if (!(await isOwnerOrAdmin(data.userId, scaffold.ownerId, this.settingsRepository))) {
         await this.transport.sendMessage(
-          data.chatId,
-          '❌ Only the owner or admin can toggle this scaffold'
+          source.chat.id,
+          `❌ Scaffold ${code(data.scaffoldId)} not found`
         )
         return
       }
 
-      const updatedScaffold = await this.scaffoldRepository.setActive(
-        data.scaffoldId,
-        !scaffold.isActive
-      )
-
-      await this.transport.sendMessage(
-        data.chatId,
-        `✅ ${updatedScaffold.id} is now ${updatedScaffold.isActive ? 'active' : 'inactive'}`
-      )
-      await this.logger.log(
-        `Admin ${data.userId} toggled scaffold ${data.scaffoldId} to ${updatedScaffold.isActive ? 'active' : 'inactive'}`
-      )
-      void this.transport.logEvent({
-        type: 'scaffold_toggled',
-        scaffoldId: data.scaffoldId,
-        active: updatedScaffold.isActive,
-      })
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.error(`Error toggling scaffold from user ${data.userId}: ${errorMessage}`)
-    }
-  }
-
-  private async handleRemove(data: CommandTypes['scaffold:remove']): Promise<void> {
-    try {
-      const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
-      if (!scaffold) {
-        await this.transport.sendMessage(data.chatId, `❌ Scaffold ${data.scaffoldId} not found`)
-        return
-      }
-
-      if (!(await isOwnerOrAdmin(data.userId, scaffold.ownerId, this.settingsRepository))) {
+      if (!(await isOwnerOrAdmin(source.user.id, scaffold.ownerId, this.settingsRepository))) {
         await this.transport.sendMessage(
-          data.chatId,
-          '❌ Only the owner or admin can remove this scaffold'
+          source.chat.id,
+          '❌ Only the owner or admin can delete this scaffold'
         )
         return
       }
 
       await this.scaffoldRepository.remove(data.scaffoldId)
 
-      await this.transport.sendMessage(data.chatId, `✅ Scaffold ${data.scaffoldId} removed`)
-      await this.logger.log(`User ${data.userId} removed scaffold ${data.scaffoldId}`)
-      void this.transport.logEvent({ type: 'scaffold_removed', scaffoldId: data.scaffoldId })
+      await this.transport.sendMessage(
+        source.chat.id,
+        `✅ Scaffold ${code(data.scaffoldId)} deleted`
+      )
+      await this.logger.log(`User ${source.user.id} deleted scaffold ${data.scaffoldId}`)
+      void this.transport.logEvent({ type: 'scaffold_deleted', scaffoldId: data.scaffoldId })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
-      await this.logger.error(`Error removing scaffold from user ${data.userId}: ${errorMessage}`)
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(
+        `Error removing scaffold from user ${source.user.id}: ${errorMessage}`
+      )
     }
   }
 
-  private async handleTransfer(data: CommandTypes['scaffold:transfer']): Promise<void> {
+  private async handleRestore(data: { scaffoldId: string }, source: SourceContext): Promise<void> {
+    try {
+      const scaffold = await this.scaffoldRepository.findByIdIncludingDeleted(data.scaffoldId)
+      if (!scaffold) {
+        await this.transport.sendMessage(
+          source.chat.id,
+          `❌ Scaffold ${code(data.scaffoldId)} not found`
+        )
+        return
+      }
+      if (!scaffold.deletedAt) {
+        await this.transport.sendMessage(
+          source.chat.id,
+          `❌ Scaffold ${code(data.scaffoldId)} is not deleted`
+        )
+        return
+      }
+      if (!(await isOwnerOrAdmin(source.user.id, scaffold.ownerId, this.settingsRepository))) {
+        await this.transport.sendMessage(
+          source.chat.id,
+          '❌ Only the owner or admin can restore this scaffold'
+        )
+        return
+      }
+      await this.scaffoldRepository.restore(data.scaffoldId)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `✅ Scaffold ${code(data.scaffoldId)} restored`
+      )
+      await this.logger.log(`User ${source.user.id} restored scaffold ${data.scaffoldId}`)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
+      await this.logger.error(
+        `Error restoring scaffold from user ${source.user.id}: ${errorMessage}`
+      )
+    }
+  }
+
+  private async handleTransfer(
+    data: { scaffoldId: string; targetUsername: string },
+    source: SourceContext
+  ): Promise<void> {
     try {
       const scaffold = await this.scaffoldRepository.findById(data.scaffoldId)
       if (!scaffold) {
-        await this.transport.sendMessage(data.chatId, `❌ Scaffold ${data.scaffoldId} not found`)
+        await this.transport.sendMessage(
+          source.chat.id,
+          `❌ Scaffold ${code(data.scaffoldId)} not found`
+        )
         return
       }
 
-      if (!(await isOwnerOrAdmin(data.userId, scaffold.ownerId, this.settingsRepository))) {
+      if (!(await isOwnerOrAdmin(source.user.id, scaffold.ownerId, this.settingsRepository))) {
         await this.transport.sendMessage(
-          data.chatId,
+          source.chat.id,
           '❌ Only the owner or admin can transfer ownership'
         )
         return
@@ -206,7 +345,7 @@ export class ScaffoldBusiness {
       const target = await this.participantRepository.findByUsername(data.targetUsername)
       if (!target || !target.telegramId) {
         await this.transport.sendMessage(
-          data.chatId,
+          source.chat.id,
           `❌ User @${data.targetUsername} not found. They need to interact with the bot first.`
         )
         return
@@ -215,15 +354,15 @@ export class ScaffoldBusiness {
       await this.scaffoldRepository.updateOwner(scaffold.id, target.telegramId)
 
       await this.transport.sendMessage(
-        data.chatId,
-        `✅ Scaffold ${scaffold.id} transferred to @${data.targetUsername}`
+        source.chat.id,
+        `✅ Scaffold ${code(scaffold.id)} transferred to @${data.targetUsername}`
       )
       await this.logger.log(
-        `User ${data.userId} transferred scaffold ${scaffold.id} to @${data.targetUsername}`
+        `User ${source.user.id} transferred scaffold ${scaffold.id} to @${data.targetUsername}`
       )
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      await this.transport.sendMessage(data.chatId, `❌ Error: ${errorMessage}`)
+      await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
       await this.logger.error(`Error transferring scaffold: ${errorMessage}`)
     }
   }

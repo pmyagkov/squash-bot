@@ -74,7 +74,7 @@ describe('formatLogEvent', () => {
         eventId: 'ev_123',
         userName: 'Alice',
       }
-      expect(formatLogEvent(event)).toBe('👋 Alice joined ev_123')
+      expect(formatLogEvent(event)).toBe('👋 Alice joined <code>ev_123</code>')
     })
 
     it('should format participant_left', () => {
@@ -83,17 +83,17 @@ describe('formatLogEvent', () => {
         eventId: 'ev_123',
         userName: 'Alice',
       }
-      expect(formatLogEvent(event)).toBe('👋 Alice left ev_123')
+      expect(formatLogEvent(event)).toBe('👋 Alice left <code>ev_123</code>')
     })
 
     it('should format court_added', () => {
       const event: BusinessEvent = { type: 'court_added', eventId: 'ev_123', courts: 3 }
-      expect(formatLogEvent(event)).toBe('➕ Court added: ev_123 (now 3)')
+      expect(formatLogEvent(event)).toBe('➕ Court added: <code>ev_123</code> (now 3)')
     })
 
     it('should format court_removed', () => {
       const event: BusinessEvent = { type: 'court_removed', eventId: 'ev_123', courts: 1 }
-      expect(formatLogEvent(event)).toBe('➖ Court removed: ev_123 (now 1)')
+      expect(formatLogEvent(event)).toBe('➖ Court removed: <code>ev_123</code> (now 1)')
     })
 
     it('should format payment_received', () => {
@@ -128,12 +128,12 @@ describe('formatLogEvent', () => {
         scaffoldId: 'sc_123',
         active: false,
       }
-      expect(formatLogEvent(event)).toBe('🔀 Scaffold sc_123: deactivated')
+      expect(formatLogEvent(event)).toBe('🔀 Scaffold <code>sc_123</code>: deactivated')
     })
 
-    it('should format scaffold_removed', () => {
-      const event: BusinessEvent = { type: 'scaffold_removed', scaffoldId: 'sc_123' }
-      expect(formatLogEvent(event)).toBe('🗑 Scaffold removed: sc_123')
+    it('should format scaffold_deleted', () => {
+      const event: BusinessEvent = { type: 'scaffold_deleted', scaffoldId: 'sc_123' }
+      expect(formatLogEvent(event)).toBe('🗑 Scaffold deleted: <code>sc_123</code>')
     })
   })
 })

@@ -1,5 +1,6 @@
 import { TelegramWebPage } from './base/TelegramWebPage'
 import { Page } from '@playwright/test'
+import { TIMEOUTS } from '@e2e/config/config'
 
 /**
  * Page Object for Telegram chat interactions
@@ -16,7 +17,7 @@ export class ChatPage extends TelegramWebPage {
    */
   async sendMessage(text: string): Promise<void> {
     const composer = this.getMessageComposer()
-    await composer.waitFor({ state: 'visible', timeout: 10000 })
+    await composer.waitFor({ state: 'visible', timeout: TIMEOUTS.pageLoad })
     await composer.fill(text)
     await composer.press('Enter')
     // Wait a bit for message to be sent
@@ -29,7 +30,7 @@ export class ChatPage extends TelegramWebPage {
    * @param timeout - Timeout for waiting for response
    * @returns Bot response text
    */
-  async sendCommand(command: string, timeout = 10000): Promise<string> {
+  async sendCommand(command: string, timeout: number = TIMEOUTS.botResponse): Promise<string> {
     // Get the last message ID before sending (Web K: .bubble with data-mid)
     const lastMessage = this.page.locator('.bubble[data-mid]').last()
     const lastMessageId = await lastMessage.getAttribute('data-mid')
@@ -42,37 +43,59 @@ export class ChatPage extends TelegramWebPage {
   }
 
   /**
-   * Wait for next bot message (not own message)
-   * @param afterMessageId - Message ID to wait after
-   * @param timeout - Maximum time to wait
-   * @returns Bot response text
+   * Wait for next bot message (not own message).
+   * Uses page.evaluate for synchronous DOM scanning to avoid Playwright auto-wait
+   * blocking on bubbles without .translatable-message (e.g. virtualized elements).
    */
-  private async waitForBotMessage(afterMessageId: string, timeout = 10000): Promise<string> {
-    const startTime = Date.now()
-
-    while (Date.now() - startTime < timeout) {
-      // Get all messages that are NOT own and have ID > afterMessageId (Web K selectors)
-      const messages = await this.page.locator('.bubble[data-mid]:not(.is-out)').all()
-
-      for (const message of messages) {
-        const messageId = await message.getAttribute('data-mid')
-        if (messageId && parseFloat(messageId) > parseFloat(afterMessageId)) {
-          // Found a new bot message!
-          const text = await message.locator('.translatable-message').textContent()
-          if (text) {
-            // Skip log messages (they start with [ℹ️ INFO], [❌ ERROR], etc.)
-            if (!text.trim().startsWith('[')) {
-              return text
+  private async waitForBotMessage(
+    afterMessageId: string,
+    timeout: number = TIMEOUTS.botResponse
+  ): Promise<string> {
+    // Use waitForFunction with default raf polling for responsive detection
+    await this.page.waitForFunction(
+      (afterMid) => {
+        const bubbles = document.querySelectorAll('.bubble[data-mid]:not(.is-out)')
+        // Scan oldest-to-newest to return the FIRST bot response after our command,
+        // not the last one (important when bot sends multiple messages, e.g. announce)
+        for (let i = 0; i < bubbles.length; i++) {
+          const bubble = bubbles[i] as HTMLElement
+          const mid = bubble.getAttribute('data-mid')
+          if (mid && parseFloat(mid) > parseFloat(afterMid)) {
+            const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+            if (msgEl && msgEl.innerText) {
+              const text = msgEl.innerText
+              // Skip log messages (they start with [ℹ️ INFO], [❌ ERROR], etc.)
+              if (!text.trim().startsWith('[')) {
+                return true
+              }
+            }
+          }
+        }
+        return false
+      },
+      afterMessageId,
+      { timeout }
+    )
+    // Re-read the actual text
+    const text = await this.page.evaluate((afterMid) => {
+      const bubbles = document.querySelectorAll('.bubble[data-mid]:not(.is-out)')
+      for (let i = 0; i < bubbles.length; i++) {
+        const bubble = bubbles[i] as HTMLElement
+        const mid = bubble.getAttribute('data-mid')
+        if (mid && parseFloat(mid) > parseFloat(afterMid)) {
+          const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+          if (msgEl && msgEl.innerText) {
+            const t = msgEl.innerText
+            if (!t.trim().startsWith('[')) {
+              return t
             }
           }
         }
       }
-
-      // Wait a bit before checking again
-      await this.page.waitForTimeout(200)
-    }
-
-    throw new Error(`Timeout waiting for bot response after ${timeout}ms`)
+      return null
+    }, afterMessageId)
+    if (!text) throw new Error('Bot message disappeared after detection')
+    return text
   }
 
   /**
@@ -111,7 +134,7 @@ export class ChatPage extends TelegramWebPage {
    * @param timeout - Maximum time to wait
    * @returns Response text
    */
-  async waitForBotResponse(text: string, timeout = 10000): Promise<string> {
+  async waitForBotResponse(text: string, timeout = TIMEOUTS.messageWait): Promise<string> {
     return await this.waitForMessageContaining(text, timeout)
   }
 
@@ -124,6 +147,108 @@ export class ChatPage extends TelegramWebPage {
   async hasMessage(text: string, messageCount = 10): Promise<boolean> {
     const message = await this.findMessageContaining(text, messageCount)
     return message !== null
+  }
+
+  /**
+   * Send a message and wait for a NEW bot response containing expected text.
+   * Unlike waitForBotResponse, this ignores historical messages by counting
+   * existing matches before sending and waiting for one more to appear.
+   */
+  async sendAndExpect(
+    message: string,
+    expectedText: string,
+    timeout = TIMEOUTS.botResponse
+  ): Promise<string> {
+    // Count existing messages matching the expected text
+    const beforeCount = await this.countMessagesContaining(expectedText)
+
+    // Send the message
+    await this.sendMessage(message)
+
+    // Wait for a NEW message matching the expected text (count increases)
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      const messages = await this.getAllMessages().all()
+      let matchCount = 0
+      let lastMatch = ''
+
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const text = await messages[i].innerText()
+        if (text && text.includes(expectedText)) {
+          matchCount++
+          if (!lastMatch) lastMatch = text
+        }
+      }
+
+      if (matchCount > beforeCount) {
+        return lastMatch
+      }
+
+      await this.page.waitForTimeout(200)
+    }
+
+    throw new Error(
+      `Timeout waiting for new message containing "${expectedText}" after ${timeout}ms`
+    )
+  }
+
+  /**
+   * Wait for a NEW bot response after an action (e.g., clicking inline button).
+   * Counts existing matches and waits for one more to appear.
+   */
+  async expectNewResponse(expectedText: string, timeout = TIMEOUTS.botResponse): Promise<string> {
+    // Count existing messages matching the expected text
+    const beforeCount = await this.countMessagesContaining(expectedText)
+
+    // Wait for a NEW message matching the expected text
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      const messages = await this.getAllMessages().all()
+      let matchCount = 0
+      let lastMatch = ''
+
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const text = await messages[i].innerText()
+        if (text && text.includes(expectedText)) {
+          matchCount++
+          if (!lastMatch) lastMatch = text
+        }
+      }
+
+      if (matchCount > beforeCount) {
+        return lastMatch
+      }
+
+      await this.page.waitForTimeout(200)
+    }
+
+    throw new Error(
+      `Timeout waiting for new message containing "${expectedText}" after ${timeout}ms`
+    )
+  }
+
+  private async countMessagesContaining(text: string): Promise<number> {
+    const messages = await this.getAllMessages().all()
+    let count = 0
+    for (const msg of messages) {
+      const content = await msg.innerText()
+      if (content && content.includes(text)) count++
+    }
+    return count
+  }
+
+  /**
+   * Cancel any active wizard by sending /cancel.
+   * Prevents wizard state from leaking between tests.
+   * Uses sendCommand to properly consume the bot response so it doesn't
+   * leak into the next sendCommand call.
+   */
+  async cancelActiveWizard(): Promise<void> {
+    try {
+      await this.sendCommand('/cancel', 1500)
+    } catch {
+      // Ignore timeout — bot may not respond if no wizard is active
+    }
   }
 
   /**

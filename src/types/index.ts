@@ -13,6 +13,7 @@ export interface Scaffold {
   isActive: boolean
   announcementDeadline?: string
   ownerId?: string
+  deletedAt?: Date
 }
 
 // Event
@@ -26,6 +27,7 @@ export interface Event {
   paymentMessageId?: string
   announcementDeadline?: string
   ownerId: string
+  deletedAt?: Date
 }
 
 // Participant

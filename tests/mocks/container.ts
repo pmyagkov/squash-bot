@@ -17,8 +17,12 @@ import type { ScaffoldBusiness } from '~/business/scaffold'
 import type { UtilityBusiness } from '~/business/utility'
 import type { TelegramTransport } from '~/services/transport/telegram'
 import type { Logger } from '~/services/logger'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { WizardService } from '~/services/wizard/wizardService'
+import type { CommandService } from '~/services/command/commandService'
 import { config } from '~/config'
 import { EventLock } from '~/utils/eventLock'
+import { mock } from 'vitest-mock-extended'
 
 /**
  * Mock versions of all container dependencies
@@ -36,6 +40,9 @@ export interface MockContainer {
   paymentRepository: MockProxy<InstanceType<typeof PaymentRepo>>
   settingsRepository: MockProxy<InstanceType<typeof SettingsRepo>>
   participantRepository: MockProxy<InstanceType<typeof ParticipantRepo>>
+  commandRegistry: MockProxy<InstanceType<typeof CommandRegistry>>
+  wizardService: MockProxy<InstanceType<typeof WizardService>>
+  commandService: MockProxy<InstanceType<typeof CommandService>>
   eventLock: EventLock
   eventBusiness: MockProxy<InstanceType<typeof EventBusiness>>
   scaffoldBusiness: MockProxy<InstanceType<typeof ScaffoldBusiness>>
@@ -88,6 +95,9 @@ export function createMockContainer(overrides?: Partial<MockContainer>): MockApp
     paymentRepository: asValue(overrides?.paymentRepository ?? mockPaymentRepo()),
     settingsRepository: asValue(overrides?.settingsRepository ?? mockSettingsRepo()),
     participantRepository: asValue(overrides?.participantRepository ?? mockParticipantRepo()),
+    commandRegistry: asValue(overrides?.commandRegistry ?? mock<InstanceType<typeof CommandRegistry>>()),
+    wizardService: asValue(overrides?.wizardService ?? mock<InstanceType<typeof WizardService>>()),
+    commandService: asValue(overrides?.commandService ?? mock<InstanceType<typeof CommandService>>()),
     eventLock: asValue(overrides?.eventLock ?? new EventLock()),
     eventBusiness: asValue(overrides?.eventBusiness ?? mockEventBusiness()),
     scaffoldBusiness: asValue(overrides?.scaffoldBusiness ?? mockScaffoldBusiness()),

@@ -11,7 +11,7 @@ The project uses different database configurations for different test types:
 | Unit | SQLite in-memory | `src/**/*.test.ts` | `npm test` | `vitest.config.mjs` |
 | Integration | SQLite in-memory | `tests/integration/**/*.test.ts` | `npm test` | `vitest.config.mjs` |
 | Mocks | SQLite in-memory | `tests/mocks/**/*.test.ts` | `npm test` | `vitest.config.mjs` |
-| E2E | PostgreSQL | `tests/e2e/**/*.spec.ts` | `npm run test:e2e` | `playwright.mjs` |
+| E2E | PostgreSQL | `tests/e2e/**/*.spec.ts` | `npm run test:e2e` | `playwright.config.mjs` |
 
 ## Database Configuration
 
@@ -28,7 +28,7 @@ The project uses different database configurations for different test types:
 - **Database**: PostgreSQL 16 (via Docker or CI)
 - **Setup**: Migrations run automatically via `drizzle-kit push` in global setup
 - **Connection**: Uses `DATABASE_URL` environment variable
-- **Configuration**: `playwright.mjs`
+- **Configuration**: `playwright.config.mjs`
 
 ## Setup Files
 
@@ -54,7 +54,7 @@ The project uses different database configurations for different test types:
    - Loads `.env.test` file
    - Verifies required environment variables
    - **Runs database migrations** using `drizzle-kit push`
-   - Configured in `playwright.mjs` as `globalSetup`
+   - Configured in `playwright.config.mjs` as `globalSetup`
 
 ## Running Tests
 

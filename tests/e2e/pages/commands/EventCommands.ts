@@ -1,5 +1,6 @@
 import { ChatPage } from '@e2e/pages/ChatPage'
 import { Page } from '@playwright/test'
+import { TIMEOUTS } from '@e2e/config/config'
 
 /**
  * Page Object for Event commands
@@ -18,11 +19,11 @@ export class EventCommands extends ChatPage {
    * @returns Response message from bot
    *
    * Example from architecture.md:
-   * /event add 2024-01-20 19:00 2
+   * /event create 2024-01-20 19:00 2
    * → Created event ev_15 (Sat 20 Jan 19:00, 2 courts). To announce: /event announce ev_15
    */
   async addEvent(date: string, time: string, courts: number): Promise<string> {
-    const command = `/event add ${date} ${time} ${courts}`
+    const command = `/event create ${date} ${time} ${courts}`
     return await this.sendCommand(command)
   }
 
@@ -50,7 +51,13 @@ export class EventCommands extends ChatPage {
    */
   async announceEvent(eventId: string): Promise<string> {
     const command = `/event announce ${eventId}`
-    return await this.sendCommand(command)
+    const response = await this.sendCommand(command)
+    // The announce handler is fire-and-forget in Grammy (to avoid wizard deadlocks).
+    // sendCommand captures the announcement message, but the DB update (telegramMessageId)
+    // may not be complete yet. Wait for the confirmation message which is sent AFTER
+    // the DB update, ensuring callbacks can find the event by messageId.
+    await this.waitForMessageContaining(`${eventId} announced`, 5000)
+    return response
   }
 
   /**
@@ -99,8 +106,8 @@ export class EventCommands extends ChatPage {
       status: string
     }[] = []
 
-    // Match pattern: ev_15: Sat 20 Jan 19:00, 2 courts, created
-    const regex = /(ev_[\w-]+):.*?(\d+)\s+courts?,\s+(\w+)/gi
+    // Match pattern: ev_15: Sat, 20 Jan, 19:00, 🏟 Courts: 2, created
+    const regex = /(ev_[\w-]+):.*?🏟 Courts:\s+(\d+),\s+(\w+)/gi
     let match
 
     while ((match = regex.exec(response)) !== null) {
@@ -151,7 +158,7 @@ export class EventCommands extends ChatPage {
    * Courts: 2
    * Participants: (nobody yet)
    */
-  async waitForAnnouncement(timeout = 10000): Promise<string> {
+  async waitForAnnouncement(timeout = TIMEOUTS.announcement): Promise<string> {
     return await this.waitForMessageContaining('🎾 Squash', timeout)
   }
 

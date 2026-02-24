@@ -34,6 +34,7 @@ export const scaffolds = pgTable('scaffolds', {
     .notNull(),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id'),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
 // Events table
@@ -47,6 +48,7 @@ export const events = pgTable('events', {
   paymentMessageId: text('payment_message_id'),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id').notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
 // Participants table

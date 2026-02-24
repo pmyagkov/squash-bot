@@ -16,6 +16,9 @@ async function main() {
       },
     })
 
+    // Set HTML parse mode globally for all outgoing messages
+    bot.api.config.use((prev, method, payload) => prev(method, { ...payload, parse_mode: 'HTML' }))
+
     // 2. Create container
     const container = createAppContainer(bot)
     const logger = container.resolve('logger')
@@ -28,7 +31,43 @@ async function main() {
     container.resolve('scaffoldBusiness').init()
     container.resolve('utilityBusiness').init()
 
-    // 5. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
+    // 5. Register bot commands menu
+    const settingsRepo = container.resolve('settingsRepository')
+    const adminId = await settingsRepo.getAdminId()
+
+    const commonCommands = [
+      { command: 'start', description: 'Start the bot' },
+      { command: 'help', description: 'Show available commands' },
+      { command: 'myid', description: 'Show your user info' },
+      { command: 'event', description: 'Manage events' },
+      { command: 'scaffold', description: 'Manage schedules' },
+    ]
+
+    await bot.api.setMyCommands(commonCommands, {
+      scope: { type: 'all_private_chats' },
+    })
+
+    if (adminId) {
+      await bot.api.setMyCommands(
+        [...commonCommands, { command: 'admin', description: 'Admin commands' }],
+        {
+          scope: {
+            type: 'chat',
+            chat_id: Number(adminId),
+          },
+        }
+      )
+    }
+
+    // 6. Global error handler for bot middleware
+    bot.catch(async (err) => {
+      const ctx = err.ctx
+      const e = err.error
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      await logger.error(`Bot error [${ctx.update.update_id}]: ${errorMessage}`)
+    })
+
+    // 7. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
     bot.start({
       onStart: (botInfo) => {
         logger.log(`Telegram bot started as @${botInfo.username}`)
@@ -37,12 +76,12 @@ async function main() {
       },
     })
 
-    // 6. Start API server
+    // 8. Start API server
     const server = await createApiServer(bot, container)
     await server.listen({ port: config.server.port, host: '0.0.0.0' })
     await logger.log(`API server started on port ${config.server.port}`)
 
-    // 7. Graceful shutdown
+    // 9. Graceful shutdown
     const shutdown = async () => {
       const transport = container.resolve('transport')
       await transport.logEvent({ type: 'bot_stopped' })
@@ -54,6 +93,15 @@ async function main() {
 
     process.on('SIGTERM', shutdown)
     process.on('SIGINT', shutdown)
+
+    // 10. Process-level error handlers to prevent crashes
+    process.on('uncaughtException', async (error) => {
+      await logger.error(`Uncaught exception: ${error.message}`)
+    })
+    process.on('unhandledRejection', async (reason) => {
+      const message = reason instanceof Error ? reason.message : String(reason)
+      await logger.error(`Unhandled rejection: ${message}`)
+    })
   } catch (error) {
     console.error('Failed to start application:', error)
     process.exit(1)

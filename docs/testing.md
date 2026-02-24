@@ -207,7 +207,7 @@ import { setupMockBotApi, type SentMessage } from '@integration/mocks/botMock'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 
-describe('scaffold-add', () => {
+describe('scaffold-create', () => {
   let bot: Bot
   let sentMessages: SentMessage[] = []
 
@@ -218,7 +218,7 @@ describe('scaffold-add', () => {
   })
 
   it('should create scaffold with valid input', async () => {
-    const update = createTextMessageUpdate('/scaffold add Tue 21:00 2', {
+    const update = createTextMessageUpdate('/scaffold create Tue 21:00 2', {
       userId: ADMIN_ID,
       chatId: TEST_CHAT_ID,
     })

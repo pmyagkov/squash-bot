@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
+import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
@@ -9,6 +10,8 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { PaymentRepo } from '~/storage/repo/payment'
 import type { EventBusiness } from '~/business/event'
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('event-finalize', () => {
   let bot: Bot
@@ -389,5 +392,91 @@ describe('event-finalize', () => {
     for (const payment of payments) {
       expect(payment.amount).toBe(3000)
     }
+  })
+
+  // === Command flow ===
+
+  describe('finalize (command)', () => {
+    it('should finalize event via command', async () => {
+      const { event } = await setupAnnouncedEventWithParticipants(2, [
+        { userId: 111, username: 'alice', firstName: 'Alice' },
+      ])
+
+      api.sendMessage.mockClear()
+
+      await bot.handleUpdate(
+        createTextMessageUpdate(`/event finalize ${event.id}`, {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Finalized event'),
+        expect.anything()
+      )
+    })
+
+    it('should reject finalizing event with no participants via command', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00Z'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+      await eventBusiness.announceEvent(event.id)
+
+      api.sendMessage.mockClear()
+
+      await bot.handleUpdate(
+        createTextMessageUpdate(`/event finalize ${event.id}`, {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('No participants to finalize'),
+        expect.anything()
+      )
+    })
+  })
+
+  describe('undo-finalize (command)', () => {
+    it('should unfinalize event via command', async () => {
+      const { event, messageId } = await setupAnnouncedEventWithParticipants(2, [
+        { userId: 111, username: 'alice', firstName: 'Alice' },
+      ])
+
+      // Finalize via callback first
+      const finalizeUpdate = createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:finalize',
+      })
+      await bot.handleUpdate(finalizeUpdate)
+
+      api.sendMessage.mockClear()
+
+      // Undo-finalize via command
+      await bot.handleUpdate(
+        createTextMessageUpdate(`/event undo-finalize ${event.id}`, {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Unfinalized event'),
+        expect.anything()
+      )
+    })
   })
 })

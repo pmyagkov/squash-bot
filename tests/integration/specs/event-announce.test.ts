@@ -7,6 +7,8 @@ import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { EventBusiness } from '~/business/event'
 
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 describe('event-announce', () => {
   let bot: Bot
   let api: BotApiMock
@@ -60,11 +62,12 @@ describe('event-announce', () => {
       })
 
       await bot.handleUpdate(update)
+      await tick()
 
       // Check success message
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Event ${event.id} announced`),
+        expect.stringContaining(`✅ Event <code>${event.id}</code> announced`),
         expect.anything()
       )
 
@@ -106,11 +109,11 @@ describe('event-announce', () => {
       expect(replyMarkup?.inline_keyboard).toBeDefined()
       const buttons = replyMarkup.inline_keyboard[0]
       expect(buttons).toHaveLength(2)
-      expect(buttons[0].text).toBe("I'm in")
-      expect(buttons[1].text).toBe("I'm out")
+      expect(buttons[0].text).toBe("✋ I'm in")
+      expect(buttons[1].text).toBe("👋 I'm out")
     })
 
-    it('should reject announce without event ID', async () => {
+    it('should show empty message when no event ID provided and no events exist', async () => {
       const update = createTextMessageUpdate('/event announce', {
         userId: ADMIN_ID,
         chatId: TEST_CHAT_ID,
@@ -118,10 +121,10 @@ describe('event-announce', () => {
 
       await bot.handleUpdate(update)
 
-      // Check usage message
+      // Wizard auto-cancels when no events exist
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Usage: /event announce'),
+        expect.stringContaining('No announced events found.'),
         expect.anything()
       )
     })
@@ -137,7 +140,7 @@ describe('event-announce', () => {
       // Check error message
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('❌ Event ev_nonexistent not found'),
+        expect.stringContaining('❌ Event <code>ev_nonexistent</code> not found'),
         expect.anything()
       )
     })
@@ -168,7 +171,7 @@ describe('event-announce', () => {
       // Check info message
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`ℹ️ Event ${event.id} is already announced`),
+        expect.stringContaining(`ℹ️ Event <code>${event.id}</code> is already announced`),
         expect.anything()
       )
 

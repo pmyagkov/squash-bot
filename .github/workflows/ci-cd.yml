@@ -113,7 +113,7 @@ jobs:
         timeout-minutes: 6
 
       - name: Run E2E tests
-        run: npx playwright test tests/e2e --config=playwright.mjs
+        run: npx playwright test tests/e2e --config=playwright.config.mjs
         env:
           ENVIRONMENT: test
           CI: true
@@ -178,7 +178,7 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     environment:
       name: production
-      url: https://your-bot-domain.com
+      url: https://puelle.me
 
     steps:
       - name: Checkout code

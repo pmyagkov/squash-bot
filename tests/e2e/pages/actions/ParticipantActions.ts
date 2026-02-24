@@ -1,5 +1,6 @@
 import { TelegramWebPage } from '@e2e/pages/base/TelegramWebPage'
 import { Page } from '@playwright/test'
+import { TIMEOUTS } from '@e2e/config/config'
 
 /**
  * Page Object for Participant actions on event announcements
@@ -19,7 +20,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async clickImIn(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton("I'm in")
+    await this.clickAnnouncementButton("✋ I'm in")
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -32,7 +33,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async clickImOut(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton("I'm out")
+    await this.clickAnnouncementButton("👋 I'm out")
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -44,7 +45,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async addCourt(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton('+court')
+    await this.clickAnnouncementButton('➕ Court')
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -56,7 +57,7 @@ export class ParticipantActions extends TelegramWebPage {
    */
   async removeCourt(): Promise<void> {
     const textBefore = await this.getAnnouncementText()
-    await this.clickInlineButton('-court')
+    await this.clickAnnouncementButton('➖ Court')
     await this.waitForAnnouncementChange(textBefore)
   }
 
@@ -67,7 +68,7 @@ export class ParticipantActions extends TelegramWebPage {
    * Any participant presses ✅, payment message sent, reminders stop
    */
   async finalizeEvent(): Promise<void> {
-    await this.clickInlineButton('✅ Finalize')
+    await this.clickAnnouncementButton('✅ Finalize')
     // Wait for payment message to appear
     await this.page.waitForTimeout(1000)
   }
@@ -179,42 +180,84 @@ export class ParticipantActions extends TelegramWebPage {
   }
 
   /**
-   * Get current announcement text via browser evaluate (avoids Playwright auto-wait overhead)
+   * Click a button specifically on the most recent 🎾 announcement bubble.
+   * Avoids clicking stale buttons from old announcements left by previous test runs.
+   */
+  async clickAnnouncementButton(buttonText: string): Promise<void> {
+    // Find the announcement bubble's data-mid for a stable locator
+    const mid = await this.page.evaluate((searchEmoji) => {
+      const bubbles = document.querySelectorAll('.bubble[data-mid]')
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const bubble = bubbles[i] as HTMLElement
+        if (!bubble.querySelector('.reply-markup')) continue
+        const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+        if (msgEl && msgEl.innerText.includes(searchEmoji)) {
+          return bubble.getAttribute('data-mid')
+        }
+      }
+      return null
+    }, '\u{1F3BE}') // 🎾
+
+    if (!mid) {
+      throw new Error('No announcement bubble found')
+    }
+
+    const button = this.page
+      .locator(`.bubble[data-mid="${mid}"]`)
+      .locator(this.selectors.inlineButton, { hasText: buttonText })
+    await button.waitFor({ state: 'visible', timeout: TIMEOUTS.announcementChange })
+    await button.click()
+  }
+
+  /**
+   * Get current announcement text via browser evaluate (avoids Playwright auto-wait overhead).
+   * Matches on "🎾" prefix to distinguish announcements from payment messages
+   * (which also contain "Participants" and have .reply-markup).
    */
   private async getAnnouncementText(): Promise<string> {
-    const selector = this.selectors.messageText
-    return await this.page.evaluate((sel) => {
-      const elements = document.querySelectorAll(sel)
-      for (let i = elements.length - 1; i >= 0; i--) {
-        const el = elements[i] as HTMLElement
-        if (el.innerText.includes('Participants')) {
-          return el.innerText
+    return await this.page.evaluate(() => {
+      const bubbles = document.querySelectorAll('.bubble')
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const bubble = bubbles[i] as HTMLElement
+        if (!bubble.querySelector('.reply-markup')) continue
+        const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+        if (msgEl && msgEl.innerText.includes('🎾')) {
+          return msgEl.innerText
         }
       }
       return ''
-    }, selector)
+    })
   }
 
   /**
    * Wait for announcement text to change from a known previous value.
-   * Uses page.waitForFunction for efficient in-browser polling.
+   * Uses MutationObserver for instant detection — no polling delay.
+   * Grammy processes callbacks sequentially, so the bot's editMessageText
+   * for a second click is blocked until the first edit completes (~1-2s).
+   * MutationObserver catches the DOM change the instant it happens.
    */
-  private async waitForAnnouncementChange(previousText: string, timeout = 15000): Promise<string> {
-    const selector = this.selectors.messageText
+  private async waitForAnnouncementChange(
+    previousText: string,
+    timeout = TIMEOUTS.announcementChange
+  ): Promise<string> {
     await this.page.waitForFunction(
-      ({ sel, prevText }) => {
-        const elements = document.querySelectorAll(sel)
-        for (let i = elements.length - 1; i >= 0; i--) {
-          const el = elements[i] as HTMLElement
-          if (el.innerText.includes('Participants') && el.innerText !== prevText) {
-            return true
+      (prevText) => {
+        const bubbles = document.querySelectorAll('.bubble')
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+          const bubble = bubbles[i] as HTMLElement
+          if (!bubble.querySelector('.reply-markup')) continue
+          const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
+          if (msgEl && msgEl.innerText.includes('\u{1F3BE}')) {
+            if (msgEl.innerText !== prevText) return true
+            return false // Found announcement, text hasn't changed yet
           }
         }
         return false
       },
-      { sel: selector, prevText: previousText },
-      { timeout, polling: 250 }
+      previousText,
+      { timeout }
     )
+
     return await this.getAnnouncementText()
   }
 

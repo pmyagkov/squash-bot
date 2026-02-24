@@ -1,39 +1,57 @@
-import type { TelegramTransport, CommandTypes } from '~/services/transport/telegram'
+import type { TelegramTransport } from '~/services/transport/telegram'
+import type { CommandRegistry } from '~/services/command/commandRegistry'
+import type { SourceContext } from '~/services/command/types'
 import type { AppContainer } from '../container'
+import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
 
 /**
  * Business logic for utility commands
  */
 export class UtilityBusiness {
   private transport: TelegramTransport
+  private commandRegistry: CommandRegistry
 
   constructor(container: AppContainer) {
     this.transport = container.resolve('transport')
+    this.commandRegistry = container.resolve('commandRegistry')
   }
 
   /**
-   * Initialize transport handlers
+   * Initialize command handlers
    */
   init(): void {
-    this.transport.onCommand('start', (data) => this.handleStart(data))
-    this.transport.onCommand('help', (data) => this.handleHelp(data))
-    this.transport.onCommand('myid', (data) => this.handleMyId(data))
-    this.transport.onCommand('getchatid', (data) => this.handleGetChatId(data))
+    this.commandRegistry.register('start', startDef, async (_data, source) => {
+      await this.handleStart(source)
+    })
+    this.commandRegistry.register('help', helpDef, async (_data, source) => {
+      await this.handleHelp(source)
+    })
+    this.commandRegistry.register('myid', myidDef, async (_data, source) => {
+      await this.handleMyId(source)
+    })
+    this.commandRegistry.register('getchatid', getchatidDef, async (_data, source) => {
+      await this.handleGetChatId(source)
+    })
+
+    this.transport.ensureBaseCommand('start')
+    this.transport.ensureBaseCommand('help')
+    this.transport.ensureBaseCommand('myid')
+    this.transport.ensureBaseCommand('getchatid')
   }
 
   // === Command Handlers ===
 
-  private async handleStart(data: CommandTypes['start']): Promise<void> {
+  private async handleStart(source: SourceContext): Promise<void> {
     const welcomeMessage = `Welcome to Squash Bot! 🎾
 
 This bot helps organize squash events with automated scheduling and payment tracking.
 
 Use /help to see available commands.`
 
-    await this.transport.sendMessage(data.chatId, welcomeMessage)
+    await this.transport.sendMessage(source.chat.id, welcomeMessage)
   }
 
-  private async handleHelp(data: CommandTypes['help']): Promise<void> {
+  private async handleHelp(source: SourceContext): Promise<void> {
     const helpMessage = `Available commands:
 
 /start - Welcome message
@@ -44,38 +62,38 @@ Use /help to see available commands.`
 /event list - List active events
 /event create <day> <time> <courts> - Create event
 
-/scaffold add <day> <time> <courts> - Create scaffold (admin)
+/scaffold create <day> <time> <courts> - Create scaffold (admin)
 /scaffold list - List scaffolds (admin)
-/scaffold toggle <id> - Toggle scaffold (admin)
-/scaffold remove <id> - Remove scaffold (admin)`
+/scaffold update <id> - Toggle scaffold (admin)
+/scaffold delete <id> - Delete scaffold (admin)`
 
-    await this.transport.sendMessage(data.chatId, helpMessage)
+    await this.transport.sendMessage(source.chat.id, helpMessage)
   }
 
-  private async handleMyId(data: CommandTypes['myid']): Promise<void> {
-    let message = `Your Telegram ID: ${data.userId}`
+  private async handleMyId(source: SourceContext): Promise<void> {
+    let message = `Your Telegram ID: ${source.user.id}`
 
-    if (data.username) {
-      message += `\nUsername: @${data.username}`
+    if (source.user.username) {
+      message += `\nUsername: @${source.user.username}`
     }
-    if (data.firstName) {
-      message += `\nFirst name: ${data.firstName}`
+    if (source.user.firstName) {
+      message += `\nFirst name: ${source.user.firstName}`
     }
-    if (data.lastName) {
-      message += `\nLast name: ${data.lastName}`
+    if (source.user.lastName) {
+      message += `\nLast name: ${source.user.lastName}`
     }
 
-    await this.transport.sendMessage(data.chatId, message)
+    await this.transport.sendMessage(source.chat.id, message)
   }
 
-  private async handleGetChatId(data: CommandTypes['getchatid']): Promise<void> {
-    let message = `Chat ID: ${data.chatId}`
-    message += `\nChat type: ${data.chatType}`
+  private async handleGetChatId(source: SourceContext): Promise<void> {
+    let message = `Chat ID: ${source.chat.id}`
+    message += `\nChat type: ${source.chat.type}`
 
-    if (data.chatTitle) {
-      message += `\nChat title: ${data.chatTitle}`
+    if (source.chat.title) {
+      message += `\nChat title: ${source.chat.title}`
     }
 
-    await this.transport.sendMessage(data.chatId, message)
+    await this.transport.sendMessage(source.chat.id, message)
   }
 }

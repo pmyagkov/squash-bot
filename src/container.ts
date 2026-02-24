@@ -23,6 +23,12 @@ import type { SettingsRepo } from './storage/repo/settings'
 import { SettingsRepo as SettingsRepoImpl } from './storage/repo/settings'
 import type { ParticipantRepo } from './storage/repo/participant'
 import { ParticipantRepo as ParticipantRepoImpl } from './storage/repo/participant'
+import type { CommandRegistry } from './services/command/commandRegistry'
+import { CommandRegistry as CommandRegistryImpl } from './services/command/commandRegistry'
+import type { WizardService } from './services/wizard/wizardService'
+import { WizardService as WizardServiceImpl } from './services/wizard/wizardService'
+import type { CommandService } from './services/command/commandService'
+import { CommandService as CommandServiceImpl } from './services/command/commandService'
 export interface Container {
   bot: Bot
   config: typeof config
@@ -35,6 +41,9 @@ export interface Container {
   paymentRepository: PaymentRepo
   settingsRepository: SettingsRepo
   participantRepository: ParticipantRepo
+  commandRegistry: CommandRegistry
+  wizardService: WizardService
+  commandService: CommandService
   eventBusiness: EventBusiness
   scaffoldBusiness: ScaffoldBusiness
   utilityBusiness: UtilityBusiness
@@ -70,6 +79,9 @@ export function createAppContainer(bot: Bot): AppContainer {
     paymentRepository: asClass(PaymentRepoImpl).singleton(),
     settingsRepository: asClass(SettingsRepoImpl).singleton(),
     participantRepository: asClass(ParticipantRepoImpl).singleton(),
+    commandRegistry: asClass(CommandRegistryImpl).singleton(),
+    wizardService: asClass(WizardServiceImpl).singleton(),
+    commandService: asClass(CommandServiceImpl).singleton(),
     eventBusiness: asClass(EventBusinessImpl).singleton(),
     scaffoldBusiness: asClass(ScaffoldBusinessImpl).singleton(),
     utilityBusiness: asClass(UtilityBusinessImpl).singleton(),
