@@ -14,6 +14,7 @@ type ApiMethod<M extends keyof Bot['api']> = Bot['api'][M] extends (...args: inf
  */
 export interface BotApiMock {
   getMe: Mock<ApiMethod<'getMe'>>
+  getChat: Mock<ApiMethod<'getChat'>>
   sendMessage: Mock<ApiMethod<'sendMessage'>>
   editMessageText: Mock<ApiMethod<'editMessageText'>>
   pinChatMessage: Mock<ApiMethod<'pinChatMessage'>>
@@ -93,6 +94,12 @@ export function mockBot(bot: Bot): BotApiMock {
       username: 'test_bot',
     } satisfies User) as BotApiMock['getMe'],
 
+    getChat: vi.fn().mockImplementation(async (chatId: number | string) => ({
+      id: typeof chatId === 'string' ? 12345 : chatId,
+      type: 'private' as const,
+      first_name: 'Resolved User',
+    })) as BotApiMock['getChat'],
+
     sendMessage: vi.fn().mockImplementation(
       async (chat_id: number | string) =>
         ({
@@ -123,6 +130,11 @@ export function mockBot(bot: Bot): BotApiMock {
     switch (method) {
       case 'getMe': {
         return api.getMe().then(apiResponse)
+      }
+
+      case 'getChat': {
+        const { chat_id } = payload as ChatIdPayload
+        return api.getChat(chat_id).then(apiResponse)
       }
 
       case 'sendMessage': {
