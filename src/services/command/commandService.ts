@@ -54,7 +54,7 @@ export class CommandService {
         : { type: 'command', chat, user }
 
       // 5. Call handler
-      await registered.handler(result.parsed, source)
+      await registered.handler(result.parsed, source, ctx)
     } catch (error) {
       if (error instanceof WizardCancelledError) {
         await ctx.reply('Cancelled.')

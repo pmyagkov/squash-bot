@@ -1,3 +1,4 @@
+import type { Context } from 'grammy'
 import type { CommandDef, RegisteredCommand, SourceContext } from './types'
 
 export class CommandRegistry {
@@ -6,7 +7,7 @@ export class CommandRegistry {
   register<T>(
     key: string,
     def: CommandDef<T>,
-    handler: (data: T, source: SourceContext) => Promise<void>
+    handler: (data: T, source: SourceContext, ctx: Context) => Promise<void>
   ): void {
     if (this.commands.has(key)) {
       throw new Error(`Command "${key}" is already registered`)

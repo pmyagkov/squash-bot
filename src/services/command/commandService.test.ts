@@ -53,7 +53,8 @@ describe('CommandService', () => {
         type: 'command',
         chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
-      }
+      },
+      ctx
     )
     expect(wizard.collect).not.toHaveBeenCalled()
   })
@@ -98,7 +99,8 @@ describe('CommandService', () => {
         type: 'command',
         chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
-      }
+      },
+      ctx
     )
   })
 
@@ -149,7 +151,8 @@ describe('CommandService', () => {
         callbackId: 'cb_123',
         chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
-      }
+      },
+      ctx
     )
   })
 
@@ -173,7 +176,8 @@ describe('CommandService', () => {
         type: 'command',
         chat: { id: 100, type: 'group', title: undefined },
         user: { id: 42, username: 'johndoe', firstName: 'John', lastName: 'Doe' },
-      }
+      },
+      ctx
     )
   })
 
@@ -199,7 +203,8 @@ describe('CommandService', () => {
         callbackId: 'cb_1',
         chat: { id: 100, type: 'group', title: undefined },
         user: { id: 42, username: 'janedoe', firstName: 'Jane', lastName: undefined },
-      }
+      },
+      ctx
     )
   })
 
