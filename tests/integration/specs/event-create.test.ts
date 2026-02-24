@@ -1110,5 +1110,30 @@ describe('event-create', () => {
         expect.anything()
       )
     })
+
+    it('/event → select list → shows event list', async () => {
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:list',
+        })
+      )
+      await tick()
+
+      // event:list handler should have been called
+      // It either shows events or "no events" message
+      expect(api.sendMessage).toHaveBeenCalled()
+    })
   })
 })
