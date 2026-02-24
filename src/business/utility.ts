@@ -1,8 +1,10 @@
 import type { TelegramTransport } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
+import type { SettingsRepo } from '~/storage/repo/settings'
 import type { AppContainer } from '../container'
 import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
+import { sayDef, type SayData } from '~/commands/utility/say'
 
 /**
  * Business logic for utility commands
@@ -10,10 +12,12 @@ import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/def
 export class UtilityBusiness {
   private transport: TelegramTransport
   private commandRegistry: CommandRegistry
+  private settingsRepository: SettingsRepo
 
   constructor(container: AppContainer) {
     this.transport = container.resolve('transport')
     this.commandRegistry = container.resolve('commandRegistry')
+    this.settingsRepository = container.resolve('settingsRepository')
   }
 
   /**
@@ -31,6 +35,9 @@ export class UtilityBusiness {
     })
     this.commandRegistry.register('getchatid', getchatidDef, async (_data, source) => {
       await this.handleGetChatId(source)
+    })
+    this.commandRegistry.register('admin:say', sayDef, async (data, source) => {
+      await this.handleSay(data as SayData, source)
     })
 
     this.transport.ensureBaseCommand('start')
@@ -95,5 +102,34 @@ Use /help to see available commands.`
     }
 
     await this.transport.sendMessage(source.chat.id, message)
+  }
+
+  private async handleSay(data: SayData, source: SourceContext): Promise<void> {
+    const mainChatId = await this.settingsRepository.getMainChatId()
+    if (!mainChatId) {
+      await this.transport.sendMessage(source.chat.id, 'Main chat ID is not configured')
+      return
+    }
+
+    if (!data.target) {
+      // Send to group chat
+      await this.transport.sendMessage(mainChatId, data.message)
+      await this.transport.sendMessage(source.chat.id, 'Message sent to group chat')
+      return
+    }
+
+    // Send DM to target user
+    try {
+      const chatId = await this.transport.resolveChatId(data.target)
+      await this.transport.sendMessage(chatId, data.message)
+      await this.transport.sendMessage(source.chat.id, `Message sent to ${data.target}`)
+    } catch {
+      // Fallback: send to group chat with mention
+      await this.transport.sendMessage(mainChatId, `${data.target}, ${data.message}`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `Sent to group chat (DM to ${data.target} failed)`
+      )
+    }
   }
 }

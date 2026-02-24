@@ -124,6 +124,11 @@ export class TelegramTransport {
     return this.bot.botInfo
   }
 
+  async resolveChatId(username: string): Promise<number> {
+    const chat = await this.bot.api.getChat(username)
+    return chat.id
+  }
+
   async logEvent(event: LogEvent): Promise<void> {
     const message = formatLogEvent(event)
     try {
