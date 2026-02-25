@@ -21,16 +21,19 @@ export function getTelegramWebUrl(chatId?: string): string {
 
 /**
  * Timeouts (in milliseconds)
+ * CI environments are slower — multiply all timeouts by 3x
  */
+const timeoutMultiplier = process.env.CI ? 3 : 1
+
 export const TIMEOUTS = {
-  pageLoad: 10000,
-  botResponse: 2000,
-  messageWait: 2000,
-  announcement: 2000,
-  announcementChange: 10000, // callback round-trip: click → server → bot → editMessage → server → web client (~5-7s on test server)
-  payment: 2000,
-  paymentUpdate: 2000,
-  inlineButton: 2000,
+  pageLoad: 10000 * timeoutMultiplier,
+  botResponse: 2000 * timeoutMultiplier,
+  messageWait: 2000 * timeoutMultiplier,
+  announcement: 2000 * timeoutMultiplier,
+  announcementChange: 10000 * timeoutMultiplier,
+  payment: 2000 * timeoutMultiplier,
+  paymentUpdate: 2000 * timeoutMultiplier,
+  inlineButton: 2000 * timeoutMultiplier,
 } as const
 
 /**
