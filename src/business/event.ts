@@ -969,13 +969,15 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
     await this.refreshAnnouncement(event.id)
 
-    // Re-pin if possible
-    const mainChatId = await this.settingsRepository.getMainChatId()
-    if (mainChatId && event.telegramMessageId) {
-      try {
-        await this.transport.pinMessage(mainChatId, parseInt(event.telegramMessageId, 10))
-      } catch {
-        // Ignore pin errors
+    // Re-pin if possible (only for public events)
+    if (!event.isPrivate && event.telegramMessageId) {
+      const announceChatId = await this.getAnnouncementChatId(event)
+      if (announceChatId) {
+        try {
+          await this.transport.pinMessage(announceChatId, parseInt(event.telegramMessageId, 10))
+        } catch {
+          // Ignore pin errors
+        }
       }
     }
 
@@ -1550,9 +1552,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     await this.transport.sendMessage(source.chat.id, `✅ Event ${code(event.id)} cancelled`)
 
-    // If event was announced, send cancellation notification to the main chat
+    // If event was announced, send cancellation notification to the announcement chat
     if (event.status === 'announced') {
-      const chatId = await this.settingsRepository.getMainChatId()
+      const chatId = await this.getAnnouncementChatId(event)
       if (chatId) {
         await this.transport.sendMessage(chatId, `❌ Event ${code(event.id)} has been cancelled.`)
       }
@@ -1582,13 +1584,12 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
     const messageText = formatAnnouncementText(event, participants, finalized, cancelled)
-    const keyboard = buildInlineKeyboard(
-      event.status === 'cancelled'
-        ? 'cancelled'
-        : event.status === 'finalized'
-          ? 'finalized'
-          : 'announced'
-    )
+    const status = event.status === 'cancelled'
+      ? 'cancelled'
+      : event.status === 'finalized'
+        ? 'finalized'
+        : 'announced'
+    const keyboard = buildInlineKeyboard(status as EventStatus, event.isPrivate, event.id)
 
     try {
       await this.transport.editMessage(chatId, messageId, messageText, keyboard)
@@ -1659,7 +1660,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
     const event = await this.eventRepository.findById(eventId)
     if (!event?.telegramMessageId) return
 
-    const chatId = await this.settingsRepository.getMainChatId()
+    const chatId = await this.getAnnouncementChatId(event)
     if (!chatId) return
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
@@ -1673,7 +1674,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
       false,
       paidParticipantIds
     )
-    const keyboard = buildInlineKeyboard(event.status as EventStatus)
+    const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
 
     try {
       await this.transport.editMessage(
@@ -1689,11 +1690,18 @@ To announce: ${code(`/event announce ${event.id}`)}`
     }
   }
 
+  private async getAnnouncementChatId(event: Event): Promise<number | null> {
+    if (event.telegramChatId) {
+      return parseInt(event.telegramChatId, 10)
+    }
+    return this.settingsRepository.getMainChatId()
+  }
+
   private async refreshAnnouncement(eventId: string): Promise<void> {
     const event = await this.eventRepository.findById(eventId)
     if (!event?.telegramMessageId) return
 
-    const chatId = await this.settingsRepository.getMainChatId()
+    const chatId = await this.getAnnouncementChatId(event)
     if (!chatId) return
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
@@ -1711,7 +1719,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
       event.status === 'cancelled',
       paidParticipantIds
     )
-    const keyboard = buildInlineKeyboard(event.status as EventStatus)
+    const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
 
     try {
       await this.transport.editMessage(
@@ -1736,26 +1744,35 @@ To announce: ${code(`/event announce ${event.id}`)}`
       throw new Error(`Event ${id} not found`)
     }
 
-    const chatId = await this.settingsRepository.getMainChatId()
-    if (!chatId) {
-      throw new Error('Chat ID not configured')
+    let chatId: number
+    if (event.isPrivate) {
+      chatId = parseInt(event.ownerId, 10)
+    } else {
+      const mainChatId = await this.settingsRepository.getMainChatId()
+      if (!mainChatId) {
+        throw new Error('Chat ID not configured')
+      }
+      chatId = mainChatId
     }
 
     // Send announcement via transport layer
     const messageText = formatEventMessage(event)
-    const keyboard = buildInlineKeyboard('announced')
+    const keyboard = buildInlineKeyboard('announced', event.isPrivate, event.id)
     const messageId = await this.transport.sendMessage(chatId, messageText, keyboard)
 
-    // Pin the message
-    try {
-      await this.transport.pinMessage(chatId, messageId)
-    } catch {
-      // Ignore pin errors
+    // Pin the message (only for public events in group chat)
+    if (!event.isPrivate) {
+      try {
+        await this.transport.pinMessage(chatId, messageId)
+      } catch {
+        // Ignore pin errors
+      }
     }
 
-    // Update event with telegram_message_id and status
+    // Update event with telegram_message_id, telegramChatId and status
     const updatedEvent = await this.eventRepository.updateEvent(id, {
       telegramMessageId: String(messageId),
+      telegramChatId: String(chatId),
       status: 'announced',
     })
 
@@ -1778,7 +1795,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     // Update message if event was announced
     if (sendNotification && event.status === 'announced' && event.telegramMessageId) {
-      const chatId = await this.settingsRepository.getMainChatId()
+      const chatId = await this.getAnnouncementChatId(event)
       if (chatId) {
         const messageId = parseInt(event.telegramMessageId, 10)
         await this.updateAnnouncementMessage(id, chatId, messageId, false, true)
