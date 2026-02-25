@@ -84,6 +84,7 @@ async function main() {
     })
 
     bot.start({
+      drop_pending_updates: config.environment === 'test',
       onStart: () => {
         resolveBotReady()
         logger.log('Telegram bot long polling started')
