@@ -2052,6 +2052,60 @@ To announce: ${code(`/event announce ${event.id}`)}`
         }
         break
       }
+      case '+participant': {
+        if (!event.isPrivate) return
+        const currentParticipants = await this.participantRepository.getEventParticipants(entityId)
+        const currentIds = new Set(currentParticipants.map(p => p.participantId))
+        const addStep: HydratedStep<string> = {
+          param: 'participantId',
+          type: 'select',
+          prompt: 'Choose a participant to add:',
+          emptyMessage: 'No more participants available.',
+          load: async () => {
+            const all = await this.participantRepository.getParticipants()
+            return all
+              .filter(p => !currentIds.has(p.id))
+              .map(p => ({
+                value: p.id,
+                label: p.telegramUsername ? `@${p.telegramUsername}` : p.displayName,
+              }))
+          },
+          parse: (v: string) => v,
+        }
+        try {
+          const participantId = await this.wizardService.collect(addStep, ctx)
+          await this.participantRepository.addToEvent(entityId, participantId)
+        } catch (e) {
+          if (!(e instanceof WizardCancelledError)) throw e
+        }
+        await this.refreshAnnouncement(entityId)
+        return
+      }
+      case '-participant': {
+        if (!event.isPrivate) return
+        const participantsForRemove = await this.participantRepository.getEventParticipants(entityId)
+        if (participantsForRemove.length === 0) return
+        const removeStep: HydratedStep<string> = {
+          param: 'participantId',
+          type: 'select',
+          prompt: 'Choose a participant to remove:',
+          emptyMessage: 'No participants to remove.',
+          load: async () =>
+            participantsForRemove.map(p => ({
+              value: p.participantId,
+              label: p.participant.telegramUsername ? `@${p.participant.telegramUsername}` : p.participant.displayName,
+            })),
+          parse: (v: string) => v,
+        }
+        try {
+          const participantId = await this.wizardService.collect(removeStep, ctx)
+          await this.participantRepository.removeFromEvent(entityId, participantId)
+        } catch (e) {
+          if (!(e instanceof WizardCancelledError)) throw e
+        }
+        await this.refreshAnnouncement(entityId)
+        return
+      }
       case 'done':
         await this.transport.editMessage(chatId, messageId, formatEventEditMenu(event))
         return // Don't re-render with keyboard
