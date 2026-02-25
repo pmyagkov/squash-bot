@@ -46,13 +46,32 @@ export class TelegramWebPage {
   }
 
   /**
-   * Navigate to a specific chat by chat ID
+   * Navigate to a specific chat by chat ID.
+   *
+   * Uses sidebar click when already on Telegram (reliable mid-session navigation).
+   * Falls back to full page load for initial navigation.
    */
   async navigateToChat(chatId: string): Promise<void> {
+    const currentUrl = this.page.url()
+
+    // If already on Telegram, try clicking the chat in the sidebar (most reliable)
+    if (currentUrl.includes('telegram.org')) {
+      const chatLink = this.page.locator(`a[href="#${chatId}"]`).first()
+      try {
+        await chatLink.waitFor({ state: 'visible', timeout: 3000 })
+        await chatLink.click()
+        await this.waitForLoad()
+        return
+      } catch {
+        // Chat not in sidebar — fall through to full navigation
+      }
+    }
+
+    // Full page navigation (initial load or sidebar fallback)
     await this.page.goto(getTelegramWebUrl(chatId), { waitUntil: 'domcontentloaded' })
     await this.page.waitForSelector(this.selectors.chatItem, { timeout: TIMEOUTS.pageLoad })
 
-    // Try hash-based navigation first (reload for Web K)
+    // Reload to apply hash-based navigation in Web K
     await this.page.evaluate(() => window.location.reload())
     try {
       await this.page.waitForSelector(this.selectors.messageComposer, {
@@ -63,7 +82,6 @@ export class TelegramWebPage {
       // Hash navigation failed — fall back to clicking the first chat in the list
     }
 
-    // Fallback: click the first chat in the list (most recent messages)
     const firstChat = this.page.locator(this.selectors.chatItem).first()
     await firstChat.click()
     await this.waitForLoad()
