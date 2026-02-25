@@ -22,7 +22,9 @@ import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { PaymentRepo } from '~/storage/repo/payment'
+import type { NotificationRepo } from '~/storage/repo/notification'
 import type { Logger } from '~/services/logger'
+import type { Notification } from '~/types'
 import { EventLock } from '~/utils/eventLock'
 import {
   buildInlineKeyboard,
@@ -31,6 +33,7 @@ import {
   formatPersonalPaymentText,
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
+  formatNotFinalizedReminder,
 } from '~/services/formatters/event'
 import { eventJoinDef } from '~/commands/event/join'
 import { eventActionDef } from '~/commands/event/eventAction'
@@ -165,6 +168,7 @@ export class EventBusiness {
   private settingsRepository: SettingsRepo
   private participantRepository: ParticipantRepo
   private paymentRepository: PaymentRepo
+  private notificationRepository: NotificationRepo
   private transport: TelegramTransport
   private logger: Logger
   private commandRegistry: CommandRegistry
@@ -178,6 +182,7 @@ export class EventBusiness {
     this.settingsRepository = container.resolve('settingsRepository')
     this.participantRepository = container.resolve('participantRepository')
     this.paymentRepository = container.resolve('paymentRepository')
+    this.notificationRepository = container.resolve('notificationRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
     this.commandRegistry = container.resolve('commandRegistry')
@@ -2055,5 +2060,73 @@ To announce: ${code(`/event announce ${event.id}`)}`
   private hydrateStep<T>(step: WizardStep<T>): HydratedStep<T> {
     const { createLoader, ...rest } = step
     return { ...rest, load: createLoader?.(this.container) }
+  }
+
+  // === Notification Methods ===
+
+  async checkUnfinalizedEvents(): Promise<number> {
+    const REMINDER_THRESHOLD_HOURS = 1.5
+
+    const allEvents = await this.eventRepository.getEvents()
+    const now = new Date()
+
+    const unfinalizedEvents = allEvents.filter((e) => {
+      if (e.status !== 'announced') return false
+      const hoursSinceStart = (now.getTime() - e.datetime.getTime()) / (1000 * 60 * 60)
+      return hoursSinceStart >= REMINDER_THRESHOLD_HOURS
+    })
+
+    let count = 0
+
+    for (const event of unfinalizedEvents) {
+      try {
+        const existing = await this.notificationRepository.findPendingByTypeAndEventId(
+          'not_finalized',
+          event.id
+        )
+        if (existing) continue
+
+        await this.notificationRepository.create({
+          type: 'not_finalized',
+          status: 'pending',
+          recipientId: event.ownerId,
+          params: { eventId: event.id },
+          scheduledAt: now,
+        })
+
+        count++
+      } catch (error) {
+        await this.logger.error(
+          `Failed to create not-finalized notification for ${event.id}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+    }
+
+    return count
+  }
+
+  async notificationHandler(
+    notification: Notification
+  ): Promise<{ action: 'send'; message: string } | { action: 'cancel' }> {
+    const eventId = notification.params.eventId as string
+    const event = await this.eventRepository.findById(eventId)
+
+    if (!event) return { action: 'cancel' }
+
+    if (notification.type === 'not_finalized') {
+      if (event.status !== 'announced') return { action: 'cancel' }
+      const hoursElapsed = Math.floor(
+        (Date.now() - event.datetime.getTime()) / (1000 * 60 * 60)
+      )
+      const message = formatNotFinalizedReminder(event, hoursElapsed)
+      void this.transport.logEvent({
+        type: 'not_finalized_reminder',
+        eventId: event.id,
+        date: dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm'),
+      })
+      return { action: 'send', message }
+    }
+
+    return { action: 'cancel' }
   }
 }

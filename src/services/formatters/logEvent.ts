@@ -37,5 +37,7 @@ export function formatLogEvent(event: LogEvent): string {
       return `🔀 Scaffold ${code(event.scaffoldId)}: ${event.active ? 'activated' : 'deactivated'}`
     case 'scaffold_deleted':
       return `🗑 Scaffold deleted: ${code(event.scaffoldId)}`
+    case 'not_finalized_reminder':
+      return `⏰ Not-finalized reminder: ${code(event.eventId)} (${event.date})`
   }
 }
