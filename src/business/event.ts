@@ -462,7 +462,7 @@ export class EventBusiness {
 
       // Send fallback if needed
       if (failedParticipants.length > 0) {
-        await this.sendFallbackNotification(data.chatId, failedParticipants)
+        await this.sendFallbackNotification(event, data.chatId, failedParticipants)
       }
 
       // Update announcement message
@@ -937,7 +937,7 @@ export class EventBusiness {
       )
 
       if (failedParticipants.length > 0) {
-        await this.sendFallbackNotification(source.chat.id, failedParticipants)
+        await this.sendFallbackNotification(event, source.chat.id, failedParticipants)
       }
 
       await this.refreshAnnouncement(event.id)
@@ -1650,7 +1650,8 @@ To announce: ${code(`/event announce ${event.id}`)}`
   }
 
   private async sendFallbackNotification(
-    chatId: number,
+    event: Event,
+    fallbackChatId: number,
     failedParticipants: EventParticipant[]
   ): Promise<void> {
     const names = failedParticipants.map((ep) =>
@@ -1660,7 +1661,28 @@ To announce: ${code(`/event announce ${event.id}`)}`
     )
     const botInfo = this.transport.getBotInfo()
     const text = formatFallbackNotificationText(names, botInfo.username ?? '')
-    await this.transport.sendMessage(chatId, text)
+
+    // 3-tier fallback: 1) Owner DM (private events) → 2) Main chat → 3) fallbackChatId
+    if (event.isPrivate) {
+      try {
+        await this.transport.sendMessage(parseInt(event.ownerId, 10), text)
+        return
+      } catch {
+        // Fall through to main chat
+      }
+    }
+
+    const mainChatId = await this.settingsRepository.getMainChatId()
+    if (mainChatId) {
+      try {
+        await this.transport.sendMessage(mainChatId, text)
+        return
+      } catch {
+        // Fall through to fallback
+      }
+    }
+
+    await this.transport.sendMessage(fallbackChatId, text)
   }
 
   private async updateAnnouncementWithPayments(eventId: string): Promise<void> {
