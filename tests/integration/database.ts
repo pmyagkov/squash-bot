@@ -25,6 +25,7 @@ export async function clearTestDb() {
   await db.delete(schema.events)
   await db.delete(schema.scaffolds)
   await db.delete(schema.participants)
+  await db.delete(schema.notifications)
   await db.delete(schema.settings)
 }
 
@@ -113,6 +114,19 @@ function createTables(db: ReturnType<typeof drizzle>) {
     CREATE TABLE settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
+    )
+  `)
+
+  db.run(sql`
+    CREATE TABLE notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      recipient_id TEXT NOT NULL,
+      params TEXT NOT NULL,
+      scheduled_at TEXT NOT NULL,
+      sent_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `)
 }
