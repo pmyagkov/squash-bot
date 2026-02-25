@@ -175,7 +175,7 @@ export class ScaffoldBusiness {
     await this.transport.sendMessage(
       source.chat.id,
       formatScaffoldEditMenu(scaffold),
-      buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive)
+      buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive, scaffold.isPrivate)
     )
   }
 
@@ -235,7 +235,7 @@ export class ScaffoldBusiness {
         chatId,
         messageId,
         formatScaffoldEditMenu(updated),
-        buildScaffoldEditKeyboard(entityId, updated.isActive)
+        buildScaffoldEditKeyboard(entityId, updated.isActive, updated.isPrivate)
       )
     }
   }

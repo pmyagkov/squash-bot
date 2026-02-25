@@ -1977,7 +1977,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
     await this.transport.sendMessage(
       source.chat.id,
       formatEventEditMenu(event),
-      buildEventEditKeyboard(data.eventId)
+      buildEventEditKeyboard(data.eventId, event.isPrivate, event.status)
     )
   }
 
@@ -2047,7 +2047,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
         chatId,
         messageId,
         formatEventEditMenu(updated),
-        buildEventEditKeyboard(entityId)
+        buildEventEditKeyboard(entityId, updated.isPrivate, updated.status)
       )
     }
   }
