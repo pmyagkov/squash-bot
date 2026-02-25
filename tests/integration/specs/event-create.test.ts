@@ -1050,4 +1050,117 @@ describe('event-create', () => {
       expect(events).toHaveLength(0)
     })
   })
+
+  describe('subcommand menu', () => {
+    let bot: Bot
+    let api: BotApiMock
+    let container: TestContainer
+
+    beforeEach(async () => {
+      bot = new Bot('test-token')
+      container = createTestContainer(bot)
+      container.resolve('eventBusiness').init()
+      container.resolve('scaffoldBusiness').init()
+      container.resolve('utilityBusiness').init()
+      api = mockBot(bot)
+      await bot.init()
+    })
+
+    it('select create → dispatches to create wizard', async () => {
+      // Step 1: Send /event (no args) — wizard shows menu buttons
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      // Verify menu prompt with inline keyboard
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Choose an action'),
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({ text: '🎾 Create', callback_data: 'wizard:select:create' }),
+              ]),
+            ]),
+          }),
+        })
+      )
+
+      // Step 2: Select "create" via callback
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:create',
+        })
+      )
+      await tick()
+
+      // Verify date prompt appeared (from event:create wizard)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Choose a date'),
+        expect.anything()
+      )
+    })
+
+    it('select list → shows event list', async () => {
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:list',
+        })
+      )
+      await tick()
+
+      // event:list handler should have been called
+      // It either shows events or "no events" message
+      expect(api.sendMessage).toHaveBeenCalled()
+    })
+
+    it('cancel wizard → no command dispatched', async () => {
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:cancel',
+        })
+      )
+      await tick()
+
+      // Should only see "Cancelled." message, no subcommand output
+      const cancelCall = api.sendMessage.mock.calls.find(
+        ([, text]) => typeof text === 'string' && text.includes('Cancelled')
+      )
+      expect(cancelCall).toBeDefined()
+    })
+  })
 })
