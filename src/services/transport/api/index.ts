@@ -17,7 +17,9 @@ export async function createApiServer(
   // Health check (no auth required)
   // Waits for bot to be ready (long polling started) before returning ok
   server.get('/health', async () => {
-    if (botReady) await botReady
+    if (botReady) {
+      await botReady
+    }
     return { status: 'ok', timestamp: new Date().toISOString() }
   })
 
