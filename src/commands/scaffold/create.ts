@@ -7,6 +7,7 @@ interface ScaffoldCreateData {
   day: DayOfWeek
   time: string
   courts: number
+  isPrivate: boolean
 }
 
 export const scaffoldCreateDef: CommandDef<ScaffoldCreateData> = {
@@ -15,11 +16,16 @@ export const scaffoldCreateDef: CommandDef<ScaffoldCreateData> = {
       return { parsed: {}, missing: ['day', 'time', 'courts'] }
     }
 
+    // Check for optional private/public suffix
+    const lastArg = args[args.length - 1]?.toLowerCase()
+    const isPrivate = lastArg === 'private'
+    const effectiveArgs = isPrivate || lastArg === 'public' ? args.slice(0, -1) : args
+
     try {
-      const day = dayStep.parse!(args[0])
-      const time = timeStep.parse!(args[1])
-      const courts = courtsStep.parse!(args[2])
-      return { parsed: { day, time, courts }, missing: [] }
+      const day = dayStep.parse!(effectiveArgs[0])
+      const time = timeStep.parse!(effectiveArgs[1])
+      const courts = courtsStep.parse!(effectiveArgs[2])
+      return { parsed: { day, time, courts, isPrivate }, missing: [] }
     } catch (e) {
       return {
         parsed: {},

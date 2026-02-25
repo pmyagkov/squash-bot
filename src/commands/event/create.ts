@@ -6,6 +6,7 @@ interface EventCreateData {
   day: string
   time: string
   courts: number
+  isPrivate: boolean
 }
 
 export const eventCreateDef: CommandDef<EventCreateData> = {
@@ -14,15 +15,20 @@ export const eventCreateDef: CommandDef<EventCreateData> = {
       return { parsed: {}, missing: ['day', 'time', 'courts'] }
     }
 
-    const courts = args[args.length - 1]
-    const time = args[args.length - 2]
-    const day = args.slice(0, args.length - 2).join(' ')
+    // Check for optional private/public suffix
+    const lastArg = args[args.length - 1]?.toLowerCase()
+    const isPrivate = lastArg === 'private'
+    const effectiveArgs = isPrivate || lastArg === 'public' ? args.slice(0, -1) : args
+
+    const courts = effectiveArgs[effectiveArgs.length - 1]
+    const time = effectiveArgs[effectiveArgs.length - 2]
+    const day = effectiveArgs.slice(0, effectiveArgs.length - 2).join(' ')
 
     try {
       const parsedDay = eventDateStep.parse!(day)
       const parsedTime = eventTimeStep.parse!(time)
       const parsedCourts = eventCourtsStep.parse!(courts)
-      return { parsed: { day: parsedDay, time: parsedTime, courts: parsedCourts }, missing: [] }
+      return { parsed: { day: parsedDay, time: parsedTime, courts: parsedCourts, isPrivate }, missing: [] }
     } catch (e) {
       return {
         parsed: {},
