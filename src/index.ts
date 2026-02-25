@@ -48,15 +48,21 @@ async function main() {
     })
 
     if (adminId) {
-      await bot.api.setMyCommands(
-        [...commonCommands, { command: 'admin', description: 'Admin commands' }],
-        {
-          scope: {
-            type: 'chat',
-            chat_id: Number(adminId),
-          },
-        }
-      )
+      try {
+        await bot.api.setMyCommands(
+          [...commonCommands, { command: 'admin', description: 'Admin commands' }],
+          {
+            scope: {
+              type: 'chat',
+              chat_id: Number(adminId),
+            },
+          }
+        )
+      } catch {
+        console.warn(
+          `[Bot] Could not set admin commands for chat ${adminId} (admin may not have started the bot)`
+        )
+      }
     }
 
     // 6. Global error handler for bot middleware
