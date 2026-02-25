@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { Bot } from 'grammy'
+import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
+import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
@@ -8,6 +10,8 @@ import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { EventBusiness } from '~/business/event'
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('event-private', () => {
   let bot: Bot
@@ -30,6 +34,30 @@ describe('event-private', () => {
     await bot.init()
   })
 
+  /**
+   * Helper: create a private event, announce it, return event + messageId
+   */
+  async function setupPrivateAnnouncedEvent(courts = 2) {
+    // Pre-create participants so wizard has options
+    const alice = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
+    const bob = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
+
+    const event = await eventRepository.createEvent({
+      datetime: new Date('2024-01-20T19:00:00Z'),
+      courts,
+      status: 'created',
+      ownerId: String(ADMIN_ID),
+      isPrivate: true,
+    })
+
+    await eventBusiness.announceEvent(event.id)
+
+    const announced = await eventRepository.findById(event.id)
+    const messageId = parseInt(announced!.telegramMessageId!, 10)
+
+    return { event: announced!, messageId, alice, bob }
+  }
+
   describe('private event announcement routing', () => {
     it('sends announcement to owner DM for private event', async () => {
       const event = await eventRepository.createEvent({
@@ -42,14 +70,12 @@ describe('event-private', () => {
 
       await eventBusiness.announceEvent(event.id)
 
-      // Verify sendMessage was called with owner's telegramId as chatId
       expect(api.sendMessage).toHaveBeenCalledWith(
         ADMIN_ID,
         expect.any(String),
         expect.anything()
       )
 
-      // Verify event status is announced and chat ID is saved
       const announced = await eventRepository.findById(event.id)
       expect(announced!.status).toBe('announced')
       expect(announced!.telegramChatId).toBe(String(ADMIN_ID))
@@ -70,59 +96,206 @@ describe('event-private', () => {
     })
   })
 
-  describe('private event +/- participant (repo-level)', () => {
-    it('should add participant to private event', async () => {
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00Z'),
-        courts: 2,
-        status: 'announced',
-        ownerId: String(ADMIN_ID),
-        isPrivate: true,
-      })
+  describe('+participant via wizard (button click)', () => {
+    it('shows participant picker and adds selected participant', async () => {
+      const { event, messageId, alice } = await setupPrivateAnnouncedEvent()
 
-      const participant = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
-      await participantRepository.addToEvent(event.id, participant.id)
+      // Step 1: Click +participant on announcement → wizard shows picker
+      const clickDone = bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: `edit:event:+participant:${event.id}`,
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID, // private event → announcement is in owner DM
+          messageId,
+        })
+      )
+      await tick()
 
+      // Verify wizard sent participant picker
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        ADMIN_ID,
+        expect.stringContaining('Choose a participant to add'),
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({
+                  callback_data: `wizard:select:${alice.id}`,
+                }),
+              ]),
+            ]),
+          }),
+        })
+      )
+
+      // Step 2: Select Alice via wizard callback
+      api.editMessageText.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: `wizard:select:${alice.id}`,
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+          messageId: messageId + 1, // wizard message
+        })
+      )
+      await clickDone
+      await tick()
+
+      // Verify participant was added to event
       const participants = await participantRepository.getEventParticipants(event.id)
       expect(participants).toHaveLength(1)
       expect(participants[0].participant.telegramUsername).toBe('alice')
+
+      // Verify announcement was refreshed (editMessageText called on original announcement)
+      const editCalls = api.editMessageText.mock.calls.filter(
+        ([, msgId]) => msgId === messageId
+      )
+      expect(editCalls.length).toBeGreaterThanOrEqual(1)
+      const lastEdit = editCalls[editCalls.length - 1]
+      expect(lastEdit?.[2]).toContain('Participants (1):')
+      expect(lastEdit?.[2]).toContain('@alice')
     })
+  })
 
-    it('should remove participant from private event', async () => {
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00Z'),
-        courts: 2,
-        status: 'announced',
-        ownerId: String(ADMIN_ID),
-        isPrivate: true,
-      })
+  describe('+participant via wizard (text input)', () => {
+    it('accepts participant ID typed as text', async () => {
+      const { event, messageId, bob } = await setupPrivateAnnouncedEvent()
 
-      const participant = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
-      await participantRepository.addToEvent(event.id, participant.id)
-      await participantRepository.removeFromEvent(event.id, participant.id)
+      // Step 1: Click +participant → wizard shows picker
+      const clickDone = bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: `edit:event:+participant:${event.id}`,
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+          messageId,
+        })
+      )
+      await tick()
 
+      // Verify wizard is active
+      expect(container.resolve('wizardService').isActive(ADMIN_ID)).toBe(true)
+
+      // Step 2: Type participant ID as text instead of clicking button
+      api.editMessageText.mockClear()
+      await bot.handleUpdate(
+        createTextMessageUpdate(bob.id, {
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+        })
+      )
+      await clickDone
+      await tick()
+
+      // Verify participant was added
       const participants = await participantRepository.getEventParticipants(event.id)
-      expect(participants).toHaveLength(0)
+      expect(participants).toHaveLength(1)
+      expect(participants[0].participant.telegramUsername).toBe('bob')
+
+      // Verify announcement was refreshed
+      const editCalls = api.editMessageText.mock.calls.filter(
+        ([, msgId]) => msgId === messageId
+      )
+      expect(editCalls.length).toBeGreaterThanOrEqual(1)
+      expect(editCalls[editCalls.length - 1]?.[2]).toContain('@bob')
     })
+  })
 
-    it('should add multiple participants to private event', async () => {
-      const event = await eventRepository.createEvent({
-        datetime: new Date('2024-01-20T19:00:00Z'),
-        courts: 2,
-        status: 'announced',
-        ownerId: String(ADMIN_ID),
-        isPrivate: true,
-      })
+  describe('-participant via wizard', () => {
+    it('shows current participants and removes selected one', async () => {
+      const { event, messageId, alice, bob } = await setupPrivateAnnouncedEvent()
 
-      const alice = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
-      const bob = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
+      // Pre-add both participants to event
       await participantRepository.addToEvent(event.id, alice.id)
       await participantRepository.addToEvent(event.id, bob.id)
 
+      // Step 1: Click -participant → wizard shows current participants
+      const clickDone = bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: `edit:event:-participant:${event.id}`,
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+          messageId,
+        })
+      )
+      await tick()
+
+      // Verify wizard sent participant picker with current event participants
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        ADMIN_ID,
+        expect.stringContaining('Choose a participant to remove'),
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({
+                  callback_data: `wizard:select:${alice.id}`,
+                }),
+              ]),
+            ]),
+          }),
+        })
+      )
+
+      // Step 2: Select Alice to remove
+      api.editMessageText.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: `wizard:select:${alice.id}`,
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+          messageId: messageId + 2, // wizard message (after announcement + wizard prompt)
+        })
+      )
+      await clickDone
+      await tick()
+
+      // Verify Alice was removed, Bob remains
       const participants = await participantRepository.getEventParticipants(event.id)
-      expect(participants).toHaveLength(2)
-      const usernames = participants.map(p => p.participant.telegramUsername).sort()
-      expect(usernames).toEqual(['alice', 'bob'])
+      expect(participants).toHaveLength(1)
+      expect(participants[0].participant.telegramUsername).toBe('bob')
+
+      // Verify announcement was refreshed
+      const editCalls = api.editMessageText.mock.calls.filter(
+        ([, msgId]) => msgId === messageId
+      )
+      expect(editCalls.length).toBeGreaterThanOrEqual(1)
+      const lastEdit = editCalls[editCalls.length - 1]
+      expect(lastEdit?.[2]).toContain('Participants (1):')
+      expect(lastEdit?.[2]).toContain('@bob')
+      expect(lastEdit?.[2]).not.toContain('@alice')
+    })
+  })
+
+  describe('wizard cancel', () => {
+    it('cancel on +participant does not add anyone', async () => {
+      const { event, messageId } = await setupPrivateAnnouncedEvent()
+
+      // Click +participant → wizard shows picker
+      const clickDone = bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: `edit:event:+participant:${event.id}`,
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+          messageId,
+        })
+      )
+      await tick()
+
+      // Click cancel
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: 'wizard:cancel',
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+          messageId: messageId + 1,
+        })
+      )
+      await clickDone
+      await tick()
+
+      // Verify no participants were added
+      const participants = await participantRepository.getEventParticipants(event.id)
+      expect(participants).toHaveLength(0)
     })
   })
 
@@ -140,34 +313,28 @@ describe('event-private', () => {
     })
 
     it('should create private event from private scaffold with participants copied', async () => {
-      // Create a private scaffold for Tuesday at 21:00
       const scaffold = await scaffoldRepository.createScaffold(
         'Tue', '21:00', 2, undefined, String(ADMIN_ID), true
       )
 
-      // Add participants to scaffold
       const alice = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
       const bob = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
       await scaffoldRepository.addParticipant(scaffold.id, alice.id)
       await scaffoldRepository.addParticipant(scaffold.id, bob.id)
 
-      // Set deadline far in advance so it triggers
       await settingsRepository.setSetting('announcement_deadline', '-7d 12:00')
 
-      // Set time to Monday so next Tuesday is tomorrow
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2024-01-15T14:00:00+01:00'))
 
       const count = await eventBusiness.checkAndCreateEventsFromScaffolds()
       expect(count).toBe(1)
 
-      // Verify event was created with isPrivate
       const events = await eventRepository.getEvents()
       expect(events).toHaveLength(1)
       expect(events[0].isPrivate).toBe(true)
       expect(events[0].scaffoldId).toBe(scaffold.id)
 
-      // Verify scaffold's participants were copied to event
       const eventParticipants = await participantRepository.getEventParticipants(events[0].id)
       expect(eventParticipants).toHaveLength(2)
       const usernames = eventParticipants.map(p => p.participant.telegramUsername).sort()
