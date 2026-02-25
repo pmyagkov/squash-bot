@@ -1,4 +1,3 @@
-import type { Context } from 'grammy'
 import type { CommandDef, RegisteredCommand, SourceContext } from './types'
 
 export class CommandRegistry {
@@ -7,7 +6,7 @@ export class CommandRegistry {
   register<T>(
     key: string,
     def: CommandDef<T>,
-    handler: (data: T, source: SourceContext, ctx: Context) => Promise<void>
+    handler: (data: T, source: SourceContext) => Promise<void>
   ): void {
     if (this.commands.has(key)) {
       throw new Error(`Command "${key}" is already registered`)
@@ -16,6 +15,18 @@ export class CommandRegistry {
       parser: def.parser as RegisteredCommand['parser'],
       steps: def.steps,
       handler: handler as RegisteredCommand['handler'],
+    })
+  }
+
+  registerMenu<T>(key: string, def: CommandDef<T>, redirect: (data: T) => string): void {
+    if (this.commands.has(key)) {
+      throw new Error(`Command "${key}" is already registered`)
+    }
+    this.commands.set(key, {
+      parser: def.parser as RegisteredCommand['parser'],
+      steps: def.steps,
+      handler: async () => {},
+      redirect: redirect as RegisteredCommand['redirect'],
     })
   }
 

@@ -22,7 +22,7 @@ function mockWizardService() {
 }
 
 function mockContainer() {
-  return { resolve: vi.fn() } as never
+  return { resolve: vi.fn() }
 }
 
 describe('CommandService', () => {
@@ -33,7 +33,7 @@ describe('CommandService', () => {
   beforeEach(() => {
     wizard = mockWizardService()
     container = mockContainer()
-    service = new CommandService(container, wizard as never)
+    service = new CommandService(container as never, wizard as never)
   })
 
   it('calls handler directly when all params parsed', async () => {
@@ -53,8 +53,7 @@ describe('CommandService', () => {
         type: 'command',
         chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
-      },
-      ctx
+      }
     )
     expect(wizard.collect).not.toHaveBeenCalled()
   })
@@ -99,8 +98,7 @@ describe('CommandService', () => {
         type: 'command',
         chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
-      },
-      ctx
+      }
     )
   })
 
@@ -151,8 +149,7 @@ describe('CommandService', () => {
         callbackId: 'cb_123',
         chat: { id: 456, type: 'group', title: undefined },
         user: { id: 123, username: undefined, firstName: undefined, lastName: undefined },
-      },
-      ctx
+      }
     )
   })
 
@@ -176,8 +173,7 @@ describe('CommandService', () => {
         type: 'command',
         chat: { id: 100, type: 'group', title: undefined },
         user: { id: 42, username: 'johndoe', firstName: 'John', lastName: 'Doe' },
-      },
-      ctx
+      }
     )
   })
 
@@ -203,27 +199,33 @@ describe('CommandService', () => {
         callbackId: 'cb_1',
         chat: { id: 100, type: 'group', title: undefined },
         user: { id: 42, username: 'janedoe', firstName: 'Jane', lastName: undefined },
-      },
-      ctx
+      }
     )
   })
 
-  it('passes ctx as 3rd argument to handler', async () => {
-    const handler = vi.fn().mockResolvedValue(undefined)
-    const registered: RegisteredCommand<{ x: number }> = {
-      parser: () => ({ parsed: { x: 1 }, missing: [] }),
+  it('follows redirect instead of calling handler', async () => {
+    const menuHandler = vi.fn()
+    const targetHandler = vi.fn().mockResolvedValue(undefined)
+    const menuCommand: RegisteredCommand<{ subcommand: string }> = {
+      parser: () => ({ parsed: { subcommand: 'create' }, missing: [] }),
       steps: [],
-      handler,
+      handler: menuHandler,
+      redirect: (data) => `event:${data.subcommand}`,
     }
+    const targetCommand: RegisteredCommand = {
+      parser: () => ({ parsed: {}, missing: [] }),
+      steps: [],
+      handler: targetHandler,
+    }
+    const registry = { get: vi.fn().mockReturnValue(targetCommand) }
+    container.resolve.mockReturnValue(registry)
     const ctx = mockCtx()
 
-    await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
+    await service.run({ registered: menuCommand as RegisteredCommand, args: [], ctx })
 
-    expect(handler).toHaveBeenCalledWith(
-      { x: 1 },
-      expect.objectContaining({ type: 'command' }),
-      ctx
-    )
+    expect(menuHandler).not.toHaveBeenCalled()
+    expect(registry.get).toHaveBeenCalledWith('event:create')
+    expect(targetHandler).toHaveBeenCalled()
   })
 
   it('catches WizardCancelledError and replies Cancelled.', async () => {

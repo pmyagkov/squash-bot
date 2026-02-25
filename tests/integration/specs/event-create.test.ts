@@ -1051,7 +1051,7 @@ describe('event-create', () => {
     })
   })
 
-  describe('/event menu', () => {
+  describe('subcommand menu', () => {
     let bot: Bot
     let api: BotApiMock
     let container: TestContainer
@@ -1066,7 +1066,7 @@ describe('event-create', () => {
       await bot.init()
     })
 
-    it('/event menu → select create → dispatches to create wizard', async () => {
+    it('select create → dispatches to create wizard', async () => {
       // Step 1: Send /event (no args) — wizard shows menu buttons
       bot.handleUpdate(
         createTextMessageUpdate('/event', {
@@ -1111,7 +1111,7 @@ describe('event-create', () => {
       )
     })
 
-    it('/event → select list → shows event list', async () => {
+    it('select list → shows event list', async () => {
       bot.handleUpdate(
         createTextMessageUpdate('/event', {
           userId: ADMIN_ID,
@@ -1136,7 +1136,7 @@ describe('event-create', () => {
       expect(api.sendMessage).toHaveBeenCalled()
     })
 
-    it('/event menu → cancel wizard → no command dispatched', async () => {
+    it('cancel wizard → no command dispatched', async () => {
       bot.handleUpdate(
         createTextMessageUpdate('/event', {
           userId: ADMIN_ID,

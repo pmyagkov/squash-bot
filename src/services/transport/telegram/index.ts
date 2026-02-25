@@ -94,7 +94,9 @@ export class TelegramTransport {
       await this.bot.api.editMessageText(chatId, messageId, text, { reply_markup: keyboard })
     } catch (e) {
       // Telegram returns this when content hasn't changed — safe to ignore
-      if (e instanceof Error && e.message.includes('message is not modified')) return
+      if (e instanceof Error && e.message.includes('message is not modified')) {
+        return
+      }
       throw e
     }
   }
@@ -141,7 +143,9 @@ export class TelegramTransport {
     // Wizard routing: handle wizard-specific callbacks
     if (rawAction === 'wizard:cancel') {
       const userId = ctx.from?.id
-      if (userId) this.wizardService.cancel(userId)
+      if (userId) {
+        this.wizardService.cancel(userId)
+      }
       await ctx.deleteMessage().catch(() => {})
       await ctx.answerCallbackQuery()
       return

@@ -401,8 +401,8 @@ describe('scaffold-create', () => {
     })
   })
 
-  describe('/scaffold menu', () => {
-    it('/scaffold menu → select create → dispatches to create wizard', async () => {
+  describe('subcommand menu', () => {
+    it('select create → dispatches to create wizard', async () => {
       // Step 1: Send /scaffold (no args) — wizard shows menu buttons
       bot.handleUpdate(
         createTextMessageUpdate('/scaffold', {

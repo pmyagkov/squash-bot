@@ -53,5 +53,6 @@ export interface CommandDef<T> {
 export interface RegisteredCommand<T = unknown> {
   parser: (input: ParserInput) => ParseResult<T> | Promise<ParseResult<T>>
   steps: WizardStep<unknown>[]
-  handler: (data: T, source: SourceContext, ctx: Context) => Promise<void>
+  handler: (data: T, source: SourceContext) => Promise<void>
+  redirect?: (data: T) => string
 }

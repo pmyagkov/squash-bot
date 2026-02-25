@@ -5,7 +5,7 @@ import {
   resolveDeletedScaffoldId,
 } from './parsers'
 import { scaffoldSelectStep, usernameStep } from './steps'
-import { subcommandStep } from '~/commands/shared/menuStep'
+import { createMenuStep } from '~/commands/shared/menuStep'
 
 export const scaffoldListDef: CommandDef<Record<string, never>> = {
   parser: () => ({ parsed: {}, missing: [] }),
@@ -29,5 +29,5 @@ export const scaffoldUndoDeleteDef: CommandDef<{ scaffoldId: string }> = {
 
 export const scaffoldMenuDef: CommandDef<{ subcommand: string }> = {
   parser: () => ({ parsed: {}, missing: ['subcommand'] }),
-  steps: [subcommandStep],
+  steps: [createMenuStep('📋 Scaffold — templates for recurring games.')],
 }

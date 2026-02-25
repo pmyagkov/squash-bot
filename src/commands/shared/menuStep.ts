@@ -11,17 +11,19 @@ const MENU_OPTIONS = [
 
 const VALID_SUBCOMMANDS = new Set(MENU_OPTIONS.map((o) => o.value))
 
-export const subcommandStep: WizardStep<string> = {
-  param: 'subcommand',
-  type: 'select',
-  prompt: 'Choose an action:',
-  columns: 3,
-  createLoader: () => async () => MENU_OPTIONS,
-  parse: (input: string): string => {
-    const normalized = input.trim().toLowerCase()
-    if (!VALID_SUBCOMMANDS.has(normalized)) {
-      throw new ParseError(`Unknown action: ${input}`)
-    }
-    return normalized
-  },
+export function createMenuStep(description: string): WizardStep<string> {
+  return {
+    param: 'subcommand',
+    type: 'select',
+    prompt: `${description}\nChoose an action:`,
+    columns: 3,
+    createLoader: () => async () => MENU_OPTIONS,
+    parse: (input: string): string => {
+      const normalized = input.trim().toLowerCase()
+      if (!VALID_SUBCOMMANDS.has(normalized)) {
+        throw new ParseError(`Unknown action: ${input}`)
+      }
+      return normalized
+    },
+  }
 }
