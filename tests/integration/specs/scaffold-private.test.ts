@@ -55,8 +55,19 @@ describe('scaffold-private', () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const participantRepo = container.resolve('participantRepository')
 
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
-      const participant = await participantRepo.findOrCreateParticipant('555555555', 'alice', 'Alice')
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(ADMIN_ID),
+        true
+      )
+      const participant = await participantRepo.findOrCreateParticipant(
+        '555555555',
+        'alice',
+        'Alice'
+      )
 
       await scaffoldRepo.addParticipant(scaffold.id, participant.id)
 
@@ -69,8 +80,19 @@ describe('scaffold-private', () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const participantRepo = container.resolve('participantRepository')
 
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
-      const participant = await participantRepo.findOrCreateParticipant('555555555', 'alice', 'Alice')
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(ADMIN_ID),
+        true
+      )
+      const participant = await participantRepo.findOrCreateParticipant(
+        '555555555',
+        'alice',
+        'Alice'
+      )
       await scaffoldRepo.addParticipant(scaffold.id, participant.id)
 
       await scaffoldRepo.removeParticipant(scaffold.id, participant.id)
@@ -83,8 +105,19 @@ describe('scaffold-private', () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const participantRepo = container.resolve('participantRepository')
 
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
-      const participant = await participantRepo.findOrCreateParticipant('555555555', 'alice', 'Alice')
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(ADMIN_ID),
+        true
+      )
+      const participant = await participantRepo.findOrCreateParticipant(
+        '555555555',
+        'alice',
+        'Alice'
+      )
 
       await scaffoldRepo.addParticipant(scaffold.id, participant.id)
       await scaffoldRepo.addParticipant(scaffold.id, participant.id) // duplicate
@@ -97,7 +130,13 @@ describe('scaffold-private', () => {
   describe('toggle scaffold privacy', () => {
     it('should toggle scaffold from public to private', async () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID))
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(ADMIN_ID)
+      )
       expect(scaffold.isPrivate).toBe(false)
 
       await bot.handleUpdate(
@@ -115,7 +154,14 @@ describe('scaffold-private', () => {
 
     it('should toggle scaffold from private to public', async () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(ADMIN_ID),
+        true
+      )
       expect(scaffold.isPrivate).toBe(true)
 
       await bot.handleUpdate(

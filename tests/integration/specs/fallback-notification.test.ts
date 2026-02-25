@@ -33,12 +33,12 @@ describe('fallback-notification', () => {
 
   async function setupAnnouncedEventWithParticipants(
     courts: number,
-    participantData: Array<{
+    participantData: {
       userId: number
       username?: string
       firstName: string
       participations?: number
-    }>
+    }[]
   ) {
     const event = await eventRepository.createEvent({
       datetime: new Date('2024-01-20T19:00:00Z'),

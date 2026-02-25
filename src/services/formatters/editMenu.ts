@@ -36,7 +36,11 @@ export function formatScaffoldEditMenu(scaffold: Scaffold): string {
   return lines.join('\n')
 }
 
-export function buildScaffoldEditKeyboard(scaffoldId: string, isActive: boolean, isPrivate: boolean): InlineKeyboard {
+export function buildScaffoldEditKeyboard(
+  scaffoldId: string,
+  isActive: boolean,
+  isPrivate: boolean
+): InlineKeyboard {
   const keyboard = new InlineKeyboard()
     .text(BTN_EDIT_DAY, `edit:scaffold:day:${scaffoldId}`)
     .text(BTN_EDIT_TIME, `edit:scaffold:time:${scaffoldId}`)
@@ -83,9 +87,12 @@ export function formatScaffoldParticipantsMenu(
   scaffoldId: string,
   participants: { telegramUsername?: string; displayName: string }[]
 ): string {
-  const list = participants.length > 0
-    ? participants.map(p => p.telegramUsername ? `@${p.telegramUsername}` : p.displayName).join(', ')
-    : '(no participants)'
+  const list =
+    participants.length > 0
+      ? participants
+          .map((p) => (p.telegramUsername ? `@${p.telegramUsername}` : p.displayName))
+          .join(', ')
+      : '(no participants)'
   return `👥 Participants for ${code(scaffoldId)}\n\n${list}`
 }
 
@@ -97,7 +104,11 @@ export function buildScaffoldParticipantsKeyboard(scaffoldId: string): InlineKey
     .text(BTN_BACK, `edit:scaffold:back:${scaffoldId}`)
 }
 
-export function buildEventEditKeyboard(eventId: string, isPrivate?: boolean, status?: string): InlineKeyboard {
+export function buildEventEditKeyboard(
+  eventId: string,
+  isPrivate?: boolean,
+  status?: string
+): InlineKeyboard {
   const keyboard = new InlineKeyboard()
     .text(BTN_EDIT_DATE, `edit:event:date:${eventId}`)
     .text(BTN_EDIT_TIME, `edit:event:time:${eventId}`)
@@ -107,7 +118,9 @@ export function buildEventEditKeyboard(eventId: string, isPrivate?: boolean, sta
     .row()
 
   if (status === 'created') {
-    keyboard.text(isPrivate ? BTN_MAKE_PUBLIC : BTN_MAKE_PRIVATE, `edit:event:privacy:${eventId}`).row()
+    keyboard
+      .text(isPrivate ? BTN_MAKE_PUBLIC : BTN_MAKE_PRIVATE, `edit:event:privacy:${eventId}`)
+      .row()
   }
 
   keyboard.text(BTN_DONE, `edit:event:done:${eventId}`)

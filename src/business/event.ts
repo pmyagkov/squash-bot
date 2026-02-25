@@ -1591,11 +1591,12 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
     const messageText = formatAnnouncementText(event, participants, finalized, cancelled)
-    const status = event.status === 'cancelled'
-      ? 'cancelled'
-      : event.status === 'finalized'
-        ? 'finalized'
-        : 'announced'
+    const status =
+      event.status === 'cancelled'
+        ? 'cancelled'
+        : event.status === 'finalized'
+          ? 'finalized'
+          : 'announced'
     const keyboard = buildInlineKeyboard(status as EventStatus, event.isPrivate, event.id)
 
     try {
@@ -2094,7 +2095,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
       }
       case 'privacy': {
         if (event.isPrivate && event.status !== 'created') {
-          await ctx.answerCallbackQuery({ text: '❌ Cannot make public: event already announced in private chat' })
+          await ctx.answerCallbackQuery({
+            text: '❌ Cannot make public: event already announced in private chat',
+          })
           return
         }
         await this.eventRepository.updateEvent(entityId, { isPrivate: !event.isPrivate })
@@ -2103,7 +2106,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
       case '+participant': {
         if (!event.isPrivate) return
         const currentParticipants = await this.participantRepository.getEventParticipants(entityId)
-        const currentIds = new Set(currentParticipants.map(p => p.participantId))
+        const currentIds = new Set(currentParticipants.map((p) => p.participantId))
         const addStep: HydratedStep<string> = {
           param: 'participantId',
           type: 'select',
@@ -2112,8 +2115,8 @@ To announce: ${code(`/event announce ${event.id}`)}`
           load: async () => {
             const all = await this.participantRepository.getParticipants()
             return all
-              .filter(p => !currentIds.has(p.id))
-              .map(p => ({
+              .filter((p) => !currentIds.has(p.id))
+              .map((p) => ({
                 value: p.id,
                 label: p.telegramUsername ? `@${p.telegramUsername}` : p.displayName,
               }))
@@ -2131,7 +2134,8 @@ To announce: ${code(`/event announce ${event.id}`)}`
       }
       case '-participant': {
         if (!event.isPrivate) return
-        const participantsForRemove = await this.participantRepository.getEventParticipants(entityId)
+        const participantsForRemove =
+          await this.participantRepository.getEventParticipants(entityId)
         if (participantsForRemove.length === 0) return
         const removeStep: HydratedStep<string> = {
           param: 'participantId',
@@ -2139,9 +2143,11 @@ To announce: ${code(`/event announce ${event.id}`)}`
           prompt: 'Choose a participant to remove:',
           emptyMessage: 'No participants to remove.',
           load: async () =>
-            participantsForRemove.map(p => ({
+            participantsForRemove.map((p) => ({
               value: p.participantId,
-              label: p.participant.telegramUsername ? `@${p.participant.telegramUsername}` : p.participant.displayName,
+              label: p.participant.telegramUsername
+                ? `@${p.participant.telegramUsername}`
+                : p.participant.displayName,
             })),
           parse: (v: string) => v,
         }

@@ -70,11 +70,7 @@ describe('event-private', () => {
 
       await eventBusiness.announceEvent(event.id)
 
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        ADMIN_ID,
-        expect.any(String),
-        expect.anything()
-      )
+      expect(api.sendMessage).toHaveBeenCalledWith(ADMIN_ID, expect.any(String), expect.anything())
 
       const announced = await eventRepository.findById(event.id)
       expect(announced!.status).toBe('announced')
@@ -147,9 +143,7 @@ describe('event-private', () => {
       expect(participants[0].participant.telegramUsername).toBe('alice')
 
       // Verify announcement was refreshed (editMessageText called on original announcement)
-      const editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
+      const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
       expect(lastEdit?.[2]).toContain('Participants (1):')
@@ -192,9 +186,7 @@ describe('event-private', () => {
       expect(participants[0].participant.telegramUsername).toBe('bob')
 
       // Verify announcement was refreshed
-      const editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
+      const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       expect(editCalls[editCalls.length - 1]?.[2]).toContain('@bob')
     })
@@ -255,9 +247,7 @@ describe('event-private', () => {
       expect(participants[0].participant.telegramUsername).toBe('bob')
 
       // Verify announcement was refreshed
-      const editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
+      const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
       expect(lastEdit?.[2]).toContain('Participants (1):')
@@ -314,10 +304,19 @@ describe('event-private', () => {
 
     it('should create private event from private scaffold with participants copied', async () => {
       const scaffold = await scaffoldRepository.createScaffold(
-        'Tue', '21:00', 2, undefined, String(ADMIN_ID), true
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(ADMIN_ID),
+        true
       )
 
-      const alice = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
+      const alice = await participantRepository.findOrCreateParticipant(
+        '555555555',
+        'alice',
+        'Alice'
+      )
       const bob = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
       await scaffoldRepository.addParticipant(scaffold.id, alice.id)
       await scaffoldRepository.addParticipant(scaffold.id, bob.id)
@@ -337,14 +336,12 @@ describe('event-private', () => {
 
       const eventParticipants = await participantRepository.getEventParticipants(events[0].id)
       expect(eventParticipants).toHaveLength(2)
-      const usernames = eventParticipants.map(p => p.participant.telegramUsername).sort()
+      const usernames = eventParticipants.map((p) => p.participant.telegramUsername).sort()
       expect(usernames).toEqual(['alice', 'bob'])
     })
 
     it('should not copy participants for public scaffold', async () => {
-      await scaffoldRepository.createScaffold(
-        'Tue', '21:00', 2, undefined, String(ADMIN_ID), false
-      )
+      await scaffoldRepository.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), false)
       await settingsRepository.setSetting('announcement_deadline', '-7d 12:00')
 
       vi.useFakeTimers()

@@ -249,7 +249,7 @@ export class ScaffoldBusiness {
       case '+participant': {
         const current = await this.scaffoldRepository.findByIdWithParticipants(entityId)
         if (!current) return
-        const currentIds = new Set(current.participants.map(p => p.id))
+        const currentIds = new Set(current.participants.map((p) => p.id))
         const step: HydratedStep<string> = {
           param: 'participantId',
           type: 'select',
@@ -258,8 +258,8 @@ export class ScaffoldBusiness {
           load: async () => {
             const all = await this.participantRepository.getParticipants()
             return all
-              .filter(p => !currentIds.has(p.id))
-              .map(p => ({
+              .filter((p) => !currentIds.has(p.id))
+              .map((p) => ({
                 value: p.id,
                 label: p.telegramUsername ? `@${p.telegramUsername}` : p.displayName,
               }))
@@ -293,7 +293,7 @@ export class ScaffoldBusiness {
           prompt: 'Choose a participant to remove:',
           emptyMessage: 'No participants to remove.',
           load: async () =>
-            currentForRemove.participants.map(p => ({
+            currentForRemove.participants.map((p) => ({
               value: p.id,
               label: p.telegramUsername ? `@${p.telegramUsername}` : p.displayName,
             })),

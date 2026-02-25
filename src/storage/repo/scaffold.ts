@@ -89,7 +89,13 @@ export class ScaffoldRepo {
 
   async updateFields(
     id: string,
-    fields: Partial<{ dayOfWeek: string; time: string; defaultCourts: number; isActive: boolean; isPrivate: boolean }>
+    fields: Partial<{
+      dayOfWeek: string
+      time: string
+      defaultCourts: number
+      isActive: boolean
+      isPrivate: boolean
+    }>
   ): Promise<Scaffold> {
     const [scaffold] = await db
       .update(scaffolds)
@@ -112,13 +118,21 @@ export class ScaffoldRepo {
 
   async addParticipant(scaffoldId: string, participantId: string): Promise<void> {
     const id = `sm_${nanoid(8)}`
-    await db.insert(scaffoldMembers).values({ id, scaffoldId, participantId, createdAt: new Date() }).onConflictDoNothing()
+    await db
+      .insert(scaffoldMembers)
+      .values({ id, scaffoldId, participantId, createdAt: new Date() })
+      .onConflictDoNothing()
   }
 
   async removeParticipant(scaffoldId: string, participantId: string): Promise<void> {
-    await db.delete(scaffoldMembers).where(
-      and(eq(scaffoldMembers.scaffoldId, scaffoldId), eq(scaffoldMembers.participantId, participantId))
-    )
+    await db
+      .delete(scaffoldMembers)
+      .where(
+        and(
+          eq(scaffoldMembers.scaffoldId, scaffoldId),
+          eq(scaffoldMembers.participantId, participantId)
+        )
+      )
   }
 
   private async loadParticipants(scaffoldId: string): Promise<Participant[]> {

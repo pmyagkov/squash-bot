@@ -28,7 +28,10 @@ export const eventCreateDef: CommandDef<EventCreateData> = {
       const parsedDay = eventDateStep.parse!(day)
       const parsedTime = eventTimeStep.parse!(time)
       const parsedCourts = eventCourtsStep.parse!(courts)
-      return { parsed: { day: parsedDay, time: parsedTime, courts: parsedCourts, isPrivate }, missing: [] }
+      return {
+        parsed: { day: parsedDay, time: parsedTime, courts: parsedCourts, isPrivate },
+        missing: [],
+      }
     } catch (e) {
       return {
         parsed: {},

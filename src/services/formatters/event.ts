@@ -38,7 +38,11 @@ export interface EventParticipantDisplay {
 /**
  * Builds inline keyboard based on event status
  */
-export function buildInlineKeyboard(status: EventStatus, isPrivate?: boolean, eventId?: string): InlineKeyboard {
+export function buildInlineKeyboard(
+  status: EventStatus,
+  isPrivate?: boolean,
+  eventId?: string
+): InlineKeyboard {
   if (status === 'cancelled') {
     return new InlineKeyboard().text(BTN_RESTORE, 'event:undo-cancel')
   }

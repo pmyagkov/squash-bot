@@ -135,6 +135,36 @@ Owner or global admin can transfer scaffold to another user via `/scaffold trans
 
 ---
 
+### event-private ✅
+
+Private scaffolds and events — announcements go to owner's DM, owner manages participants manually.
+
+**Scaffold privacy:**
+- Create private scaffold: `/scaffold create Tue 21:00 2 private`
+- Toggle privacy via edit menu: `🔒 Private` / `🔓 Public` button
+- Private scaffolds have a default participant list managed via Participants submenu
+- `🔒` indicator shown in scaffold list
+
+**Private event behavior:**
+- Events inherit `isPrivate` from scaffold (or set via `private` arg on manual create)
+- Announcement sent to **owner's DM** instead of group chat (no pin)
+- Inline keyboard shows `[+ Participant]` / `[- Participant]` instead of `[I'm in]` / `[I'm out]`
+- Owner adds/removes participants via wizard picker
+- Scaffold participants are auto-copied to event on creation
+- Privacy toggle in edit menu (cannot make public once announced privately)
+- `🔒` indicator shown in event list
+
+**3-tier fallback for payment notifications:**
+1. Owner DM (private events)
+2. Main chat
+3. Original chat (fallback)
+
+**Constraints:**
+- Cannot switch announced private event to public
+- Pin/unpin skipped for private events (cancel/restore)
+
+---
+
 ## Event Management
 
 ### event-create ✅
