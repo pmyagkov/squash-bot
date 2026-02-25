@@ -7,6 +7,7 @@ import {
   formatPersonalPaymentText,
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
+  formatNotFinalizedReminder,
   type EventParticipantDisplay,
 } from './event'
 import type { Event } from '~/types'
@@ -503,6 +504,21 @@ describe('event formatters', () => {
 
       expect(result).toContain('Your amount: 2000 din')
       expect(result).toContain('✓ Paid on Sun, 21 Jan, 15:30')
+    })
+  })
+
+  describe('formatNotFinalizedReminder', () => {
+    it('formats reminder with event date and hours elapsed', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T19:00:00+01:00'),
+        courts: 2,
+        status: 'announced',
+        ownerId: '111111111',
+      }
+      const result = formatNotFinalizedReminder(event, 3)
+      expect(result).toContain('has not been finalized')
+      expect(result).toContain('3h ago')
     })
   })
 

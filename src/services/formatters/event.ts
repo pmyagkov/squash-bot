@@ -187,6 +187,20 @@ export function formatPaidPersonalPaymentText(baseText: string, paidDate: Date):
 /**
  * Formats fallback notification for participants who can't receive DMs
  */
+/**
+ * Formats not-finalized event reminder for admin
+ */
+export function formatNotFinalizedReminder(event: Event, hoursElapsed: number): string {
+  const eventDate = dayjs.tz(event.datetime, config.timezone)
+  const dateStr = eventDate.format('D MMMM')
+  const timeStr = eventDate.format('HH:mm')
+
+  return `Event on ${dateStr} ${timeStr} has not been finalized.\nIt started ${hoursElapsed}h ago. Please finalize it.`
+}
+
+/**
+ * Formats fallback notification for participants who can't receive DMs
+ */
 export function formatFallbackNotificationText(
   participantNames: string[],
   botUsername: string
