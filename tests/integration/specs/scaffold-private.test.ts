@@ -50,6 +50,50 @@ describe('scaffold-private', () => {
     })
   })
 
+  describe('scaffold participants', () => {
+    it('should add participant to scaffold', async () => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
+      const participantRepo = container.resolve('participantRepository')
+
+      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
+      const participant = await participantRepo.findOrCreateParticipant('555555555', 'alice', 'Alice')
+
+      await scaffoldRepo.addParticipant(scaffold.id, participant.id)
+
+      const withMembers = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
+      expect(withMembers!.participants).toHaveLength(1)
+      expect(withMembers!.participants[0].telegramUsername).toBe('alice')
+    })
+
+    it('should remove participant from scaffold', async () => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
+      const participantRepo = container.resolve('participantRepository')
+
+      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
+      const participant = await participantRepo.findOrCreateParticipant('555555555', 'alice', 'Alice')
+      await scaffoldRepo.addParticipant(scaffold.id, participant.id)
+
+      await scaffoldRepo.removeParticipant(scaffold.id, participant.id)
+
+      const withMembers = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
+      expect(withMembers!.participants).toHaveLength(0)
+    })
+
+    it('should not duplicate participant on re-add', async () => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
+      const participantRepo = container.resolve('participantRepository')
+
+      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
+      const participant = await participantRepo.findOrCreateParticipant('555555555', 'alice', 'Alice')
+
+      await scaffoldRepo.addParticipant(scaffold.id, participant.id)
+      await scaffoldRepo.addParticipant(scaffold.id, participant.id) // duplicate
+
+      const withMembers = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
+      expect(withMembers!.participants).toHaveLength(1)
+    })
+  })
+
   describe('toggle scaffold privacy', () => {
     it('should toggle scaffold from public to private', async () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')

@@ -112,7 +112,7 @@ export class ScaffoldRepo {
 
   async addParticipant(scaffoldId: string, participantId: string): Promise<void> {
     const id = `sm_${nanoid(8)}`
-    await db.insert(scaffoldMembers).values({ id, scaffoldId, participantId }).onConflictDoNothing()
+    await db.insert(scaffoldMembers).values({ id, scaffoldId, participantId, createdAt: new Date() }).onConflictDoNothing()
   }
 
   async removeParticipant(scaffoldId: string, participantId: string): Promise<void> {
