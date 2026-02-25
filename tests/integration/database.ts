@@ -22,6 +22,7 @@ export async function clearTestDb() {
   // Delete in FK order (children first)
   await db.delete(schema.payments)
   await db.delete(schema.eventParticipants)
+  await db.delete(schema.scaffoldMembers)
   await db.delete(schema.events)
   await db.delete(schema.scaffolds)
   await db.delete(schema.participants)
@@ -53,6 +54,7 @@ function createTables(db: ReturnType<typeof drizzle>) {
       is_active INTEGER DEFAULT 1 NOT NULL,
       announcement_deadline TEXT,
       owner_id TEXT,
+      is_private INTEGER DEFAULT 0 NOT NULL,
       deleted_at TEXT
     )
   `)
@@ -68,6 +70,8 @@ function createTables(db: ReturnType<typeof drizzle>) {
       payment_message_id TEXT,
       announcement_deadline TEXT,
       owner_id TEXT NOT NULL,
+      is_private INTEGER DEFAULT 0 NOT NULL,
+      telegram_chat_id TEXT,
       deleted_at TEXT,
       FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id)
     )
@@ -106,6 +110,18 @@ function createTables(db: ReturnType<typeof drizzle>) {
       personal_message_id TEXT,
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
       FOREIGN KEY (participant_id) REFERENCES participants(id)
+    )
+  `)
+
+  db.run(sql`
+    CREATE TABLE scaffold_members (
+      id TEXT PRIMARY KEY,
+      scaffold_id TEXT NOT NULL,
+      participant_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')) NOT NULL,
+      FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id) ON DELETE CASCADE,
+      FOREIGN KEY (participant_id) REFERENCES participants(id),
+      UNIQUE (scaffold_id, participant_id)
     )
   `)
 
