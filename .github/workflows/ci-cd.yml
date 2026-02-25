@@ -74,6 +74,24 @@ jobs:
       group: e2e-tests
       cancel-in-progress: true
 
+    # Playwright container has Chromium pre-installed — no browser download needed
+    # Version must match @playwright/test in package.json
+    container:
+      image: mcr.microsoft.com/playwright:v1.57.0-noble
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: squash_bot_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -87,9 +105,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
       - name: Restore Telegram auth state
         run: |
           mkdir -p .auth
@@ -98,25 +113,32 @@ jobs:
       - name: Use CI environment
         run: cp .env.ci .env.test
 
-      - name: Start services
-        run: docker compose -f docker-compose.dev.yml up -d
+      - name: Run migrations and seed
+        run: npx tsx src/storage/db/migrate.ts && npx tsx src/storage/db/seed.ts
+        env:
+          DATABASE_URL: postgresql://postgres:test@postgres:5432/squash_bot_test
+          ENVIRONMENT: test
+
+      - name: Start bot
+        run: npx tsx src/index.ts &
+        env:
+          DATABASE_URL: postgresql://postgres:test@postgres:5432/squash_bot_test
+          ENVIRONMENT: test
 
       - name: Wait for bot to be healthy
         run: |
           echo "Waiting for bot to become healthy..."
-          for i in $(seq 1 60); do
-            status=$(docker inspect --format='{{.State.Health.Status}}' squash-bot-app-test 2>/dev/null || echo "not_found")
-            if [ "$status" = "healthy" ]; then
+          for i in $(seq 1 30); do
+            if node -e "require('http').get('http://localhost:3010/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));" 2>/dev/null; then
               echo "Bot is healthy!"
               exit 0
             fi
-            echo "  Attempt $i/60: status=$status"
-            sleep 5
+            echo "  Attempt $i/30"
+            sleep 2
           done
           echo "Bot failed to become healthy"
-          docker compose -f docker-compose.dev.yml logs bot
           exit 1
-        timeout-minutes: 6
+        timeout-minutes: 2
 
       - name: Run E2E tests
         run: npx playwright test tests/e2e --config=playwright.config.mjs
@@ -133,14 +155,6 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 7
-
-      - name: Print bot logs on failure
-        if: failure()
-        run: docker compose -f docker-compose.dev.yml logs bot --tail 100
-
-      - name: Stop services
-        if: always()
-        run: docker compose -f docker-compose.dev.yml down
 
   build-and-push:
     name: Build & Push Image

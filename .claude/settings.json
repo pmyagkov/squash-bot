@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh root@puelle.me \"docker --version && docker compose version\")",
+      "Bash(ssh:*)",
+      "Bash(scp:*)"
+    ]
+  }
+}
