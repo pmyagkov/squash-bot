@@ -2115,9 +2115,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     if (notification.type === 'not_finalized') {
       if (event.status !== 'announced') return { action: 'cancel' }
-      const hoursElapsed = Math.floor(
-        (Date.now() - event.datetime.getTime()) / (1000 * 60 * 60)
-      )
+      const hoursElapsed = Math.floor((Date.now() - event.datetime.getTime()) / (1000 * 60 * 60))
       const message = formatNotFinalizedReminder(event, hoursElapsed)
       void this.transport.logEvent({
         type: 'not_finalized_reminder',

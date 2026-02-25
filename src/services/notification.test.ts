@@ -15,7 +15,9 @@ describe('NotificationService', () => {
   describe('schedule', () => {
     it('creates new notification when no pending exists', async () => {
       const created = buildNotification()
-      container.resolve('notificationRepository').findPendingByTypeAndEventId.mockResolvedValue(undefined)
+      container
+        .resolve('notificationRepository')
+        .findPendingByTypeAndEventId.mockResolvedValue(undefined)
       container.resolve('notificationRepository').create.mockResolvedValue(created)
 
       const result = await service.schedule('not_finalized', '123456', { eventId: 'ev_abc' }, 0)
@@ -34,7 +36,9 @@ describe('NotificationService', () => {
     it('updates scheduledAt when pending notification exists (debounce)', async () => {
       const existing = buildNotification({ id: 5 })
       const updated = buildNotification({ id: 5 })
-      container.resolve('notificationRepository').findPendingByTypeAndEventId.mockResolvedValue(existing)
+      container
+        .resolve('notificationRepository')
+        .findPendingByTypeAndEventId.mockResolvedValue(existing)
       container.resolve('notificationRepository').updateScheduledAt.mockResolvedValue(updated)
 
       const result = await service.schedule('not_finalized', '123456', { eventId: 'ev_abc' }, 30)
@@ -52,17 +56,24 @@ describe('NotificationService', () => {
     it('marks pending notification as cancelled', async () => {
       const existing = buildNotification({ id: 5 })
       const cancelled = buildNotification({ id: 5, status: 'cancelled' })
-      container.resolve('notificationRepository').findPendingByTypeAndEventId.mockResolvedValue(existing)
+      container
+        .resolve('notificationRepository')
+        .findPendingByTypeAndEventId.mockResolvedValue(existing)
       container.resolve('notificationRepository').updateStatus.mockResolvedValue(cancelled)
 
       const result = await service.cancel('not_finalized', 'ev_abc')
 
-      expect(container.resolve('notificationRepository').updateStatus).toHaveBeenCalledWith(5, 'cancelled')
+      expect(container.resolve('notificationRepository').updateStatus).toHaveBeenCalledWith(
+        5,
+        'cancelled'
+      )
       expect(result).toEqual(cancelled)
     })
 
     it('returns undefined when no pending notification exists', async () => {
-      container.resolve('notificationRepository').findPendingByTypeAndEventId.mockResolvedValue(undefined)
+      container
+        .resolve('notificationRepository')
+        .findPendingByTypeAndEventId.mockResolvedValue(undefined)
 
       const result = await service.cancel('not_finalized', 'ev_abc')
       expect(result).toBeUndefined()
@@ -73,9 +84,9 @@ describe('NotificationService', () => {
     it('sends notification when handler returns send action', async () => {
       const notification = buildNotification({ recipientId: '123456' })
       container.resolve('notificationRepository').findDue.mockResolvedValue([notification])
-      container.resolve('notificationRepository').updateStatus.mockResolvedValue(
-        buildNotification({ status: 'sent' })
-      )
+      container
+        .resolve('notificationRepository')
+        .updateStatus.mockResolvedValue(buildNotification({ status: 'sent' }))
       container.resolve('transport').sendMessage.mockResolvedValue(1)
 
       const handler = async () => ({ action: 'send' as const, message: 'Test message' })
@@ -96,9 +107,9 @@ describe('NotificationService', () => {
     it('cancels notification when handler returns cancel action', async () => {
       const notification = buildNotification()
       container.resolve('notificationRepository').findDue.mockResolvedValue([notification])
-      container.resolve('notificationRepository').updateStatus.mockResolvedValue(
-        buildNotification({ status: 'cancelled' })
-      )
+      container
+        .resolve('notificationRepository')
+        .updateStatus.mockResolvedValue(buildNotification({ status: 'cancelled' }))
 
       const handler = async () => ({ action: 'cancel' as const })
       const result = await service.processQueue(handler)

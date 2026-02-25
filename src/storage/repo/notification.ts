@@ -50,11 +50,7 @@ export class NotificationRepo {
     return results.map((r) => this.toDomain(r))
   }
 
-  async updateStatus(
-    id: number,
-    status: NotificationStatus,
-    sentAt?: Date
-  ): Promise<Notification> {
+  async updateStatus(id: number, status: NotificationStatus, sentAt?: Date): Promise<Notification> {
     const [row] = await db
       .update(notifications)
       .set({
