@@ -1,5 +1,5 @@
 import { TEST_CONFIG } from './config'
-import type { Event, Scaffold, EventParticipant, Payment, Participant } from '~/types'
+import type { Event, Scaffold, EventParticipant, Payment, Participant, Notification } from '~/types'
 
 /**
  * Creates test Event with reasonable defaults
@@ -79,6 +79,23 @@ export function buildParticipant(overrides?: Partial<Participant>): Participant 
     telegramId: String(TEST_CONFIG.userId),
     telegramUsername: 'testuser',
     displayName: 'Test User',
+    ...overrides,
+  }
+}
+
+/**
+ * Creates test Notification
+ */
+export function buildNotification(overrides?: Partial<Notification>): Notification {
+  return {
+    id: 1,
+    type: 'not_finalized',
+    status: 'pending',
+    recipientId: String(TEST_CONFIG.adminId),
+    params: { eventId: 'ev_test123' },
+    scheduledAt: new Date(),
+    sentAt: undefined,
+    createdAt: new Date(),
     ...overrides,
   }
 }
