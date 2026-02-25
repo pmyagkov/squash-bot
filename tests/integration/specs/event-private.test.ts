@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { Bot } from 'grammy'
 import { ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
+import type { ScaffoldRepo } from '~/storage/repo/scaffold'
+import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { EventBusiness } from '~/business/event'
 
@@ -121,6 +123,74 @@ describe('event-private', () => {
       expect(participants).toHaveLength(2)
       const usernames = participants.map(p => p.participant.telegramUsername).sort()
       expect(usernames).toEqual(['alice', 'bob'])
+    })
+  })
+
+  describe('event create from private scaffold — inherit + copy', () => {
+    let scaffoldRepository: ScaffoldRepo
+    let settingsRepository: SettingsRepo
+
+    beforeEach(() => {
+      scaffoldRepository = container.resolve('scaffoldRepository')
+      settingsRepository = container.resolve('settingsRepository')
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('should create private event from private scaffold with participants copied', async () => {
+      // Create a private scaffold for Tuesday at 21:00
+      const scaffold = await scaffoldRepository.createScaffold(
+        'Tue', '21:00', 2, undefined, String(ADMIN_ID), true
+      )
+
+      // Add participants to scaffold
+      const alice = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
+      const bob = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
+      await scaffoldRepository.addParticipant(scaffold.id, alice.id)
+      await scaffoldRepository.addParticipant(scaffold.id, bob.id)
+
+      // Set deadline far in advance so it triggers
+      await settingsRepository.setSetting('announcement_deadline', '-7d 12:00')
+
+      // Set time to Monday so next Tuesday is tomorrow
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2024-01-15T14:00:00+01:00'))
+
+      const count = await eventBusiness.checkAndCreateEventsFromScaffolds()
+      expect(count).toBe(1)
+
+      // Verify event was created with isPrivate
+      const events = await eventRepository.getEvents()
+      expect(events).toHaveLength(1)
+      expect(events[0].isPrivate).toBe(true)
+      expect(events[0].scaffoldId).toBe(scaffold.id)
+
+      // Verify scaffold's participants were copied to event
+      const eventParticipants = await participantRepository.getEventParticipants(events[0].id)
+      expect(eventParticipants).toHaveLength(2)
+      const usernames = eventParticipants.map(p => p.participant.telegramUsername).sort()
+      expect(usernames).toEqual(['alice', 'bob'])
+    })
+
+    it('should not copy participants for public scaffold', async () => {
+      await scaffoldRepository.createScaffold(
+        'Tue', '21:00', 2, undefined, String(ADMIN_ID), false
+      )
+      await settingsRepository.setSetting('announcement_deadline', '-7d 12:00')
+
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2024-01-15T14:00:00+01:00'))
+
+      const count = await eventBusiness.checkAndCreateEventsFromScaffolds()
+      expect(count).toBe(1)
+
+      const events = await eventRepository.getEvents()
+      expect(events[0].isPrivate).toBe(false)
+
+      const eventParticipants = await participantRepository.getEventParticipants(events[0].id)
+      expect(eventParticipants).toHaveLength(0)
     })
   })
 })

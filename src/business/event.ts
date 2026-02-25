@@ -1845,7 +1845,18 @@ To announce: ${code(`/event announce ${event.id}`)}`
           courts: scaffold.defaultCourts,
           status: 'created',
           ownerId,
+          isPrivate: scaffold.isPrivate,
         })
+
+        // Copy scaffold participants to private event
+        if (scaffold.isPrivate) {
+          const withMembers = await this.scaffoldRepository.findByIdWithParticipants(scaffold.id)
+          if (withMembers) {
+            for (const participant of withMembers.participants) {
+              await this.participantRepository.addToEvent(event.id, participant.id)
+            }
+          }
+        }
 
         // Immediately announce
         await this.announceEvent(event.id)
