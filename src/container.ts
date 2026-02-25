@@ -23,6 +23,8 @@ import type { SettingsRepo } from './storage/repo/settings'
 import { SettingsRepo as SettingsRepoImpl } from './storage/repo/settings'
 import type { ParticipantRepo } from './storage/repo/participant'
 import { ParticipantRepo as ParticipantRepoImpl } from './storage/repo/participant'
+import type { NotificationRepo } from './storage/repo/notification'
+import { NotificationRepo as NotificationRepoImpl } from './storage/repo/notification'
 import type { CommandRegistry } from './services/command/commandRegistry'
 import { CommandRegistry as CommandRegistryImpl } from './services/command/commandRegistry'
 import type { WizardService } from './services/wizard/wizardService'
@@ -41,6 +43,7 @@ export interface Container {
   paymentRepository: PaymentRepo
   settingsRepository: SettingsRepo
   participantRepository: ParticipantRepo
+  notificationRepository: NotificationRepo
   commandRegistry: CommandRegistry
   wizardService: WizardService
   commandService: CommandService
@@ -79,6 +82,7 @@ export function createAppContainer(bot: Bot): AppContainer {
     paymentRepository: asClass(PaymentRepoImpl).singleton(),
     settingsRepository: asClass(SettingsRepoImpl).singleton(),
     participantRepository: asClass(ParticipantRepoImpl).singleton(),
+    notificationRepository: asClass(NotificationRepoImpl).singleton(),
     commandRegistry: asClass(CommandRegistryImpl).singleton(),
     wizardService: asClass(WizardServiceImpl).singleton(),
     commandService: asClass(CommandServiceImpl).singleton(),
