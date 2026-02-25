@@ -2,6 +2,7 @@ import type { TelegramTransport } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
 import type { SettingsRepo } from '~/storage/repo/settings'
+import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { AppContainer } from '../container'
 import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
 import { sayDef, type SayData } from '~/commands/utility/say'
@@ -13,11 +14,13 @@ export class UtilityBusiness {
   private transport: TelegramTransport
   private commandRegistry: CommandRegistry
   private settingsRepository: SettingsRepo
+  private participantRepository: ParticipantRepo
 
   constructor(container: AppContainer) {
     this.transport = container.resolve('transport')
     this.commandRegistry = container.resolve('commandRegistry')
     this.settingsRepository = container.resolve('settingsRepository')
+    this.participantRepository = container.resolve('participantRepository')
   }
 
   /**
@@ -49,6 +52,12 @@ export class UtilityBusiness {
   // === Command Handlers ===
 
   private async handleStart(source: SourceContext): Promise<void> {
+    await this.participantRepository.findOrCreateParticipant(
+      String(source.user.id),
+      source.user.username,
+      [source.user.firstName, source.user.lastName].filter(Boolean).join(' ') || undefined
+    )
+
     const welcomeMessage = `Welcome to Squash Bot! 🎾
 
 This bot helps organize squash events with automated scheduling and payment tracking.
@@ -118,10 +127,21 @@ Use /help to see available commands.`
       return
     }
 
-    // Send DM to target user
+    // Send DM to target user — resolve username via participants DB
+    const username = data.target.replace(/^@/, '')
+    const participant = await this.participantRepository.findByUsername(username)
+
+    if (!participant?.telegramId) {
+      await this.transport.sendMessage(mainChatId, `${data.target}, ${data.message}`)
+      await this.transport.sendMessage(
+        source.chat.id,
+        `User ${data.target} not found, sent to group chat`
+      )
+      return
+    }
+
     try {
-      const chatId = await this.transport.resolveChatId(data.target)
-      await this.transport.sendMessage(chatId, data.message)
+      await this.transport.sendMessage(Number(participant.telegramId), data.message)
       await this.transport.sendMessage(source.chat.id, `Message sent to ${data.target}`)
     } catch {
       // Fallback: send to group chat with mention

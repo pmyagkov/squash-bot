@@ -4,13 +4,15 @@ import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
+import type { ParticipantRepo } from '~/storage/repo/participant'
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-describe('admin say', () => {
+describe('admin-say', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer
+  let participantRepo: ParticipantRepo
 
   beforeEach(async () => {
     bot = new Bot('test-token')
@@ -19,6 +21,7 @@ describe('admin say', () => {
     container.resolve('scaffoldBusiness').init()
     container.resolve('utilityBusiness').init()
     api = mockBot(bot)
+    participantRepo = container.resolve('participantRepository')
     await bot.init()
   })
 
@@ -47,11 +50,11 @@ describe('admin say', () => {
 
   it('should send DM to user', async () => {
     const targetChatId = 777888
-    api.getChat.mockResolvedValueOnce({
-      id: targetChatId,
-      type: 'private',
-      first_name: 'Target',
-    } as Awaited<ReturnType<BotApiMock['getChat']>>)
+    await participantRepo.findOrCreateParticipant(
+      String(targetChatId),
+      'targetuser',
+      'Target User'
+    )
 
     await bot.handleUpdate(
       createTextMessageUpdate('/admin say @targetuser Hello!', {
@@ -61,7 +64,6 @@ describe('admin say', () => {
     )
     await tick()
 
-    expect(api.getChat).toHaveBeenCalledWith('@targetuser')
     expect(api.sendMessage).toHaveBeenCalledWith(
       targetChatId,
       'Hello!',
@@ -74,9 +76,7 @@ describe('admin say', () => {
     )
   })
 
-  it('should fallback to group when DM fails', async () => {
-    api.getChat.mockRejectedValueOnce(new Error('chat not found'))
-
+  it('should fallback to group when user not found', async () => {
     await bot.handleUpdate(
       createTextMessageUpdate('/admin say @unknown Sorry!', {
         userId: ADMIN_ID,
@@ -94,7 +94,29 @@ describe('admin say', () => {
     // Confirmation about fallback
     expect(api.sendMessage).toHaveBeenCalledWith(
       ADMIN_ID,
-      expect.stringContaining('DM to @unknown failed'),
+      expect.stringContaining('not found'),
+      expect.anything()
+    )
+  })
+
+  it('should fallback to group when DM delivery fails', async () => {
+    await participantRepo.findOrCreateParticipant('999', 'failuser', 'Fail User')
+    api.sendMessage
+      .mockResolvedValueOnce({ message_id: 1 } as Awaited<ReturnType<BotApiMock['sendMessage']>>) // first call is group fallback
+      .mockRejectedValueOnce(new Error('Forbidden: bot can\'t initiate conversation'))
+
+    await bot.handleUpdate(
+      createTextMessageUpdate('/admin say @failuser Hello!', {
+        userId: ADMIN_ID,
+        chatId: ADMIN_ID,
+      })
+    )
+    await tick()
+
+    // Fallback message to group with mention
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      '@failuser, Hello!',
       expect.anything()
     )
   })
