@@ -21,9 +21,9 @@ export function getTelegramWebUrl(chatId?: string): string {
 
 /**
  * Timeouts (in milliseconds)
- * CI environments are slower — multiply all timeouts by 3x
+ * CI environments are slower — multiply all timeouts by 5x
  */
-const timeoutMultiplier = process.env.CI ? 3 : 1
+const timeoutMultiplier = process.env.CI ? 5 : 1
 
 export const TIMEOUTS = {
   pageLoad: 10000 * timeoutMultiplier,
