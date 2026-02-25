@@ -12,6 +12,7 @@ dist/
 # But keep .env.example and .env.test (safe test values)
 !.env.example
 !.env.test
+!.env.ci
 
 # IDE
 .vscode/
