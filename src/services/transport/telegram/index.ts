@@ -220,7 +220,7 @@ export class TelegramTransport {
       )
       return
     }
-    // Wizard routing: intercept text input from users with active wizard
+    // Wizard routing: if wizard is active, handle /cancel or auto-cancel on new command
     const userId = ctx.from?.id
     if (userId && this.wizardService.isActive(userId)) {
       const text = ctx.message?.text ?? ''
@@ -228,8 +228,8 @@ export class TelegramTransport {
         this.wizardService.cancel(userId)
         return
       }
-      this.wizardService.handleInput(ctx, text)
-      return
+      // Auto-cancel wizard when user sends a different command
+      this.wizardService.cancel(userId)
     }
 
     const args = ctx.message?.text?.split(/\s+/).slice(1) ?? []
