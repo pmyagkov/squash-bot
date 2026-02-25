@@ -1892,9 +1892,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
         // Copy scaffold participants to private event
         if (scaffold.isPrivate) {
-          const withMembers = await this.scaffoldRepository.findByIdWithParticipants(scaffold.id)
-          if (withMembers) {
-            for (const participant of withMembers.participants) {
+          const withParticipants = await this.scaffoldRepository.findByIdWithParticipants(scaffold.id)
+          if (withParticipants) {
+            for (const participant of withParticipants.participants) {
               await this.participantRepository.addToEvent(event.id, participant.id)
             }
           }

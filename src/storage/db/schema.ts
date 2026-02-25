@@ -100,9 +100,9 @@ export const payments = pgTable('payments', {
   personalMessageId: text('personal_message_id'),
 })
 
-// Scaffold members junction table (default participants for private scaffolds)
-export const scaffoldMembers = pgTable(
-  'scaffold_members',
+// Scaffold default participants junction table
+export const scaffoldParticipants = pgTable(
+  'scaffold_participants',
   {
     id: text('id').primaryKey(),
     scaffoldId: text('scaffold_id')
@@ -125,7 +125,7 @@ export const settings = pgTable('settings', {
 // Relations
 export const scaffoldsRelations = relations(scaffolds, ({ many }) => ({
   events: many(events),
-  members: many(scaffoldMembers),
+  defaultParticipants: many(scaffoldParticipants),
 }))
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
@@ -140,7 +140,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
 export const participantsRelations = relations(participants, ({ many }) => ({
   eventParticipations: many(eventParticipants),
   payments: many(payments),
-  scaffoldMemberships: many(scaffoldMembers),
+  scaffoldParticipations: many(scaffoldParticipants),
 }))
 
 export const eventParticipantsRelations = relations(eventParticipants, ({ one }) => ({
@@ -165,13 +165,13 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   }),
 }))
 
-export const scaffoldMembersRelations = relations(scaffoldMembers, ({ one }) => ({
+export const scaffoldParticipantsRelations = relations(scaffoldParticipants, ({ one }) => ({
   scaffold: one(scaffolds, {
-    fields: [scaffoldMembers.scaffoldId],
+    fields: [scaffoldParticipants.scaffoldId],
     references: [scaffolds.id],
   }),
   participant: one(participants, {
-    fields: [scaffoldMembers.participantId],
+    fields: [scaffoldParticipants.participantId],
     references: [participants.id],
   }),
 }))

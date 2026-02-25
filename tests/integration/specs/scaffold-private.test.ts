@@ -71,9 +71,9 @@ describe('scaffold-private', () => {
 
       await scaffoldRepo.addParticipant(scaffold.id, participant.id)
 
-      const withMembers = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
-      expect(withMembers!.participants).toHaveLength(1)
-      expect(withMembers!.participants[0].telegramUsername).toBe('alice')
+      const withParticipants = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
+      expect(withParticipants!.participants).toHaveLength(1)
+      expect(withParticipants!.participants[0].telegramUsername).toBe('alice')
     })
 
     it('should remove participant from scaffold', async () => {
@@ -97,8 +97,8 @@ describe('scaffold-private', () => {
 
       await scaffoldRepo.removeParticipant(scaffold.id, participant.id)
 
-      const withMembers = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
-      expect(withMembers!.participants).toHaveLength(0)
+      const withParticipants = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
+      expect(withParticipants!.participants).toHaveLength(0)
     })
 
     it('should not duplicate participant on re-add', async () => {
@@ -122,8 +122,8 @@ describe('scaffold-private', () => {
       await scaffoldRepo.addParticipant(scaffold.id, participant.id)
       await scaffoldRepo.addParticipant(scaffold.id, participant.id) // duplicate
 
-      const withMembers = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
-      expect(withMembers!.participants).toHaveLength(1)
+      const withParticipants = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
+      expect(withParticipants!.participants).toHaveLength(1)
     })
   })
 

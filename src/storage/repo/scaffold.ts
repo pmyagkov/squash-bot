@@ -1,5 +1,5 @@
 import { db } from '~/storage/db'
-import { scaffolds, scaffoldMembers, participants } from '~/storage/db/schema'
+import { scaffolds, scaffoldParticipants, participants } from '~/storage/db/schema'
 import { eq, isNull, isNotNull, and } from 'drizzle-orm'
 import type { Scaffold, DayOfWeek, Participant } from '~/types'
 import { nanoid } from 'nanoid'
@@ -21,7 +21,7 @@ export class ScaffoldRepo {
     const result = await db.query.scaffolds.findFirst({
       where: and(eq(scaffolds.id, id), isNull(scaffolds.deletedAt)),
     })
-    return result ? this.toDomainWithMembers(result) : undefined
+    return result ? this.toDomainWithParticipants(result) : undefined
   }
 
   async findByIdIncludingDeleted(id: string): Promise<Scaffold | undefined> {
@@ -117,20 +117,20 @@ export class ScaffoldRepo {
   }
 
   async addParticipant(scaffoldId: string, participantId: string): Promise<void> {
-    const id = `sm_${nanoid(8)}`
+    const id = `sp_${nanoid(8)}`
     await db
-      .insert(scaffoldMembers)
+      .insert(scaffoldParticipants)
       .values({ id, scaffoldId, participantId, createdAt: new Date() })
       .onConflictDoNothing()
   }
 
   async removeParticipant(scaffoldId: string, participantId: string): Promise<void> {
     await db
-      .delete(scaffoldMembers)
+      .delete(scaffoldParticipants)
       .where(
         and(
-          eq(scaffoldMembers.scaffoldId, scaffoldId),
-          eq(scaffoldMembers.participantId, participantId)
+          eq(scaffoldParticipants.scaffoldId, scaffoldId),
+          eq(scaffoldParticipants.participantId, participantId)
         )
       )
   }
@@ -143,9 +143,9 @@ export class ScaffoldRepo {
         telegramId: participants.telegramId,
         telegramUsername: participants.telegramUsername,
       })
-      .from(scaffoldMembers)
-      .innerJoin(participants, eq(scaffoldMembers.participantId, participants.id))
-      .where(eq(scaffoldMembers.scaffoldId, scaffoldId))
+      .from(scaffoldParticipants)
+      .innerJoin(participants, eq(scaffoldParticipants.participantId, participants.id))
+      .where(eq(scaffoldParticipants.scaffoldId, scaffoldId))
 
     return rows.map((r) => ({
       id: r.id,
@@ -156,11 +156,11 @@ export class ScaffoldRepo {
   }
 
   /** Full domain mapping with participants loaded via JOIN — used for reads */
-  private async toDomainWithMembers(row: typeof scaffolds.$inferSelect): Promise<Scaffold> {
-    const memberList = await this.loadParticipants(row.id)
+  private async toDomainWithParticipants(row: typeof scaffolds.$inferSelect): Promise<Scaffold> {
+    const participantList = await this.loadParticipants(row.id)
     return {
       ...this.toDomain(row),
-      participants: memberList,
+      participants: participantList,
     }
   }
 

@@ -22,7 +22,7 @@ export async function clearTestDb() {
   // Delete in FK order (children first)
   await db.delete(schema.payments)
   await db.delete(schema.eventParticipants)
-  await db.delete(schema.scaffoldMembers)
+  await db.delete(schema.scaffoldParticipants)
   await db.delete(schema.events)
   await db.delete(schema.scaffolds)
   await db.delete(schema.participants)
@@ -114,7 +114,7 @@ function createTables(db: ReturnType<typeof drizzle>) {
   `)
 
   db.run(sql`
-    CREATE TABLE scaffold_members (
+    CREATE TABLE scaffold_participants (
       id TEXT PRIMARY KEY,
       scaffold_id TEXT NOT NULL,
       participant_id TEXT NOT NULL,

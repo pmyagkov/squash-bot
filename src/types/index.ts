@@ -14,7 +14,7 @@ export interface Scaffold {
   announcementDeadline?: string
   ownerId?: string
   isPrivate: boolean
-  participants: Participant[] // populated via JOIN with scaffold_members
+  participants: Participant[] // populated via JOIN with scaffold_participants
   deletedAt?: Date
 }
 

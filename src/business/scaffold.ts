@@ -250,12 +250,12 @@ export class ScaffoldBusiness {
         break
       }
       case 'participants': {
-        const withMembers = await this.scaffoldRepository.findByIdWithParticipants(entityId)
-        if (!withMembers) return
+        const withParticipants = await this.scaffoldRepository.findByIdWithParticipants(entityId)
+        if (!withParticipants) return
         await this.transport.editMessage(
           chatId,
           messageId,
-          formatScaffoldParticipantsMenu(entityId, withMembers.participants),
+          formatScaffoldParticipantsMenu(entityId, withParticipants.participants),
           buildScaffoldParticipantsKeyboard(entityId)
         )
         return
