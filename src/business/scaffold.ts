@@ -155,7 +155,8 @@ export class ScaffoldBusiness {
                 ? `, 👑 ${owner.displayName}`
                 : ''
           }
-          return `${code(s.id)}: ${s.dayOfWeek}, ${s.time}, ${formatCourts(s.defaultCourts)}, ${formatActiveStatus(s.isActive)}${ownerLabel}`
+          const privateMark = s.isPrivate ? '🔒 ' : ''
+          return `${privateMark}${code(s.id)}: ${s.dayOfWeek}, ${s.time}, ${formatCourts(s.defaultCourts)}, ${formatActiveStatus(s.isActive)}${ownerLabel}`
         })
       )
 

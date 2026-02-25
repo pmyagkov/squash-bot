@@ -494,11 +494,14 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
-    await Promise.all([
+    const tasks: Promise<void>[] = [
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false, true),
       this.transport.answerCallback(data.callbackId),
-      this.transport.unpinMessage(data.chatId, data.messageId).catch(() => {}),
-    ])
+    ]
+    if (!event.isPrivate) {
+      tasks.push(this.transport.unpinMessage(data.chatId, data.messageId).catch(() => {}))
+    }
+    await Promise.all(tasks)
 
     void this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
 
@@ -519,11 +522,14 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
 
-    await Promise.all([
+    const restoreTasks: Promise<void>[] = [
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
       this.transport.answerCallback(data.callbackId),
-      this.transport.pinMessage(data.chatId, data.messageId).catch(() => {}),
-    ])
+    ]
+    if (!event.isPrivate) {
+      restoreTasks.push(this.transport.pinMessage(data.chatId, data.messageId).catch(() => {}))
+    }
+    await Promise.all(restoreTasks)
 
     void this.logger.log(`User ${data.userId} restored event ${event.id}`)
     const restoredDate = formatDate(dayjs.tz(event.datetime, config.timezone))
@@ -1444,7 +1450,8 @@ To announce: ${code(`/event announce ${event.id}`)}`
         const date = formatDate(dayjs.tz(e.datetime, config.timezone))
         const ownerLabel = await this.resolveOwnerLabel(e.ownerId)
         const ownerSuffix = ownerLabel ? ` | 👑 ${ownerLabel}` : ''
-        return `• ${code(e.id)} | ${date} | ${formatCourts(e.courts)} | ${e.status}${ownerSuffix}`
+        const privateMark = e.isPrivate ? '🔒 ' : ''
+        return `• ${privateMark}${code(e.id)} | ${date} | ${formatCourts(e.courts)} | ${e.status}${ownerSuffix}`
       })
     )
 
@@ -2061,6 +2068,14 @@ To announce: ${code(`/event announce ${event.id}`)}`
           if (e instanceof WizardCancelledError) break
           throw e
         }
+        break
+      }
+      case 'privacy': {
+        if (event.isPrivate && event.status !== 'created') {
+          await ctx.answerCallbackQuery({ text: '❌ Cannot make public: event already announced in private chat' })
+          return
+        }
+        await this.eventRepository.updateEvent(entityId, { isPrivate: !event.isPrivate })
         break
       }
       case '+participant': {
