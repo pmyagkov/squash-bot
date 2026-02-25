@@ -4,7 +4,8 @@ import type { AppContainer } from '~/container'
 
 export async function createApiServer(
   _bot: Bot,
-  container: AppContainer
+  container: AppContainer,
+  botReady?: Promise<void>
 ): Promise<FastifyInstance> {
   const logger = container.resolve('logger')
   const eventBusiness = container.resolve('eventBusiness')
@@ -14,7 +15,9 @@ export async function createApiServer(
   })
 
   // Health check (no auth required)
+  // Waits for bot to be ready (long polling started) before returning ok
   server.get('/health', async () => {
+    if (botReady) await botReady
     return { status: 'ok', timestamp: new Date().toISOString() }
   })
 

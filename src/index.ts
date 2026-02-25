@@ -78,15 +78,22 @@ async function main() {
     await logger.log(`Telegram bot initialized as @${bot.botInfo.username}`)
 
     // 8. Start long polling (non-blocking — bot.start() resolves only on stop)
+    let resolveBotReady: () => void
+    const botReady = new Promise<void>((resolve) => {
+      resolveBotReady = resolve
+    })
+
     bot.start({
       onStart: () => {
+        resolveBotReady()
+        logger.log('Telegram bot long polling started')
         const transport = container.resolve('transport')
         transport.logEvent({ type: 'bot_started', botUsername: bot.botInfo.username })
       },
     })
 
-    // 9. Start API server
-    const server = await createApiServer(bot, container)
+    // 9. Start API server (health check waits for bot to be ready)
+    const server = await createApiServer(bot, container, botReady)
     await server.listen({ port: config.server.port, host: '0.0.0.0' })
     await logger.log(`API server started on port ${config.server.port}`)
 
