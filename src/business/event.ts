@@ -43,6 +43,7 @@ import {
   eventTransferDef,
   eventDeleteDef,
   eventUndoDeleteDef,
+  eventMenuDef,
 } from '~/commands/event/defs'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
 import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
@@ -189,6 +190,9 @@ export class EventBusiness {
    * Initialize transport handlers
    */
   init(): void {
+    // Register menu command for bare /event
+    this.commandRegistry.registerMenu('event', eventMenuDef, (data) => `event:${data.subcommand}`)
+
     // Register callbacks
     this.transport.onCallback('event:join', (data) => this.handleJoin(data))
     this.transport.onCallback('event:leave', (data) => this.handleLeave(data))
@@ -1657,10 +1661,14 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
   private async updateAnnouncementWithPayments(eventId: string): Promise<void> {
     const event = await this.eventRepository.findById(eventId)
-    if (!event?.telegramMessageId) return
+    if (!event?.telegramMessageId) {
+      return
+    }
 
     const chatId = await this.settingsRepository.getMainChatId()
-    if (!chatId) return
+    if (!chatId) {
+      return
+    }
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
     const payments = await this.paymentRepository.getPaymentsByEvent(eventId)
@@ -1691,10 +1699,14 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
   private async refreshAnnouncement(eventId: string): Promise<void> {
     const event = await this.eventRepository.findById(eventId)
-    if (!event?.telegramMessageId) return
+    if (!event?.telegramMessageId) {
+      return
+    }
 
     const chatId = await this.settingsRepository.getMainChatId()
-    if (!chatId) return
+    if (!chatId) {
+      return
+    }
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
 
@@ -1959,7 +1971,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
   private async resolveOwnerLabel(ownerId: string): Promise<string | undefined> {
     const owner = await this.participantRepository.findByTelegramId(ownerId)
-    if (!owner) return undefined
+    if (!owner) {
+      return undefined
+    }
     return owner.telegramUsername ? `@${owner.telegramUsername}` : owner.displayName
   }
 
@@ -1987,14 +2001,18 @@ To announce: ${code(`/event announce ${event.id}`)}`
     ctx: Context
   ): Promise<void> {
     const event = await this.eventRepository.findById(entityId)
-    if (!event) return
+    if (!event) {
+      return
+    }
 
     const chatId = ctx.chat!.id
     const messageId = ctx.callbackQuery!.message!.message_id
 
     // Only allow editing events in editable statuses
     if (['cancelled', 'finalized', 'paid'].includes(event.status)) {
-      if (action !== 'done') return
+      if (action !== 'done') {
+        return
+      }
     }
 
     switch (action) {
@@ -2002,7 +2020,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
         await this.eventRepository.updateEvent(entityId, { courts: event.courts + 1 })
         break
       case '-court':
-        if (event.courts <= 1) return
+        if (event.courts <= 1) {
+          return
+        }
         await this.eventRepository.updateEvent(entityId, { courts: event.courts - 1 })
         break
       case 'date': {
@@ -2017,7 +2037,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
             .toDate()
           await this.eventRepository.updateEvent(entityId, { datetime: combined })
         } catch (e) {
-          if (e instanceof WizardCancelledError) break
+          if (e instanceof WizardCancelledError) {
+            break
+          }
           throw e
         }
         break
@@ -2030,7 +2052,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
           const combined = dayjs(event.datetime).hour(h).minute(m).toDate()
           await this.eventRepository.updateEvent(entityId, { datetime: combined })
         } catch (e) {
-          if (e instanceof WizardCancelledError) break
+          if (e instanceof WizardCancelledError) {
+            break
+          }
           throw e
         }
         break

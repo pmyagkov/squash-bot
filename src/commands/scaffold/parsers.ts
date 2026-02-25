@@ -11,7 +11,9 @@ export function resolveScaffoldId({ args }: ParserInput): ParseResult<{ scaffold
 export function resolveDeletedScaffoldId({
   args,
 }: ParserInput): ParseResult<{ scaffoldId: string }> {
-  if (args.length >= 1) return { parsed: { scaffoldId: args[0] }, missing: [] }
+  if (args.length >= 1) {
+    return { parsed: { scaffoldId: args[0] }, missing: [] }
+  }
   return { parsed: {}, missing: [], error: 'Usage: /scaffold undo-delete <scaffoldId>' }
 }
 

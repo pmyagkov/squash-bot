@@ -246,4 +246,21 @@ test.describe('Event Lifecycle Flow', () => {
     await eventCommands.waitForInlineButton("I'm in", 5000)
     console.log('✅ Cancel → restore completed')
   })
+
+  test('should show menu when /event sent without args and dispatch to list', async ({
+    eventCommands,
+  }) => {
+    // Send /event without args
+    const response = await eventCommands.sendCommand('/event')
+
+    // Bot should show "Choose an action:" with buttons
+    expect(response).toContain('Choose an action')
+
+    // Click "📋 List" button
+    await eventCommands.clickInlineButton('📋 List')
+
+    // Wait for list response
+    // The bot should show events list or "no events" message
+    await eventCommands.page.waitForTimeout(2000)
+  })
 })

@@ -57,7 +57,9 @@ export class WizardService {
   handleInput(ctx: Context, input: string): void {
     const userId = ctx.from!.id
     const entry = this.pending.get(userId)
-    if (!entry) return
+    if (!entry) {
+      return
+    }
 
     const { step, resolve } = entry
 
@@ -80,7 +82,9 @@ export class WizardService {
 
   cancel(userId: number): void {
     const entry = this.pending.get(userId)
-    if (!entry) return
+    if (!entry) {
+      return
+    }
 
     this.cleanup(userId)
     entry.reject(new WizardCancelledError())

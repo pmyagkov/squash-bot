@@ -21,6 +21,7 @@ import {
   scaffoldActionDef,
   scaffoldTransferDef,
   scaffoldUndoDeleteDef,
+  scaffoldMenuDef,
 } from '~/commands/scaffold/defs'
 import { dayStep, timeStep } from '~/commands/scaffold/steps'
 import { formatScaffoldEditMenu, buildScaffoldEditKeyboard } from '~/services/formatters/editMenu'
@@ -53,6 +54,13 @@ export class ScaffoldBusiness {
    * Initialize command handlers
    */
   init(): void {
+    // Register menu command for bare /scaffold
+    this.commandRegistry.registerMenu(
+      'scaffold',
+      scaffoldMenuDef,
+      (data) => `scaffold:${data.subcommand}`
+    )
+
     this.commandRegistry.register('scaffold:create', scaffoldCreateDef, async (data, source) => {
       await this.handleCreateFromDef(data, source)
     })
@@ -181,7 +189,9 @@ export class ScaffoldBusiness {
 
   private async handleEditAction(action: string, entityId: string, ctx: Context): Promise<void> {
     const scaffold = await this.scaffoldRepository.findById(entityId)
-    if (!scaffold) return
+    if (!scaffold) {
+      return
+    }
 
     const chatId = ctx.chat!.id
     const messageId = ctx.callbackQuery!.message!.message_id
@@ -193,7 +203,9 @@ export class ScaffoldBusiness {
         })
         break
       case '-court':
-        if (scaffold.defaultCourts <= 1) return
+        if (scaffold.defaultCourts <= 1) {
+          return
+        }
         await this.scaffoldRepository.updateFields(entityId, {
           defaultCourts: scaffold.defaultCourts - 1,
         })
@@ -207,7 +219,9 @@ export class ScaffoldBusiness {
           const newDay = await this.wizardService.collect(hydratedDay, ctx)
           await this.scaffoldRepository.updateFields(entityId, { dayOfWeek: newDay })
         } catch (e) {
-          if (e instanceof WizardCancelledError) break
+          if (e instanceof WizardCancelledError) {
+            break
+          }
           throw e
         }
         break
@@ -218,7 +232,9 @@ export class ScaffoldBusiness {
           const newTime = await this.wizardService.collect(hydratedTime, ctx)
           await this.scaffoldRepository.updateFields(entityId, { time: newTime })
         } catch (e) {
-          if (e instanceof WizardCancelledError) break
+          if (e instanceof WizardCancelledError) {
+            break
+          }
           throw e
         }
         break
