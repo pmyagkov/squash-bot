@@ -8,7 +8,11 @@ export interface SayData {
 export const sayDef: CommandDef<SayData> = {
   parser: ({ args }) => {
     if (args.length === 0) {
-      return { parsed: {}, missing: [], error: 'Usage: /admin say [text] or /admin say @username [text]' }
+      return {
+        parsed: {},
+        missing: [],
+        error: 'Usage: /admin say [text] or /admin say @username [text]',
+      }
     }
 
     const firstArg = args[0]
