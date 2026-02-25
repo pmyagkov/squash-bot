@@ -23,7 +23,7 @@ describe('TelegramTransport', () => {
   let commandService: ReturnType<typeof mock<InstanceType<typeof CommandService>>>
   let settingsRepository: ReturnType<typeof mock<InstanceType<typeof SettingsRepo>>>
 
-  beforeEach(() => {
+  beforeEach(async () => {
     bot = new Bot('test-token')
     api = mockBot(bot)
     logger = mockLogger()
@@ -42,6 +42,8 @@ describe('TelegramTransport', () => {
       commandService,
       settingsRepository
     )
+
+    await bot.init()
   })
 
   describe('sendMessage', () => {
@@ -177,6 +179,59 @@ describe('TelegramTransport', () => {
       expect(error).toBeInstanceOf(ParseError)
       expect(error.name).toBe('ParseError')
       expect(error.message).toBe('Usage: /event create <day> <time> <courts>')
+    })
+  })
+
+  describe('wizard auto-cancel on new command', () => {
+    it('should cancel active wizard and process new command', async () => {
+      // Setup: wizard is active for user
+      wizardService.isActive.calledWith(12345).mockReturnValue(true)
+
+      // Setup: command exists in registry
+      const registered = { parser: vi.fn(), handler: vi.fn(), steps: [] }
+      registered.parser.mockReturnValue({ parsed: {}, missing: [] })
+      registered.handler.mockResolvedValue(undefined)
+      commandRegistry.get.calledWith('scaffold:list').mockReturnValue(registered)
+      commandService.run.mockResolvedValue(undefined)
+
+      // Trigger: send /scaffold list while wizard active
+      transport.ensureBaseCommand('scaffold')
+      await bot.handleUpdate({
+        update_id: 1,
+        message: {
+          message_id: 1,
+          date: Date.now(),
+          chat: { id: 12345, type: 'private', first_name: 'Test' },
+          from: { id: 12345, is_bot: false, first_name: 'Test' },
+          text: '/scaffold list',
+          entities: [{ type: 'bot_command', offset: 0, length: 9 }],
+        },
+      })
+
+      // Verify: wizard cancelled
+      expect(wizardService.cancel).toHaveBeenCalledWith(12345)
+      // Verify: command was processed (not swallowed by wizard)
+      expect(commandService.run).toHaveBeenCalled()
+    })
+
+    it('should still handle /cancel without processing a command', async () => {
+      wizardService.isActive.calledWith(12345).mockReturnValue(true)
+
+      transport.ensureBaseCommand('cancel')
+      await bot.handleUpdate({
+        update_id: 2,
+        message: {
+          message_id: 2,
+          date: Date.now(),
+          chat: { id: 12345, type: 'private', first_name: 'Test' },
+          from: { id: 12345, is_bot: false, first_name: 'Test' },
+          text: '/cancel',
+          entities: [{ type: 'bot_command', offset: 0, length: 7 }],
+        },
+      })
+
+      expect(wizardService.cancel).toHaveBeenCalledWith(12345)
+      expect(commandService.run).not.toHaveBeenCalled()
     })
   })
 })

@@ -3,8 +3,8 @@ import { settings } from './schema'
 
 const SEEDS: Record<string, Record<string, string>> = {
   test: {
-    main_chat_id: '-5009884489',
-    admin_id: '2201118091',
+    main_chat_id: process.env.MAIN_CHAT_ID || '-5009884489',
+    admin_id: process.env.ADMIN_ID || '2201118091',
   },
   production: {
     main_chat_id: 'REPLACE_WITH_PRODUCTION_CHAT_ID',

@@ -189,13 +189,17 @@ test.describe('Event Lifecycle Flow', () => {
   test('should finalize and unfinalize event via UI buttons', async ({
     eventCommands,
     participantActions,
+    groupChatId,
   }) => {
-    // Create and announce event
+    // Create and announce event in bot DM
     const createResponse = await eventCommands.addEvent('tomorrow', '20:00', 2)
     const eventId = eventCommands.parseEventId(createResponse)
     expect(eventId).toBeTruthy()
 
     await eventCommands.announceEvent(eventId!)
+
+    // Switch to group chat where announcement and inline buttons live
+    await eventCommands.navigateToChat(groupChatId)
     await eventCommands.waitForAnnouncement()
 
     // Register participant (required for finalize)
@@ -223,13 +227,17 @@ test.describe('Event Lifecycle Flow', () => {
   test('should cancel and restore event via UI buttons', async ({
     eventCommands,
     participantActions,
+    groupChatId,
   }) => {
-    // Create and announce event
+    // Create and announce event in bot DM
     const createResponse = await eventCommands.addEvent('tomorrow', '20:00', 2)
     const eventId = eventCommands.parseEventId(createResponse)
     expect(eventId).toBeTruthy()
 
     await eventCommands.announceEvent(eventId!)
+
+    // Switch to group chat where announcement and inline buttons live
+    await eventCommands.navigateToChat(groupChatId)
     await eventCommands.waitForAnnouncement()
 
     // Cancel via inline button

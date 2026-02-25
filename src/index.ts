@@ -48,15 +48,21 @@ async function main() {
     })
 
     if (adminId) {
-      await bot.api.setMyCommands(
-        [...commonCommands, { command: 'admin', description: 'Admin commands' }],
-        {
-          scope: {
-            type: 'chat',
-            chat_id: Number(adminId),
-          },
-        }
-      )
+      try {
+        await bot.api.setMyCommands(
+          [...commonCommands, { command: 'admin', description: 'Admin commands' }],
+          {
+            scope: {
+              type: 'chat',
+              chat_id: Number(adminId),
+            },
+          }
+        )
+      } catch {
+        console.warn(
+          `[Bot] Could not set admin commands for chat ${adminId} (admin may not have started the bot)`
+        )
+      }
     }
 
     // 6. Global error handler for bot middleware
@@ -67,21 +73,32 @@ async function main() {
       await logger.error(`Bot error [${ctx.update.update_id}]: ${errorMessage}`)
     })
 
-    // 7. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
+    // 7. Initialize bot (verify Telegram connection before starting services)
+    await bot.init()
+    await logger.log(`Telegram bot initialized as @${bot.botInfo.username}`)
+
+    // 8. Start long polling (non-blocking — bot.start() resolves only on stop)
+    let resolveBotReady: () => void
+    const botReady = new Promise<void>((resolve) => {
+      resolveBotReady = resolve
+    })
+
     bot.start({
-      onStart: (botInfo) => {
-        logger.log(`Telegram bot started as @${botInfo.username}`)
+      drop_pending_updates: config.environment === 'test',
+      onStart: () => {
+        resolveBotReady()
+        logger.log('Telegram bot long polling started')
         const transport = container.resolve('transport')
-        transport.logEvent({ type: 'bot_started', botUsername: botInfo.username })
+        transport.logEvent({ type: 'bot_started', botUsername: bot.botInfo.username })
       },
     })
 
-    // 8. Start API server
-    const server = await createApiServer(bot, container)
+    // 9. Start API server (health check waits for bot to be ready)
+    const server = await createApiServer(bot, container, botReady)
     await server.listen({ port: config.server.port, host: '0.0.0.0' })
     await logger.log(`API server started on port ${config.server.port}`)
 
-    // 9. Graceful shutdown
+    // 10. Graceful shutdown
     const shutdown = async () => {
       const transport = container.resolve('transport')
       await transport.logEvent({ type: 'bot_stopped' })
@@ -94,7 +111,7 @@ async function main() {
     process.on('SIGTERM', shutdown)
     process.on('SIGINT', shutdown)
 
-    // 10. Process-level error handlers to prevent crashes
+    // 11. Process-level error handlers to prevent crashes
     process.on('uncaughtException', async (error) => {
       await logger.error(`Uncaught exception: ${error.message}`)
     })

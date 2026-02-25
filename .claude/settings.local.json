@@ -33,7 +33,12 @@
       "Bash(docker rm:*)",
       "Bash(curl:*)",
       "Bash(docker run:*)",
-      "Bash(ENVIRONMENT=test npx playwright test:*)"
+      "Bash(ENVIRONMENT=test npx playwright test:*)",
+      "Bash(yes:*)",
+      "Bash(DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy npx drizzle-kit generate:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(npm root:*)",
+      "Bash(python3:*)"
     ]
   }
 }

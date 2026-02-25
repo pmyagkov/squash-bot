@@ -42,7 +42,8 @@ export const test = base.extend<TestFixtures>({
    */
   // eslint-disable-next-line no-empty-pattern
   groupChatId: async ({}, use) => {
-    await use('-5009884489')
+    const chatId = process.env.MAIN_CHAT_ID || '-5009884489'
+    await use(chatId)
   },
 
   /**
