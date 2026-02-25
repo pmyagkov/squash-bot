@@ -38,7 +38,7 @@ describe('command-private-chat-only', () => {
     // Should send warning message
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      'This command is not supported in group chats. Please send it in a private message to the bot.',
+      expect.stringContaining('t.me/test_bot'),
       expect.anything()
     )
 
