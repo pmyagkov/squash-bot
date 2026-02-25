@@ -12,7 +12,7 @@ describe('eventCreateDef parser', () => {
   it('parses simple three args', () => {
     const result = eventCreateDef.parser(dummyInput(['Tue', '21:00', '2']))
     expect(result).toEqual({
-      parsed: { day: 'Tue', time: '21:00', courts: 2 },
+      parsed: { day: 'Tue', time: '21:00', courts: 2, isPrivate: false },
       missing: [],
     })
   })
@@ -20,7 +20,7 @@ describe('eventCreateDef parser', () => {
   it('parses multi-word day (next tue)', () => {
     const result = eventCreateDef.parser(dummyInput(['next', 'tue', '21:00', '2']))
     expect(result).toEqual({
-      parsed: { day: 'next tue', time: '21:00', courts: 2 },
+      parsed: { day: 'next tue', time: '21:00', courts: 2, isPrivate: false },
       missing: [],
     })
   })
@@ -28,7 +28,7 @@ describe('eventCreateDef parser', () => {
   it('parses absolute date', () => {
     const result = eventCreateDef.parser(dummyInput(['2026-03-15', '19:00', '3']))
     expect(result).toEqual({
-      parsed: { day: '2026-03-15', time: '19:00', courts: 3 },
+      parsed: { day: '2026-03-15', time: '19:00', courts: 3, isPrivate: false },
       missing: [],
     })
   })

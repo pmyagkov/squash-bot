@@ -49,14 +49,15 @@ describe('ScaffoldBusiness', () => {
       business.init()
 
       const handler = getHandler(container, 'scaffold:create')
-      await handler({ day: 'Tue', time: '18:00', courts: 2 }, makeSource())
+      await handler({ day: 'Tue', time: '18:00', courts: 2, isPrivate: false }, makeSource())
 
       expect(scaffoldRepo.createScaffold).toHaveBeenCalledWith(
         'Tue',
         '18:00',
         2,
         undefined,
-        String(TEST_CONFIG.adminId)
+        String(TEST_CONFIG.adminId),
+        false
       )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
@@ -76,7 +77,7 @@ describe('ScaffoldBusiness', () => {
 
       const handler = getHandler(container, 'scaffold:create')
       await handler(
-        { day: 'Tue', time: '18:00', courts: 2 },
+        { day: 'Tue', time: '18:00', courts: 2, isPrivate: false },
         makeSource({ user: { id: 999999, firstName: 'User', lastName: undefined } })
       )
 
@@ -85,7 +86,8 @@ describe('ScaffoldBusiness', () => {
         '18:00',
         2,
         undefined,
-        '999999'
+        '999999',
+        false
       )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,

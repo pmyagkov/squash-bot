@@ -14,7 +14,7 @@ describe('scaffoldCreateDef parser', () => {
   it('parses all three args', () => {
     const result = scaffoldCreateDef.parser(dummyInput(['Tue', '21:00', '2']))
     expect(result).toEqual({
-      parsed: { day: 'Tue', time: '21:00', courts: 2 },
+      parsed: { day: 'Tue', time: '21:00', courts: 2, isPrivate: false },
       missing: [],
     })
   })

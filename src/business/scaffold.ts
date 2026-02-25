@@ -95,7 +95,7 @@ export class ScaffoldBusiness {
   // === Command Handlers ===
 
   private async handleCreateFromDef(
-    data: { day: DayOfWeek; time: string; courts: number },
+    data: { day: DayOfWeek; time: string; courts: number; isPrivate: boolean },
     source: SourceContext
   ): Promise<void> {
     try {
@@ -104,7 +104,8 @@ export class ScaffoldBusiness {
         data.time,
         data.courts,
         undefined,
-        String(source.user.id)
+        String(source.user.id),
+        data.isPrivate
       )
 
       await this.transport.sendMessage(
@@ -200,6 +201,9 @@ export class ScaffoldBusiness {
         break
       case 'toggle':
         await this.scaffoldRepository.setActive(entityId, !scaffold.isActive)
+        break
+      case 'privacy':
+        await this.scaffoldRepository.updateFields(entityId, { isPrivate: !scaffold.isPrivate })
         break
       case 'day': {
         const hydratedDay = this.hydrateStep(dayStep)
