@@ -26,6 +26,14 @@ export const BTN_TURN_ON = '▶️ Turn on'
 export const BTN_TURN_OFF = '⏸ Turn off'
 export const BTN_DONE = '✅ Done'
 
+// Private events
+export const BTN_ADD_PARTICIPANT = '➕ Participant'
+export const BTN_REMOVE_PARTICIPANT = '➖ Participant'
+export const BTN_MAKE_PRIVATE = '🔒 Make private'
+export const BTN_MAKE_PUBLIC = '🔓 Make public'
+export const BTN_PARTICIPANTS = '👥 Participants'
+export const BTN_BACK = '⬅️ Back'
+
 // Wizard buttons
 export const BTN_WIZARD_CANCEL = '❌ Cancel'
 
