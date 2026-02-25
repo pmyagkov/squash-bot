@@ -108,6 +108,7 @@ describe('event formatters', () => {
         courts: 2,
         status: 'created',
         ownerId: '111111111',
+        isPrivate: false,
       }
 
       const result = formatEventMessage(event)
@@ -125,6 +126,7 @@ describe('event formatters', () => {
       courts: 2,
       status: 'announced',
       ownerId: '111111111',
+      isPrivate: false,
     }
 
     it('should show "(nobody yet)" when no participants', () => {
@@ -225,6 +227,7 @@ describe('event formatters', () => {
       courts: 2,
       status: 'finalized',
       ownerId: '111111111',
+      isPrivate: false,
     }
 
     it('should calculate even split correctly (4000 / 4 = 1000 each)', () => {
@@ -437,6 +440,7 @@ describe('event formatters', () => {
       courts: 2,
       status: 'finalized',
       ownerId: '111111111',
+      isPrivate: false,
     }
 
     it('should show checkmark next to paid participant', () => {
@@ -482,6 +486,7 @@ describe('event formatters', () => {
         status: 'finalized',
         telegramMessageId: '42',
         ownerId: '111111111',
+        isPrivate: false,
       }
 
       const result = formatPersonalPaymentText(event, 2000, 2, 2000, 4, -1001234567890, '42')
