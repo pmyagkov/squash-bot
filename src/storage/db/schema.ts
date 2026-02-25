@@ -34,7 +34,9 @@ export const scaffolds = pgTable('scaffolds', {
     .notNull(),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id'),
-  isPrivate: booleanInt('is_private').default(sql`0`).notNull(),
+  isPrivate: booleanInt('is_private')
+    .default(sql`0`)
+    .notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
@@ -49,7 +51,9 @@ export const events = pgTable('events', {
   paymentMessageId: text('payment_message_id'),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id').notNull(),
-  isPrivate: booleanInt('is_private').default(sql`0`).notNull(),
+  isPrivate: booleanInt('is_private')
+    .default(sql`0`)
+    .notNull(),
   telegramChatId: text('telegram_chat_id'),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
