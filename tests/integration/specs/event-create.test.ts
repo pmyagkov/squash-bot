@@ -1068,7 +1068,7 @@ describe('event-create', () => {
 
     it('/event menu → select create → dispatches to create wizard', async () => {
       // Step 1: Send /event (no args) — wizard shows menu buttons
-      const commandDone = bot.handleUpdate(
+      bot.handleUpdate(
         createTextMessageUpdate('/event', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
@@ -1158,7 +1158,7 @@ describe('event-create', () => {
 
       // Should only see "Cancelled." message, no subcommand output
       const cancelCall = api.sendMessage.mock.calls.find(
-        ([, text]: [number, string]) => typeof text === 'string' && text.includes('Cancelled')
+        ([, text]) => typeof text === 'string' && text.includes('Cancelled')
       )
       expect(cancelCall).toBeDefined()
     })

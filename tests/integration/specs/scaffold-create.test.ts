@@ -404,7 +404,7 @@ describe('scaffold-create', () => {
   describe('/scaffold menu', () => {
     it('/scaffold menu → select create → dispatches to create wizard', async () => {
       // Step 1: Send /scaffold (no args) — wizard shows menu buttons
-      const commandDone = bot.handleUpdate(
+      bot.handleUpdate(
         createTextMessageUpdate('/scaffold', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
