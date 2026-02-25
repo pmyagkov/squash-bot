@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import type { Bot } from 'grammy'
 import { createApiServer } from './index'
-import { createMockContainer, mockEventBusiness, mockLogger } from '@mocks'
+import { createMockContainer, mockEventBusiness, mockLogger, mockNotificationService } from '@mocks'
 import { TEST_CONFIG } from '@fixtures/config'
 import type { MockAppContainer } from '@mocks'
 
@@ -10,13 +10,17 @@ describe('API server', () => {
   let server: FastifyInstance
   let container: MockAppContainer
   let eventBusiness: ReturnType<typeof mockEventBusiness>
+  let notificationService: ReturnType<typeof mockNotificationService>
   let logger: ReturnType<typeof mockLogger>
 
   beforeEach(async () => {
     eventBusiness = mockEventBusiness()
+    eventBusiness.checkUnfinalizedEvents.mockResolvedValue(0)
+    notificationService = mockNotificationService()
     logger = mockLogger()
     container = createMockContainer({
       eventBusiness,
+      notificationService,
       logger,
     })
 
@@ -57,6 +61,8 @@ describe('API server', () => {
   describe('POST /check-events', () => {
     it('should call business and return result with valid API key', async () => {
       eventBusiness.checkAndCreateEventsFromScaffolds.mockResolvedValue(3)
+      eventBusiness.checkUnfinalizedEvents.mockResolvedValue(1)
+      notificationService.processQueue.mockResolvedValue([])
 
       const response = await server.inject({
         method: 'POST',
@@ -70,7 +76,11 @@ describe('API server', () => {
       const body = response.json()
       expect(body.message).toBe('Events checked')
       expect(body.eventsCreated).toBe(3)
+      expect(body.unfinalizedNotifications).toBe(1)
+      expect(body.processedNotifications).toBe(0)
       expect(eventBusiness.checkAndCreateEventsFromScaffolds).toHaveBeenCalled()
+      expect(eventBusiness.checkUnfinalizedEvents).toHaveBeenCalled()
+      expect(notificationService.processQueue).toHaveBeenCalled()
     })
 
     it('should return error response when business throws', async () => {
