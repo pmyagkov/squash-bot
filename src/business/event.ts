@@ -10,6 +10,7 @@ import { parseDate } from '~/utils/dateParser'
 import { isOwnerOrAdmin } from '~/utils/environment'
 import { formatDate } from '~/ui/constants'
 import { formatEventListItem } from '~/services/formatters/list'
+import { formatParticipantLabel } from '~/services/formatters/participant'
 import type { TelegramTransport, CallbackTypes } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
@@ -1459,7 +1460,8 @@ export class EventBusiness {
     const list = await Promise.all(
       activeEvents.map(async (e) => {
         const date = formatDate(dayjs.tz(e.datetime, config.timezone))
-        const ownerLabel = await this.resolveOwnerLabel(e.ownerId)
+        const owner = await this.participantRepository.findByTelegramId(e.ownerId)
+        const ownerLabel = owner ? formatParticipantLabel(owner) : undefined
         return formatEventListItem(e, date, ownerLabel)
       })
     )
@@ -1551,7 +1553,8 @@ export class EventBusiness {
       source.chat.id,
       `📅 Event created from ${code(scaffold.id)}\n\n${entityText}\n\nTo announce: ${code(`/event announce ${event.id}`)}`
     )
-    const ownerLabel = await this.resolveOwnerLabel(ownerId)
+    const owner = await this.participantRepository.findByTelegramId(ownerId)
+    const ownerLabel = owner ? formatParticipantLabel(owner) : undefined
     void this.transport.logEvent({
       type: 'event_created',
       eventId: event.id,
@@ -1834,7 +1837,8 @@ export class EventBusiness {
     })
 
     const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const ownerLabel = await this.resolveOwnerLabel(event.ownerId)
+    const owner = await this.participantRepository.findByTelegramId(event.ownerId)
+    const ownerLabel = owner ? formatParticipantLabel(owner) : undefined
     void this.transport.logEvent({
       type: 'event_announced',
       eventId: id,
@@ -1934,7 +1938,8 @@ export class EventBusiness {
         )
 
         const createdDate = formatDate(dayjs.tz(event.datetime, config.timezone))
-        const ownerLabel = await this.resolveOwnerLabel(event.ownerId)
+        const owner = await this.participantRepository.findByTelegramId(event.ownerId)
+        const ownerLabel = owner ? formatParticipantLabel(owner) : undefined
         void this.transport.logEvent({
           type: 'event_created',
           eventId: event.id,
@@ -2054,14 +2059,6 @@ export class EventBusiness {
     await this.logger.log(
       `User ${source.user.id} transferred event ${event.id} to @${data.targetUsername}`
     )
-  }
-
-  private async resolveOwnerLabel(ownerId: string): Promise<string | undefined> {
-    const owner = await this.participantRepository.findByTelegramId(ownerId)
-    if (!owner) {
-      return undefined
-    }
-    return owner.telegramUsername ? `@${owner.telegramUsername}` : owner.displayName
   }
 
   // === Edit Menu ===

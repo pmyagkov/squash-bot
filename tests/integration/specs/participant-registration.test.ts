@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
-import { mockBot } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import { createTextMessageUpdate } from '../helpers/updateHelpers'
 import { TEST_CHAT_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
@@ -12,6 +12,7 @@ describe('participant-registration', () => {
   let bot: Bot
   let container: TestContainer
   let participantRepository: ParticipantRepo
+  let api: BotApiMock
 
   beforeEach(async () => {
     bot = new Bot('test-token')
@@ -19,7 +20,7 @@ describe('participant-registration', () => {
     container.resolve('eventBusiness').init()
     container.resolve('scaffoldBusiness').init()
     container.resolve('utilityBusiness').init()
-    mockBot(bot)
+    api = mockBot(bot)
     participantRepository = container.resolve('participantRepository')
     await bot.init()
   })
@@ -126,6 +127,40 @@ describe('participant-registration', () => {
 
       const participant = await participantRepository.findByTelegramId(String(NON_ADMIN_ID))
       expect(participant!.telegramUsername).toBe('newname')
+    })
+  })
+
+  describe('owner label in list commands', () => {
+    it('shows owner label on scaffold list after creator is auto-registered', async () => {
+      // Create scaffold — middleware will register the user
+      await bot.handleUpdate(
+        createTextMessageUpdate('/scaffold create Tue 21:00 2', {
+          userId: NON_ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          username: 'creator',
+          firstName: 'The',
+          lastName: 'Creator',
+        })
+      )
+      await tick()
+
+      // List scaffolds — owner label should be resolved
+      await bot.handleUpdate(
+        createTextMessageUpdate('/scaffold list', {
+          userId: NON_ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          username: 'creator',
+          firstName: 'The',
+          lastName: 'Creator',
+        })
+      )
+      await tick()
+
+      const listCall = api.sendMessage.mock.calls.find(
+        (call) => typeof call[1] === 'string' && call[1].includes('Scaffold list')
+      )
+      expect(listCall).toBeDefined()
+      expect(listCall![1]).toContain('@creator')
     })
   })
 })

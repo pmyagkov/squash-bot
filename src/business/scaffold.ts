@@ -15,6 +15,7 @@ import { WizardCancelledError } from '~/services/wizard/types'
 import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
 import { formatScaffoldListItem } from '~/services/formatters/list'
+import { formatParticipantLabel } from '~/services/formatters/participant'
 import { scaffoldCreateDef } from '~/commands/scaffold/create'
 import {
   scaffoldListDef,
@@ -158,9 +159,7 @@ export class ScaffoldBusiness {
           let ownerLabel: string | undefined
           if (s.ownerId) {
             const owner = await this.participantRepository.findByTelegramId(s.ownerId)
-            ownerLabel = owner?.telegramUsername
-              ? `@${owner.telegramUsername}`
-              : owner?.displayName || undefined
+            ownerLabel = owner ? formatParticipantLabel(owner) : undefined
           }
           return formatScaffoldListItem(s, ownerLabel)
         })
