@@ -84,8 +84,12 @@ export const eventPrivacyStep: WizardStep<boolean> = {
   ],
   parse: (input: string): boolean => {
     const normalized = input.trim().toLowerCase()
-    if (normalized === 'private') return true
-    if (normalized === 'public') return false
+    if (normalized === 'private') {
+      return true
+    }
+    if (normalized === 'public') {
+      return false
+    }
     throw new ParseError('Choose public or private')
   },
 }

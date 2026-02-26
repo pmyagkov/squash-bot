@@ -36,7 +36,12 @@ describe('scaffoldCreateDef parser', () => {
 
   it('has four steps including privacy', () => {
     expect(scaffoldCreateDef.steps).toHaveLength(4)
-    expect(scaffoldCreateDef.steps.map((s) => s.param)).toEqual(['day', 'time', 'courts', 'isPrivate'])
+    expect(scaffoldCreateDef.steps.map((s) => s.param)).toEqual([
+      'day',
+      'time',
+      'courts',
+      'isPrivate',
+    ])
   })
 
   it('returns error for invalid day', () => {
