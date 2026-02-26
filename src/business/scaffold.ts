@@ -251,7 +251,9 @@ export class ScaffoldBusiness {
       }
       case 'participants': {
         const withParticipants = await this.scaffoldRepository.findByIdWithParticipants(entityId)
-        if (!withParticipants) return
+        if (!withParticipants) {
+          return
+        }
         await this.transport.editMessage(
           chatId,
           messageId,
@@ -264,7 +266,9 @@ export class ScaffoldBusiness {
         break // Falls through to re-render main edit menu
       case '+participant': {
         const current = await this.scaffoldRepository.findByIdWithParticipants(entityId)
-        if (!current) return
+        if (!current) {
+          return
+        }
         const currentIds = new Set(current.participants.map((p) => p.id))
         const step: HydratedStep<string> = {
           param: 'participantId',
@@ -286,7 +290,9 @@ export class ScaffoldBusiness {
           const participantId = await this.wizardService.collect(step, ctx)
           await this.scaffoldRepository.addParticipant(entityId, participantId)
         } catch (e) {
-          if (!(e instanceof WizardCancelledError)) throw e
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
         }
         // Re-render participants submenu
         const afterAdd = await this.scaffoldRepository.findByIdWithParticipants(entityId)
@@ -302,7 +308,9 @@ export class ScaffoldBusiness {
       }
       case '-participant': {
         const currentForRemove = await this.scaffoldRepository.findByIdWithParticipants(entityId)
-        if (!currentForRemove || currentForRemove.participants.length === 0) return
+        if (!currentForRemove || currentForRemove.participants.length === 0) {
+          return
+        }
         const removeStep: HydratedStep<string> = {
           param: 'participantId',
           type: 'select',
@@ -319,7 +327,9 @@ export class ScaffoldBusiness {
           const participantId = await this.wizardService.collect(removeStep, ctx)
           await this.scaffoldRepository.removeParticipant(entityId, participantId)
         } catch (e) {
-          if (!(e instanceof WizardCancelledError)) throw e
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
         }
         // Re-render participants submenu
         const afterRemove = await this.scaffoldRepository.findByIdWithParticipants(entityId)

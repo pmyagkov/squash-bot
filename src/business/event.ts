@@ -1892,7 +1892,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
         // Copy scaffold participants to private event
         if (scaffold.isPrivate) {
-          const withParticipants = await this.scaffoldRepository.findByIdWithParticipants(scaffold.id)
+          const withParticipants = await this.scaffoldRepository.findByIdWithParticipants(
+            scaffold.id
+          )
           if (withParticipants) {
             for (const participant of withParticipants.participants) {
               await this.participantRepository.addToEvent(event.id, participant.id)
@@ -2128,7 +2130,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
         break
       }
       case '+participant': {
-        if (!event.isPrivate) return
+        if (!event.isPrivate) {
+          return
+        }
         const currentParticipants = await this.participantRepository.getEventParticipants(entityId)
         const currentIds = new Set(currentParticipants.map((p) => p.participantId))
         const addStep: HydratedStep<string> = {
@@ -2151,16 +2155,22 @@ To announce: ${code(`/event announce ${event.id}`)}`
           const participantId = await this.wizardService.collect(addStep, ctx)
           await this.participantRepository.addToEvent(entityId, participantId)
         } catch (e) {
-          if (!(e instanceof WizardCancelledError)) throw e
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
         }
         await this.refreshAnnouncement(entityId)
         return
       }
       case '-participant': {
-        if (!event.isPrivate) return
+        if (!event.isPrivate) {
+          return
+        }
         const participantsForRemove =
           await this.participantRepository.getEventParticipants(entityId)
-        if (participantsForRemove.length === 0) return
+        if (participantsForRemove.length === 0) {
+          return
+        }
         const removeStep: HydratedStep<string> = {
           param: 'participantId',
           type: 'select',
@@ -2179,7 +2189,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
           const participantId = await this.wizardService.collect(removeStep, ctx)
           await this.participantRepository.removeFromEvent(entityId, participantId)
         } catch (e) {
-          if (!(e instanceof WizardCancelledError)) throw e
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
         }
         await this.refreshAnnouncement(entityId)
         return
