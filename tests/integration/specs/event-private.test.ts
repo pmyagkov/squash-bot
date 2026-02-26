@@ -92,6 +92,34 @@ describe('event-private', () => {
     })
   })
 
+  describe('event create with private flag', () => {
+    it('should save isPrivate=true when private arg given', async () => {
+      await bot.handleUpdate(
+        createTextMessageUpdate('/event create tomorrow 21:00 2 private', {
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+        })
+      )
+
+      const events = await eventRepository.getEvents()
+      expect(events).toHaveLength(1)
+      expect(events[0].isPrivate).toBe(true)
+    })
+
+    it('should save isPrivate=false by default', async () => {
+      await bot.handleUpdate(
+        createTextMessageUpdate('/event create tomorrow 21:00 2', {
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+        })
+      )
+
+      const events = await eventRepository.getEvents()
+      expect(events).toHaveLength(1)
+      expect(events[0].isPrivate).toBe(false)
+    })
+  })
+
   describe('+participant via wizard (button click)', () => {
     it('shows participant picker and adds selected participant', async () => {
       const { event, messageId, alice } = await setupPrivateAnnouncedEvent()

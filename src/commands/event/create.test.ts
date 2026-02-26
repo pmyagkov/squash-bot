@@ -33,6 +33,22 @@ describe('eventCreateDef parser', () => {
     })
   })
 
+  it('parses with private suffix', () => {
+    const result = eventCreateDef.parser(dummyInput(['Tue', '21:00', '2', 'private']))
+    expect(result).toEqual({
+      parsed: { day: 'Tue', time: '21:00', courts: 2, isPrivate: true },
+      missing: [],
+    })
+  })
+
+  it('parses with public suffix', () => {
+    const result = eventCreateDef.parser(dummyInput(['Tue', '21:00', '2', 'public']))
+    expect(result).toEqual({
+      parsed: { day: 'Tue', time: '21:00', courts: 2, isPrivate: false },
+      missing: [],
+    })
+  })
+
   it('returns all missing for empty args', () => {
     const result = eventCreateDef.parser(dummyInput([]))
     expect(result).toEqual({

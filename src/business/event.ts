@@ -1239,7 +1239,7 @@ export class EventBusiness {
   }
 
   private async handleCreateFromDef(
-    data: { day: string; time: string; courts: number },
+    data: { day: string; time: string; courts: number; isPrivate: boolean },
     source: SourceContext
   ): Promise<void> {
     // Parser already validated day and time — parseDate won't throw
@@ -1260,6 +1260,7 @@ export class EventBusiness {
       courts: data.courts,
       status: 'created',
       ownerId: String(source.user.id),
+      isPrivate: data.isPrivate,
     })
 
     // Format success message
