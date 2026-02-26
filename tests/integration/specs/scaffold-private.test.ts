@@ -3,12 +3,13 @@ import { Bot } from 'grammy'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
-import { mockBot } from '@mocks'
+import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 
 describe('scaffold-private', () => {
   let bot: Bot
   let container: TestContainer
+  let api: BotApiMock
 
   beforeEach(async () => {
     bot = new Bot('test-token')
@@ -16,7 +17,7 @@ describe('scaffold-private', () => {
     container.resolve('eventBusiness').init()
     container.resolve('scaffoldBusiness').init()
     container.resolve('utilityBusiness').init()
-    mockBot(bot)
+    api = mockBot(bot)
     await bot.init()
   })
 
@@ -124,6 +125,25 @@ describe('scaffold-private', () => {
 
       const withParticipants = await scaffoldRepo.findByIdWithParticipants(scaffold.id)
       expect(withParticipants!.participants).toHaveLength(1)
+    })
+  })
+
+  describe('scaffold list format', () => {
+    it('should use unified pipe-separated format with privacy segment', async () => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
+      await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(ADMIN_ID), true)
+
+      await bot.handleUpdate(
+        createTextMessageUpdate('/scaffold list', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+
+      const msg = api.sendMessage.mock.calls[0][1] as string
+      expect(msg).toContain(' | ')
+      expect(msg).toContain('🔒 Private')
+      expect(msg).toContain('🟢 Active')
     })
   })
 

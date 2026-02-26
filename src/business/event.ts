@@ -8,7 +8,7 @@ import { config } from '~/config'
 import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { formatDate, formatCourts } from '~/ui/constants'
+import { formatDate, formatCourts, formatEventStatus, formatPrivacy } from '~/ui/constants'
 import type { TelegramTransport, CallbackTypes } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
@@ -1455,8 +1455,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
         const date = formatDate(dayjs.tz(e.datetime, config.timezone))
         const ownerLabel = await this.resolveOwnerLabel(e.ownerId)
         const ownerSuffix = ownerLabel ? ` | 👑 ${ownerLabel}` : ''
-        const privateMark = e.isPrivate ? '🔒 ' : ''
-        return `• ${privateMark}${code(e.id)} | ${date} | ${formatCourts(e.courts)} | ${e.status}${ownerSuffix}`
+        return `${code(e.id)} | ${date} | ${formatCourts(e.courts)} | ${formatEventStatus(e.status)} | ${formatPrivacy(e.isPrivate)}${ownerSuffix}`
       })
     )
 

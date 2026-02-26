@@ -14,7 +14,7 @@ import type { HydratedStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
 import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { formatCourts, formatActiveStatus } from '~/ui/constants'
+import { formatCourts, formatActiveStatus, formatPrivacy } from '~/ui/constants'
 import { scaffoldCreateDef } from '~/commands/scaffold/create'
 import {
   scaffoldListDef,
@@ -158,13 +158,13 @@ export class ScaffoldBusiness {
           if (s.ownerId) {
             const owner = await this.participantRepository.findByTelegramId(s.ownerId)
             ownerLabel = owner?.telegramUsername
-              ? `, 👑 @${owner.telegramUsername}`
+              ? `@${owner.telegramUsername}`
               : owner?.displayName
-                ? `, 👑 ${owner.displayName}`
+                ? owner.displayName
                 : ''
           }
-          const privateMark = s.isPrivate ? '🔒 ' : ''
-          return `${privateMark}${code(s.id)}: ${s.dayOfWeek}, ${s.time}, ${formatCourts(s.defaultCourts)}, ${formatActiveStatus(s.isActive)}${ownerLabel}`
+          const ownerSuffix = ownerLabel ? ` | 👑 ${ownerLabel}` : ''
+          return `${code(s.id)} | ${s.dayOfWeek}, ${s.time} | ${formatCourts(s.defaultCourts)} | ${formatActiveStatus(s.isActive)} | ${formatPrivacy(s.isPrivate)}${ownerSuffix}`
         })
       )
 

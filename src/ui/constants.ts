@@ -43,3 +43,15 @@ export const formatCourts = (n: number): string => `🏟 Courts: ${n}`
 // Status labels
 export const formatActiveStatus = (isActive: boolean): string =>
   isActive ? '🟢 Active' : '⏸ Paused'
+
+const EVENT_STATUS_LABELS: Record<string, string> = {
+  created: '📝 Created',
+  announced: '📣 Announced',
+  finalized: '✅ Finalized',
+  cancelled: '❌ Cancelled',
+}
+export const formatEventStatus = (status: string): string =>
+  EVENT_STATUS_LABELS[status] ?? status
+
+export const formatPrivacy = (isPrivate: boolean): string =>
+  isPrivate ? '🔒 Private' : '📢 Public'

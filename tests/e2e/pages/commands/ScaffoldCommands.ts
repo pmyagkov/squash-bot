@@ -94,7 +94,7 @@ export class ScaffoldCommands extends ChatPage {
    * @returns Array of scaffold objects
    *
    * Example:
-   * "sc_1: Tue, 21:00, 🏟 Courts: 2, 🟢 Active" → [{ id: "sc_1", day: "Tue", time: "21:00", courts: 2, active: true }]
+   * "sc_1 | Tue, 21:00 | 🏟 Courts: 2 | 🟢 Active | 📢 Public" → [{ id: "sc_1", day: "Tue", time: "21:00", courts: 2, active: true }]
    */
   parseScaffoldList(response: string): {
     id: string
@@ -111,8 +111,8 @@ export class ScaffoldCommands extends ChatPage {
       active: boolean
     }[] = []
 
-    // Match pattern: sc_1: Tue, 21:00, 🏟 Courts: 2, 🟢 Active (optional: , 👑 @owner)
-    const regex = /(sc_[\w-]+):\s+(\w+),\s+([\d:]+),\s+🏟 Courts:\s+(\d+),\s+(🟢 Active|⏸ Paused)/g
+    // Match pattern: sc_1 | Tue, 21:00 | 🏟 Courts: 2 | 🟢 Active | 📢 Public (optional: | 👑 @owner)
+    const regex = /(sc_[\w-]+)\s+\|\s+(\w+),\s+([\d:]+)\s+\|\s+🏟 Courts:\s+(\d+)\s+\|\s+(🟢 Active|⏸ Paused)/g
     let match
 
     while ((match = regex.exec(response)) !== null) {

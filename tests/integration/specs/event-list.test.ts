@@ -85,6 +85,6 @@ describe('event-list', () => {
     const call = api.sendMessage.mock.calls.find(([, text]) => text.includes('📋 Event list'))
     expect(call).toBeDefined()
     expect(call![1]).toContain(event.id)
-    expect(call![1]).toContain('created')
+    expect(call![1]).toContain('📝 Created')
   })
 })

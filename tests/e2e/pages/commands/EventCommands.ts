@@ -93,7 +93,7 @@ export class EventCommands extends ChatPage {
    * @returns Array of event objects
    *
    * Example:
-   * "ev_15: Sat 20 Jan 19:00, 2 courts, created" → [{ id: "ev_15", status: "created", ... }]
+   * "ev_15 | Sat, 20 Jan, 19:00 | 🏟 Courts: 2 | 📝 Created | 📢 Public" → [{ id: "ev_15", status: "created", ... }]
    */
   parseEventList(response: string): {
     id: string
@@ -106,15 +106,21 @@ export class EventCommands extends ChatPage {
       status: string
     }[] = []
 
-    // Match pattern: ev_15: Sat, 20 Jan, 19:00, 🏟 Courts: 2, created
-    const regex = /(ev_[\w-]+):.*?🏟 Courts:\s+(\d+),\s+(\w+)/gi
+    // Match pattern: ev_15 | ... | 🏟 Courts: 2 | 📝 Created | ...
+    const statusMap: Record<string, string> = {
+      '📝 Created': 'created',
+      '📣 Announced': 'announced',
+      '✅ Finalized': 'finalized',
+      '❌ Cancelled': 'cancelled',
+    }
+    const regex = /(ev_[\w-]+)\s+\|.*?🏟 Courts:\s+(\d+)\s+\|\s+([📝📣✅❌]\s+\w+)/g
     let match
 
     while ((match = regex.exec(response)) !== null) {
       events.push({
         id: match[1],
         courts: parseInt(match[2], 10),
-        status: match[3],
+        status: statusMap[match[3]] ?? match[3],
       })
     }
 
