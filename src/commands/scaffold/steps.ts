@@ -20,8 +20,11 @@ export const scaffoldSelectStep: WizardStep<string> = {
         let label = date
         if (s.ownerId) {
           const owner = await participantRepo.findByTelegramId(s.ownerId)
-          if (owner?.telegramUsername) {
-            label = `@${owner.telegramUsername} — ${date}`
+          const ownerName = owner?.telegramUsername
+            ? `@${owner.telegramUsername}`
+            : (owner?.displayName ?? null)
+          if (ownerName) {
+            label = `${ownerName} — ${date}`
           }
         }
         return { value: s.id, label }
