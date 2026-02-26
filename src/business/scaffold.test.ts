@@ -61,7 +61,7 @@ describe('ScaffoldBusiness', () => {
       )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('Created scaffold')
+        expect.stringContaining('Scaffold created')
       )
     })
 
@@ -91,7 +91,7 @@ describe('ScaffoldBusiness', () => {
       )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('Created scaffold')
+        expect.stringContaining('Scaffold created')
       )
     })
 

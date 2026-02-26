@@ -23,15 +23,15 @@ describe('scaffoldCreateDef parser', () => {
     const result = scaffoldCreateDef.parser(dummyInput([]))
     expect(result).toEqual({
       parsed: {},
-      missing: ['day', 'time', 'courts'],
+      missing: ['day', 'time', 'courts', 'isPrivate'],
     })
   })
 
   it('returns all missing for insufficient args (1 or 2)', async () => {
     const result1 = await scaffoldCreateDef.parser(dummyInput(['Tue']))
-    expect(result1.missing).toEqual(['day', 'time', 'courts'])
+    expect(result1.missing).toEqual(['day', 'time', 'courts', 'isPrivate'])
     const result2 = await scaffoldCreateDef.parser(dummyInput(['Tue', '21:00']))
-    expect(result2.missing).toEqual(['day', 'time', 'courts'])
+    expect(result2.missing).toEqual(['day', 'time', 'courts', 'isPrivate'])
   })
 
   it('has four steps including privacy', () => {

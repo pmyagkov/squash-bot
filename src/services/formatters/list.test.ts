@@ -58,14 +58,16 @@ describe('list formatters', () => {
 
     it('should use pipe separators between all fields', () => {
       const result = formatScaffoldListItem(baseScaffold)
-      const parts = result.split(' | ')
+      const [line1, line2] = result.split('\n')
 
-      expect(parts).toHaveLength(5)
-      expect(parts[0]).toBe('<code>sc_abc123</code>')
-      expect(parts[1]).toBe('Wed, 19:00')
-      expect(parts[2]).toBe('🏟 Courts: 2')
-      expect(parts[3]).toBe('🟢 Active')
-      expect(parts[4]).toBe('📢 Public')
+      expect(line1).toBe('Wed, 19:00')
+
+      const parts = line2.split(' | ')
+      expect(parts).toHaveLength(4)
+      expect(parts[0]).toBe('🏟 Courts: 2')
+      expect(parts[1]).toBe('🟢 Active')
+      expect(parts[2]).toBe('📢 Public')
+      expect(parts[3]).toBe('<code>sc_abc123</code>')
     })
   })
 
@@ -111,14 +113,16 @@ describe('list formatters', () => {
 
     it('should use pipe separators between all fields', () => {
       const result = formatEventListItem(baseEvent, 'Sun, 1 Mar, 19:00')
-      const parts = result.split(' | ')
+      const [line1, line2] = result.split('\n')
 
-      expect(parts).toHaveLength(5)
-      expect(parts[0]).toBe('<code>ev_xyz789</code>')
-      expect(parts[1]).toBe('Sun, 1 Mar, 19:00')
-      expect(parts[2]).toBe('🏟 Courts: 3')
-      expect(parts[3]).toBe('📣 Announced')
-      expect(parts[4]).toBe('📢 Public')
+      expect(line1).toBe('Sun, 1 Mar, 19:00')
+
+      const parts = line2.split(' | ')
+      expect(parts).toHaveLength(4)
+      expect(parts[0]).toBe('🏟 Courts: 3')
+      expect(parts[1]).toBe('📣 Announced')
+      expect(parts[2]).toBe('📢 Public')
+      expect(parts[3]).toBe('<code>ev_xyz789</code>')
     })
   })
 })

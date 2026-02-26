@@ -18,9 +18,12 @@ export class EventCommands extends ChatPage {
    * @param courts - Number of courts
    * @returns Response message from bot
    *
-   * Example from architecture.md:
+   * Example:
    * /event create 2024-01-20 19:00 2
-   * → Created event ev_15 (Sat 20 Jan 19:00, 2 courts). To announce: /event announce ev_15
+   * → 📅 Event created
+   * →
+   * → Sat, 20 Jan, 19:00
+   * → 🏟 Courts: 2 | 📝 Created | 📢 Public | ev_15
    */
   async addEvent(date: string, time: string, courts: number): Promise<string> {
     const command = `/event create ${date} ${time} ${courts}`
@@ -31,10 +34,13 @@ export class EventCommands extends ChatPage {
    * List all events
    * @returns Response message from bot
    *
-   * Example from architecture.md:
+   * Example (2-line entity format):
    * /event list
-   * → ev_15: Sat 20 Jan 19:00, 2 courts, created
-   * → ev_16: Sun 21 Jan 19:00, 2 courts, announced
+   * → Sat, 20 Jan, 19:00 | 👑 @owner
+   * → 🏟 Courts: 2 | 📝 Created | 📢 Public | ev_15
+   * →
+   * → Sun, 21 Jan, 19:00 | 👑 @owner
+   * → 🏟 Courts: 2 | 📣 Announced | 📢 Public | ev_16
    */
   async listEvents(): Promise<string> {
     return await this.sendCommand('/event list')
@@ -45,9 +51,10 @@ export class EventCommands extends ChatPage {
    * @param eventId - Event ID (e.g., "ev_15")
    * @returns Response message from bot
    *
-   * Example from architecture.md:
+   * Example:
    * /event announce ev_15
-   * → Announcement sent to chat
+   * → 📢 Event announced
+   * → ...
    */
   async announceEvent(eventId: string): Promise<string> {
     const command = `/event announce ${eventId}`
@@ -56,7 +63,7 @@ export class EventCommands extends ChatPage {
     // sendCommand captures the announcement message, but the DB update (telegramMessageId)
     // may not be complete yet. Wait for the confirmation message which is sent AFTER
     // the DB update, ensuring callbacks can find the event by messageId.
-    await this.waitForMessageContaining(`${eventId} announced`, 5000)
+    await this.waitForMessageContaining('Event announced', 5000)
     return response
   }
 
@@ -65,7 +72,7 @@ export class EventCommands extends ChatPage {
    * @param eventId - Event ID (e.g., "ev_15")
    * @returns Response message from bot
    *
-   * Example from architecture.md:
+   * Example:
    * /event cancel ev_15
    * → Event ev_15 cancelled. Notification sent to chat.
    */
@@ -79,11 +86,11 @@ export class EventCommands extends ChatPage {
    * @param response - Bot response text
    * @returns Event ID or null if not found
    *
-   * Example:
-   * "Created event ev_15 (Sat 20 Jan 19:00, 2 courts)" → "ev_15"
+   * Example (confirmation, 2-line entity format):
+   * "📅 Event created\n\nSat, 20 Jan, 19:00\n🏟 Courts: 2 | 📝 Created | 📢 Public | ev_15" → "ev_15"
    */
   parseEventId(response: string): string | null {
-    const match = response.match(/event (ev_[\w-]+)/)
+    const match = response.match(/(ev_[\w-]+)/)
     return match ? match[1] : null
   }
 
@@ -92,8 +99,9 @@ export class EventCommands extends ChatPage {
    * @param response - Bot response text
    * @returns Array of event objects
    *
-   * Example:
-   * "ev_15 | Sat, 20 Jan, 19:00 | 🏟 Courts: 2 | 📝 Created | 📢 Public" → [{ id: "ev_15", status: "created", ... }]
+   * New 2-line entity format (blank line between entities):
+   * "Sat, 20 Jan, 19:00 | 👑 @owner\n🏟 Courts: 2 | 📝 Created | 📢 Public | ev_15"
+   * → [{ id: "ev_15", courts: 2, status: "created" }]
    */
   parseEventList(response: string): {
     id: string
@@ -106,21 +114,21 @@ export class EventCommands extends ChatPage {
       status: string
     }[] = []
 
-    // Match pattern: ev_15 | ... | 🏟 Courts: 2 | 📝 Created | ...
+    // Match line 2 pattern: 🏟 Courts: 2 | 📝 Created | 📢 Public | ev_15
     const statusMap: Record<string, string> = {
       '📝 Created': 'created',
       '📣 Announced': 'announced',
       '✅ Finalized': 'finalized',
       '❌ Cancelled': 'cancelled',
     }
-    const regex = /(ev_[\w-]+)\s+\|.*?🏟 Courts:\s+(\d+)\s+\|\s+([📝📣✅❌]\s+\w+)/g
+    const regex = /🏟 Courts:\s+(\d+)\s+\|\s+([📝📣✅❌]\s+\w+)\s+\|.*?\|\s+(ev_[\w-]+)/g
     let match
 
     while ((match = regex.exec(response)) !== null) {
       events.push({
-        id: match[1],
-        courts: parseInt(match[2], 10),
-        status: statusMap[match[3]] ?? match[3],
+        id: match[3],
+        courts: parseInt(match[1], 10),
+        status: statusMap[match[2]] ?? match[2],
       })
     }
 
@@ -131,9 +139,11 @@ export class EventCommands extends ChatPage {
    * Verify event was created successfully
    * @param response - Bot response text
    * @returns True if event was created
+   *
+   * New format: "📅 Event created\n\n..."
    */
   isEventCreated(response: string): boolean {
-    return response.includes('Created event') || response.includes('✅')
+    return response.includes('Event created') || response.includes('✅')
   }
 
   /**

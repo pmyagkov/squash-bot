@@ -8,7 +8,7 @@ import { config } from '~/config'
 import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { formatDate, formatCourts } from '~/ui/constants'
+import { formatDate } from '~/ui/constants'
 import { formatEventListItem } from '~/services/formatters/list'
 import type { TelegramTransport, CallbackTypes } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
@@ -1266,14 +1266,19 @@ export class EventBusiness {
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)}: ${dateFormatted}, ${formatCourts(data.courts)}
-To announce: ${code(`/event announce ${event.id}`)}`
-    await this.transport.sendMessage(source.chat.id, message)
+    const entityText = formatEventListItem(event, dateFormatted)
+    await this.transport.sendMessage(
+      source.chat.id,
+      `📅 Event created\n\n${entityText}\n\nTo announce: ${code(`/event announce ${event.id}`)}`
+    )
     void this.transport.logEvent({
       type: 'event_created',
       eventId: event.id,
       date: dateFormatted,
       courts: data.courts,
+      status: event.status,
+      isPrivate: event.isPrivate,
+      ownerLabel: source.user.username ? `@${source.user.username}` : undefined,
     })
   }
 
@@ -1459,7 +1464,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
       })
     )
 
-    await this.transport.sendMessage(source.chat.id, `📋 Event list\n\n${list.join('\n')}`)
+    await this.transport.sendMessage(source.chat.id, `📋 Event list\n\n${list.join('\n\n')}`)
   }
 
   private async handleAnnounceFromDef(
@@ -1482,7 +1487,10 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     try {
       await this.announceEvent(event.id)
-      await this.transport.sendMessage(source.chat.id, `✅ Event ${code(event.id)} announced`)
+      const updatedEvent = await this.eventRepository.findById(event.id)
+      const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
+      const entityText = formatEventListItem(updatedEvent ?? event, announcedDate)
+      await this.transport.sendMessage(source.chat.id, `📢 Event announced\n\n${entityText}`)
     } catch (error) {
       await this.transport.sendMessage(
         source.chat.id,
@@ -1538,13 +1546,20 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)} from ${code(scaffold.id)}: ${dateFormatted}, ${formatCourts(scaffold.defaultCourts)}\nTo announce: ${code(`/event announce ${event.id}`)}`
-    await this.transport.sendMessage(source.chat.id, message)
+    const entityText = formatEventListItem(event, dateFormatted)
+    await this.transport.sendMessage(
+      source.chat.id,
+      `📅 Event created from ${code(scaffold.id)}\n\n${entityText}\n\nTo announce: ${code(`/event announce ${event.id}`)}`
+    )
+    const ownerLabel = await this.resolveOwnerLabel(ownerId)
     void this.transport.logEvent({
       type: 'event_created',
       eventId: event.id,
       date: dateFormatted,
       courts: scaffold.defaultCourts,
+      status: event.status,
+      isPrivate: event.isPrivate,
+      ownerLabel,
     })
   }
 
@@ -1819,7 +1834,15 @@ To announce: ${code(`/event announce ${event.id}`)}`
     })
 
     const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
-    void this.transport.logEvent({ type: 'event_announced', eventId: id, date: announcedDate })
+    const ownerLabel = await this.resolveOwnerLabel(event.ownerId)
+    void this.transport.logEvent({
+      type: 'event_announced',
+      eventId: id,
+      date: announcedDate,
+      courts: event.courts,
+      isPrivate: event.isPrivate,
+      ownerLabel,
+    })
 
     return updatedEvent
   }
@@ -1911,11 +1934,15 @@ To announce: ${code(`/event announce ${event.id}`)}`
         )
 
         const createdDate = formatDate(dayjs.tz(event.datetime, config.timezone))
+        const ownerLabel = await this.resolveOwnerLabel(event.ownerId)
         void this.transport.logEvent({
           type: 'event_created',
           eventId: event.id,
           date: createdDate,
           courts: event.courts,
+          status: event.status,
+          isPrivate: event.isPrivate,
+          ownerLabel,
         })
       } catch (error) {
         await this.logger.error(

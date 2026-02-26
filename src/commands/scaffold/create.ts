@@ -13,7 +13,7 @@ interface ScaffoldCreateData {
 export const scaffoldCreateDef: CommandDef<ScaffoldCreateData> = {
   parser: ({ args }: ParserInput): ParseResult<ScaffoldCreateData> => {
     if (args.length < 3) {
-      return { parsed: {}, missing: ['day', 'time', 'courts'] }
+      return { parsed: {}, missing: ['day', 'time', 'courts', 'isPrivate'] }
     }
 
     // Check for optional private/public suffix

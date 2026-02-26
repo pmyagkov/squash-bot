@@ -34,12 +34,12 @@ describe('scaffold-create', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Created scaffold'),
+        expect.stringContaining('📋 Scaffold created'),
         expect.anything()
       )
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Tue, 21:00, 🏟 Courts: 2'),
+        expect.stringContaining('Tue, 21:00'),
         expect.anything()
       )
     })
@@ -84,7 +84,7 @@ describe('scaffold-create', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Created scaffold'),
+        expect.stringContaining('📋 Scaffold created'),
         expect.anything()
       )
     })
@@ -101,12 +101,12 @@ describe('scaffold-create', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Created scaffold'),
+        expect.stringContaining('📋 Scaffold created'),
         expect.anything()
       )
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Tue, 21:00, 🏟 Courts: 2'),
+        expect.stringContaining('Tue, 21:00'),
         expect.anything()
       )
     })
@@ -179,12 +179,31 @@ describe('scaffold-create', () => {
         expect.anything()
       )
 
-      // Step 4: Enter courts as plain text → resolves courtsStep, handler runs
+      // Step 4: Enter courts as plain text → resolves courtsStep, wizard moves to privacyStep
       api.sendMessage.mockClear()
       await bot.handleUpdate(
         createTextMessageUpdate('2', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      // Verify privacy prompt was sent
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Public or private'),
+        expect.anything()
+      )
+
+      // Step 5: Select privacy → handler runs
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:public',
         })
       )
 
@@ -194,12 +213,12 @@ describe('scaffold-create', () => {
       // Verify scaffold was created
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Created scaffold'),
+        expect.stringContaining('📋 Scaffold created'),
         expect.anything()
       )
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('Wed, 21:00, 🏟 Courts: 2'),
+        expect.stringContaining('Wed, 21:00'),
         expect.anything()
       )
 
@@ -303,10 +322,22 @@ describe('scaffold-create', () => {
       await tick()
 
       // Enter courts
+      api.sendMessage.mockClear()
       await bot.handleUpdate(
         createTextMessageUpdate('1', {
           userId: ADMIN_ID,
           chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      // Select privacy
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:public',
         })
       )
 
@@ -315,7 +346,7 @@ describe('scaffold-create', () => {
       // Verify scaffold was still created after recovery
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Created scaffold'),
+        expect.stringContaining('📋 Scaffold created'),
         expect.anything()
       )
     })
@@ -332,7 +363,7 @@ describe('scaffold-create', () => {
       await bot.handleUpdate(addUpdate)
 
       const addCall = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes('✅ Created scaffold')
+        text.includes('📋 Scaffold created')
       )
       expect(addCall).toBeDefined()
       expect(addCall![1]).toContain('Wed, 19:00')

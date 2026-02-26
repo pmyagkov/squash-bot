@@ -12,7 +12,7 @@ interface EventCreateData {
 export const eventCreateDef: CommandDef<EventCreateData> = {
   parser: ({ args }: ParserInput): ParseResult<EventCreateData> => {
     if (args.length < 3) {
-      return { parsed: {}, missing: ['day', 'time', 'courts'] }
+      return { parsed: {}, missing: ['day', 'time', 'courts', 'isPrivate'] }
     }
 
     // Check for optional private/public suffix

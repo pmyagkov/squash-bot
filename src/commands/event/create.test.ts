@@ -53,15 +53,15 @@ describe('eventCreateDef parser', () => {
     const result = eventCreateDef.parser(dummyInput([]))
     expect(result).toEqual({
       parsed: {},
-      missing: ['day', 'time', 'courts'],
+      missing: ['day', 'time', 'courts', 'isPrivate'],
     })
   })
 
   it('returns all missing for insufficient args', async () => {
     const result1 = await eventCreateDef.parser(dummyInput(['Tue']))
-    expect(result1.missing).toEqual(['day', 'time', 'courts'])
+    expect(result1.missing).toEqual(['day', 'time', 'courts', 'isPrivate'])
     const result2 = await eventCreateDef.parser(dummyInput(['Tue', '21:00']))
-    expect(result2.missing).toEqual(['day', 'time', 'courts'])
+    expect(result2.missing).toEqual(['day', 'time', 'courts', 'isPrivate'])
   })
 
   it('has four steps including privacy', () => {

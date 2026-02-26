@@ -14,7 +14,6 @@ import type { HydratedStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
 import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { formatCourts } from '~/ui/constants'
 import { formatScaffoldListItem } from '~/services/formatters/list'
 import { scaffoldCreateDef } from '~/commands/scaffold/create'
 import {
@@ -122,10 +121,8 @@ export class ScaffoldBusiness {
         data.isPrivate
       )
 
-      await this.transport.sendMessage(
-        source.chat.id,
-        `✅ Created scaffold ${code(scaffold.id)}: ${data.day}, ${data.time}, ${formatCourts(data.courts)}`
-      )
+      const entityText = formatScaffoldListItem(scaffold)
+      await this.transport.sendMessage(source.chat.id, `📋 Scaffold created\n\n${entityText}`)
 
       await this.logger.log(
         `User ${source.user.id} created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} courts`
@@ -136,6 +133,9 @@ export class ScaffoldBusiness {
         day: data.day,
         time: data.time,
         courts: data.courts,
+        isActive: scaffold.isActive,
+        isPrivate: scaffold.isPrivate,
+        ownerLabel: source.user.username ? `@${source.user.username}` : undefined,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -166,7 +166,7 @@ export class ScaffoldBusiness {
         })
       )
 
-      await this.transport.sendMessage(source.chat.id, `📋 Scaffold list:\n\n${list.join('\n')}`)
+      await this.transport.sendMessage(source.chat.id, `📋 Scaffold list:\n\n${list.join('\n\n')}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
