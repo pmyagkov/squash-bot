@@ -93,18 +93,21 @@ describe('ParticipantRepo', () => {
       expect(dbResult[0].displayName).toBe('User 555')
     })
 
-    it('should return existing participant if already exists', async () => {
+    it('should return existing participant and update changed fields', async () => {
       const first = await participantRepo.findOrCreateParticipant('111', 'first', 'First User')
       const second = await participantRepo.findOrCreateParticipant('111', 'second', 'Second User')
 
       // Verify IDs are the same
       expect(second.id).toBe(first.id)
-      expect(second.displayName).toBe('First User') // Should keep original display name
+      expect(second.telegramUsername).toBe('second') // Should update username
+      expect(second.displayName).toBe('Second User') // Should update display name
 
       // Verify database has only one participant
       const dbResult = await db.select().from(participants)
       expect(dbResult).toHaveLength(1)
       expect(dbResult[0].id).toBe(first.id)
+      expect(dbResult[0].telegramUsername).toBe('second')
+      expect(dbResult[0].displayName).toBe('Second User')
     })
 
     it('should actually persist participant to database', async () => {
