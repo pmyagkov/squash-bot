@@ -2140,7 +2140,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
           param: 'participantId',
           type: 'select',
           prompt: 'Choose a participant to add:',
-          emptyMessage: 'No more participants available.',
+          emptyMessage: `No participants available. Ask them to <a href="https://t.me/${ctx.me.username}">start a chat with me</a>.`,
           load: async () => {
             const all = await this.participantRepository.getParticipants()
             return all

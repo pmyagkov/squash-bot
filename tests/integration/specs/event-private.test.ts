@@ -284,6 +284,45 @@ describe('event-private', () => {
     })
   })
 
+  describe('+participant empty message', () => {
+    it('shows helpful message when no participants available', async () => {
+      // Create event WITHOUT pre-creating participants
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00Z'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+        isPrivate: true,
+      })
+      await eventBusiness.announceEvent(event.id)
+      const announced = await eventRepository.findById(event.id)
+      const messageId = parseInt(announced!.telegramMessageId!, 10)
+
+      // Click +participant with no participants in DB
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          data: `edit:event:+participant:${event.id}`,
+          userId: ADMIN_ID,
+          chatId: ADMIN_ID,
+          messageId,
+        })
+      )
+      await tick()
+
+      // Should show helpful empty message with bot link
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        ADMIN_ID,
+        expect.stringContaining('No participants available'),
+        expect.anything()
+      )
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        ADMIN_ID,
+        expect.stringContaining('start a chat with me'),
+        expect.anything()
+      )
+    })
+  })
+
   describe('wizard cancel', () => {
     it('cancel on +participant does not add anyone', async () => {
       const { event, messageId } = await setupPrivateAnnouncedEvent()
