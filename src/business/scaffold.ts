@@ -14,7 +14,8 @@ import type { HydratedStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
 import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { formatCourts, formatActiveStatus, formatPrivacy } from '~/ui/constants'
+import { formatCourts } from '~/ui/constants'
+import { formatScaffoldListItem } from '~/services/formatters/list'
 import { scaffoldCreateDef } from '~/commands/scaffold/create'
 import {
   scaffoldListDef,
@@ -154,17 +155,14 @@ export class ScaffoldBusiness {
 
       const list = await Promise.all(
         scaffolds.map(async (s: Scaffold) => {
-          let ownerLabel = ''
+          let ownerLabel: string | undefined
           if (s.ownerId) {
             const owner = await this.participantRepository.findByTelegramId(s.ownerId)
             ownerLabel = owner?.telegramUsername
               ? `@${owner.telegramUsername}`
-              : owner?.displayName
-                ? owner.displayName
-                : ''
+              : owner?.displayName || undefined
           }
-          const ownerSuffix = ownerLabel ? ` | 👑 ${ownerLabel}` : ''
-          return `${code(s.id)} | ${s.dayOfWeek}, ${s.time} | ${formatCourts(s.defaultCourts)} | ${formatActiveStatus(s.isActive)} | ${formatPrivacy(s.isPrivate)}${ownerSuffix}`
+          return formatScaffoldListItem(s, ownerLabel)
         })
       )
 
