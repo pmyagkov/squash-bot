@@ -1,6 +1,6 @@
 import type { CommandDef, ParserInput, ParseResult } from '~/services/command/types'
 import { ParseError } from '~/services/wizard/types'
-import { eventDateStep, eventTimeStep, eventCourtsStep } from './steps'
+import { eventDateStep, eventTimeStep, eventCourtsStep, eventPrivacyStep } from './steps'
 
 interface EventCreateData {
   day: string
@@ -40,5 +40,5 @@ export const eventCreateDef: CommandDef<EventCreateData> = {
       }
     }
   },
-  steps: [eventDateStep, eventTimeStep, eventCourtsStep],
+  steps: [eventDateStep, eventTimeStep, eventCourtsStep, eventPrivacyStep],
 }

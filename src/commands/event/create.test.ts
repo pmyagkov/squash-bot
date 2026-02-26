@@ -64,9 +64,9 @@ describe('eventCreateDef parser', () => {
     expect(result2.missing).toEqual(['day', 'time', 'courts'])
   })
 
-  it('has three steps', () => {
-    expect(eventCreateDef.steps).toHaveLength(3)
-    expect(eventCreateDef.steps.map((s) => s.param)).toEqual(['day', 'time', 'courts'])
+  it('has four steps including privacy', () => {
+    expect(eventCreateDef.steps).toHaveLength(4)
+    expect(eventCreateDef.steps.map((s) => s.param)).toEqual(['day', 'time', 'courts', 'isPrivate'])
   })
 
   it('returns error for invalid date', () => {

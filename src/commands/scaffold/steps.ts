@@ -88,3 +88,20 @@ export const courtsStep: WizardStep<number> = {
     return n
   },
 }
+
+export const privacyStep: WizardStep<boolean> = {
+  param: 'isPrivate',
+  type: 'select',
+  prompt: 'Public or private?',
+  columns: 2,
+  createLoader: () => async () => [
+    { value: 'public', label: '📢 Public' },
+    { value: 'private', label: '🔒 Private' },
+  ],
+  parse: (input: string): boolean => {
+    const normalized = input.trim().toLowerCase()
+    if (normalized === 'private') return true
+    if (normalized === 'public') return false
+    throw new ParseError('Choose public or private')
+  },
+}

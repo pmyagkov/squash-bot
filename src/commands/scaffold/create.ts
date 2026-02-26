@@ -1,7 +1,7 @@
 import type { CommandDef, ParserInput, ParseResult } from '~/services/command/types'
 import type { DayOfWeek } from '~/types'
 import { ParseError } from '~/services/wizard/types'
-import { dayStep, timeStep, courtsStep } from './steps'
+import { dayStep, timeStep, courtsStep, privacyStep } from './steps'
 
 interface ScaffoldCreateData {
   day: DayOfWeek
@@ -34,5 +34,5 @@ export const scaffoldCreateDef: CommandDef<ScaffoldCreateData> = {
       }
     }
   },
-  steps: [dayStep, timeStep, courtsStep],
+  steps: [dayStep, timeStep, courtsStep, privacyStep],
 }
