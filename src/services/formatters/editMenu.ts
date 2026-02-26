@@ -30,9 +30,7 @@ export function formatScaffoldEditMenu(scaffold: Scaffold): string {
     `${formatCourts(scaffold.defaultCourts)}`,
     `${formatActiveStatus(scaffold.isActive)}`,
   ]
-  if (scaffold.isPrivate) {
-    lines.push('🔒 Private')
-  }
+  lines.push(scaffold.isPrivate ? '🔒 Private' : '📢 Public')
   return lines.join('\n')
 }
 
@@ -77,9 +75,7 @@ export function formatEventEditMenu(event: Event): string {
     `${formatCourts(event.courts)}`,
     `${statusLabel}`,
   ]
-  if (event.isPrivate) {
-    lines.push('🔒 Private')
-  }
+  lines.push(event.isPrivate ? '🔒 Private' : '📢 Public')
   return lines.join('\n')
 }
 

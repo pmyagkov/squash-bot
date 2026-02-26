@@ -30,7 +30,7 @@ export const BTN_DONE = '✅ Done'
 export const BTN_ADD_PARTICIPANT = '➕ Participant'
 export const BTN_REMOVE_PARTICIPANT = '➖ Participant'
 export const BTN_MAKE_PRIVATE = '🔒 Make private'
-export const BTN_MAKE_PUBLIC = '🔓 Make public'
+export const BTN_MAKE_PUBLIC = '📢 Make public'
 export const BTN_PARTICIPANTS = '👥 Participants'
 export const BTN_BACK = '⬅️ Back'
 
@@ -50,8 +50,7 @@ const EVENT_STATUS_LABELS: Record<string, string> = {
   finalized: '✅ Finalized',
   cancelled: '❌ Cancelled',
 }
-export const formatEventStatus = (status: string): string =>
-  EVENT_STATUS_LABELS[status] ?? status
+export const formatEventStatus = (status: string): string => EVENT_STATUS_LABELS[status] ?? status
 
 export const formatPrivacy = (isPrivate: boolean): string =>
   isPrivate ? '🔒 Private' : '📢 Public'
