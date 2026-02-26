@@ -1,5 +1,6 @@
 import type { WizardStep } from '~/services/wizard/types'
 import { ParseError } from '~/services/wizard/types'
+import { formatParticipantLabel } from '~/services/formatters/participant'
 import { parseDate } from '~/utils/dateParser'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
@@ -111,11 +112,8 @@ export const eventSelectStep: WizardStep<string> = {
         let label = date
         if (e.ownerId) {
           const owner = await participantRepo.findByTelegramId(e.ownerId)
-          const ownerName = owner?.telegramUsername
-            ? `@${owner.telegramUsername}`
-            : (owner?.displayName ?? null)
-          if (ownerName) {
-            label = `${ownerName} — ${date}`
+          if (owner) {
+            label = `${formatParticipantLabel(owner)} — ${date}`
           }
         }
         return { value: e.id, label }
@@ -153,11 +151,8 @@ export const scaffoldSelectStep: WizardStep<string> = {
         let label = date
         if (s.ownerId) {
           const owner = await participantRepo.findByTelegramId(s.ownerId)
-          const ownerName = owner?.telegramUsername
-            ? `@${owner.telegramUsername}`
-            : (owner?.displayName ?? null)
-          if (ownerName) {
-            label = `${ownerName} — ${date}`
+          if (owner) {
+            label = `${formatParticipantLabel(owner)} — ${date}`
           }
         }
         return { value: s.id, label }

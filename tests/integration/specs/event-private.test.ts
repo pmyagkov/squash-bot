@@ -285,7 +285,7 @@ describe('event-private', () => {
   })
 
   describe('+participant empty message', () => {
-    it('shows helpful message when no participants available', async () => {
+    it('shows participant picker with eagerly registered admin', async () => {
       // Create event WITHOUT pre-creating participants
       const event = await eventRepository.createEvent({
         datetime: new Date('2024-01-20T19:00:00Z'),
@@ -298,7 +298,7 @@ describe('event-private', () => {
       const announced = await eventRepository.findById(event.id)
       const messageId = parseInt(announced!.telegramMessageId!, 10)
 
-      // Click +participant with no participants in DB
+      // Click +participant — middleware eagerly registers admin
       await bot.handleUpdate(
         createCallbackQueryUpdate({
           data: `edit:event:+participant:${event.id}`,
@@ -309,15 +309,11 @@ describe('event-private', () => {
       )
       await tick()
 
-      // Should show helpful empty message with bot link
+      // With eager registration, admin is now a known participant,
+      // so wizard shows picker with admin as an option (not empty message)
       expect(api.sendMessage).toHaveBeenCalledWith(
         ADMIN_ID,
-        expect.stringContaining('No participants available'),
-        expect.anything()
-      )
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        ADMIN_ID,
-        expect.stringContaining('start a chat with me'),
+        expect.stringContaining('Choose a participant to add'),
         expect.anything()
       )
     })
