@@ -20,6 +20,8 @@ import {
   BTN_CANCEL_EVENT,
   BTN_RESTORE,
   BTN_UNFINALIZE,
+  BTN_ADD_PARTICIPANT,
+  BTN_REMOVE_PARTICIPANT,
 } from '~/ui/constants'
 
 describe('event formatters', () => {
@@ -90,6 +92,13 @@ describe('event formatters', () => {
       )
     })
 
+    it('should show +/- Participant for private announced event', () => {
+      const keyboard = buildInlineKeyboard('announced', true, 'ev_test')
+      const buttons = keyboard.inline_keyboard
+      expect(buttons[0][0].text).toBe(BTN_ADD_PARTICIPANT)
+      expect(buttons[0][1].text).toBe(BTN_REMOVE_PARTICIPANT)
+    })
+
     it('should show full button set for created status', () => {
       const keyboard = buildInlineKeyboard('created')
       const buttons = keyboard.inline_keyboard
@@ -108,6 +117,7 @@ describe('event formatters', () => {
         courts: 2,
         status: 'created',
         ownerId: '111111111',
+        isPrivate: false,
       }
 
       const result = formatEventMessage(event)
@@ -115,6 +125,21 @@ describe('event formatters', () => {
       expect(result).toContain('🎾 Squash: Sat, 20 Jan, 21:00')
       expect(result).toContain('🏟 Courts: 2')
       expect(result).toContain('(nobody yet)')
+    })
+
+    it('should format private event message with 🔒', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: '111111111',
+        isPrivate: true,
+      }
+
+      const result = formatEventMessage(event)
+      expect(result).toContain('🔒 Squash:')
+      expect(result).not.toContain('🎾')
     })
   })
 
@@ -125,7 +150,15 @@ describe('event formatters', () => {
       courts: 2,
       status: 'announced',
       ownerId: '111111111',
+      isPrivate: false,
     }
+
+    it('should use 🔒 for private event announcement', () => {
+      const event: Event = { ...baseEvent, isPrivate: true }
+      const result = formatAnnouncementText(event, [])
+      expect(result).toContain('🔒 Squash:')
+      expect(result).not.toContain('🎾')
+    })
 
     it('should show "(nobody yet)" when no participants', () => {
       const result = formatAnnouncementText(baseEvent, [])
@@ -225,6 +258,7 @@ describe('event formatters', () => {
       courts: 2,
       status: 'finalized',
       ownerId: '111111111',
+      isPrivate: false,
     }
 
     it('should calculate even split correctly (4000 / 4 = 1000 each)', () => {
@@ -437,6 +471,7 @@ describe('event formatters', () => {
       courts: 2,
       status: 'finalized',
       ownerId: '111111111',
+      isPrivate: false,
     }
 
     it('should show checkmark next to paid participant', () => {
@@ -474,6 +509,20 @@ describe('event formatters', () => {
   })
 
   describe('formatPersonalPaymentText', () => {
+    it('should omit Full details link for private event', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'finalized',
+        ownerId: '111111111',
+        isPrivate: true,
+      }
+
+      const result = formatPersonalPaymentText(event, 1000, 2, 2000, 4, 12345, '100')
+      expect(result).not.toContain('Full details')
+    })
+
     it('should format personal payment DM text', () => {
       const event: Event = {
         id: 'ev_test123',
@@ -482,6 +531,7 @@ describe('event formatters', () => {
         status: 'finalized',
         telegramMessageId: '42',
         ownerId: '111111111',
+        isPrivate: false,
       }
 
       const result = formatPersonalPaymentText(event, 2000, 2, 2000, 4, -1001234567890, '42')

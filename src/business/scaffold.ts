@@ -14,7 +14,7 @@ import type { HydratedStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
 import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { formatCourts, formatActiveStatus } from '~/ui/constants'
+import { formatScaffoldListItem } from '~/services/formatters/list'
 import { scaffoldCreateDef } from '~/commands/scaffold/create'
 import {
   scaffoldListDef,
@@ -24,7 +24,12 @@ import {
   scaffoldMenuDef,
 } from '~/commands/scaffold/defs'
 import { dayStep, timeStep } from '~/commands/scaffold/steps'
-import { formatScaffoldEditMenu, buildScaffoldEditKeyboard } from '~/services/formatters/editMenu'
+import {
+  formatScaffoldEditMenu,
+  buildScaffoldEditKeyboard,
+  formatScaffoldParticipantsMenu,
+  buildScaffoldParticipantsKeyboard,
+} from '~/services/formatters/editMenu'
 
 /**
  * Business logic orchestrator for scaffolds
@@ -103,7 +108,7 @@ export class ScaffoldBusiness {
   // === Command Handlers ===
 
   private async handleCreateFromDef(
-    data: { day: DayOfWeek; time: string; courts: number },
+    data: { day: DayOfWeek; time: string; courts: number; isPrivate: boolean },
     source: SourceContext
   ): Promise<void> {
     try {
@@ -112,13 +117,12 @@ export class ScaffoldBusiness {
         data.time,
         data.courts,
         undefined,
-        String(source.user.id)
+        String(source.user.id),
+        data.isPrivate
       )
 
-      await this.transport.sendMessage(
-        source.chat.id,
-        `✅ Created scaffold ${code(scaffold.id)}: ${data.day}, ${data.time}, ${formatCourts(data.courts)}`
-      )
+      const entityText = formatScaffoldListItem(scaffold)
+      await this.transport.sendMessage(source.chat.id, `📋 Scaffold created\n\n${entityText}`)
 
       await this.logger.log(
         `User ${source.user.id} created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} courts`
@@ -129,6 +133,9 @@ export class ScaffoldBusiness {
         day: data.day,
         time: data.time,
         courts: data.courts,
+        isActive: scaffold.isActive,
+        isPrivate: scaffold.isPrivate,
+        ownerLabel: source.user.username ? `@${source.user.username}` : undefined,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -148,20 +155,18 @@ export class ScaffoldBusiness {
 
       const list = await Promise.all(
         scaffolds.map(async (s: Scaffold) => {
-          let ownerLabel = ''
+          let ownerLabel: string | undefined
           if (s.ownerId) {
             const owner = await this.participantRepository.findByTelegramId(s.ownerId)
             ownerLabel = owner?.telegramUsername
-              ? `, 👑 @${owner.telegramUsername}`
-              : owner?.displayName
-                ? `, 👑 ${owner.displayName}`
-                : ''
+              ? `@${owner.telegramUsername}`
+              : owner?.displayName || undefined
           }
-          return `${code(s.id)}: ${s.dayOfWeek}, ${s.time}, ${formatCourts(s.defaultCourts)}, ${formatActiveStatus(s.isActive)}${ownerLabel}`
+          return formatScaffoldListItem(s, ownerLabel)
         })
       )
 
-      await this.transport.sendMessage(source.chat.id, `📋 Scaffold list:\n\n${list.join('\n')}`)
+      await this.transport.sendMessage(source.chat.id, `📋 Scaffold list:\n\n${list.join('\n\n')}`)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
@@ -183,7 +188,7 @@ export class ScaffoldBusiness {
     await this.transport.sendMessage(
       source.chat.id,
       formatScaffoldEditMenu(scaffold),
-      buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive)
+      buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive, scaffold.isPrivate)
     )
   }
 
@@ -213,6 +218,9 @@ export class ScaffoldBusiness {
       case 'toggle':
         await this.scaffoldRepository.setActive(entityId, !scaffold.isActive)
         break
+      case 'privacy':
+        await this.scaffoldRepository.updateFields(entityId, { isPrivate: !scaffold.isPrivate })
+        break
       case 'day': {
         const hydratedDay = this.hydrateStep(dayStep)
         try {
@@ -239,6 +247,100 @@ export class ScaffoldBusiness {
         }
         break
       }
+      case 'participants': {
+        const withParticipants = await this.scaffoldRepository.findByIdWithParticipants(entityId)
+        if (!withParticipants) {
+          return
+        }
+        await this.transport.editMessage(
+          chatId,
+          messageId,
+          formatScaffoldParticipantsMenu(entityId, withParticipants.participants),
+          buildScaffoldParticipantsKeyboard(entityId)
+        )
+        return
+      }
+      case 'back':
+        break // Falls through to re-render main edit menu
+      case '+participant': {
+        const current = await this.scaffoldRepository.findByIdWithParticipants(entityId)
+        if (!current) {
+          return
+        }
+        const currentIds = new Set(current.participants.map((p) => p.id))
+        const step: HydratedStep<string> = {
+          param: 'participantId',
+          type: 'select',
+          prompt: 'Choose a participant to add:',
+          emptyMessage: `No participants available. Ask them to <a href="https://t.me/${ctx.me.username}">start a chat with me</a>.`,
+          load: async () => {
+            const all = await this.participantRepository.getParticipants()
+            return all
+              .filter((p) => !currentIds.has(p.id))
+              .map((p) => ({
+                value: p.id,
+                label: p.telegramUsername ? `@${p.telegramUsername}` : p.displayName,
+              }))
+          },
+          parse: (v: string) => v,
+        }
+        try {
+          const participantId = await this.wizardService.collect(step, ctx)
+          await this.scaffoldRepository.addParticipant(entityId, participantId)
+        } catch (e) {
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
+        }
+        // Re-render participants submenu
+        const afterAdd = await this.scaffoldRepository.findByIdWithParticipants(entityId)
+        if (afterAdd) {
+          await this.transport.editMessage(
+            chatId,
+            messageId,
+            formatScaffoldParticipantsMenu(entityId, afterAdd.participants),
+            buildScaffoldParticipantsKeyboard(entityId)
+          )
+        }
+        return
+      }
+      case '-participant': {
+        const currentForRemove = await this.scaffoldRepository.findByIdWithParticipants(entityId)
+        if (!currentForRemove || currentForRemove.participants.length === 0) {
+          return
+        }
+        const removeStep: HydratedStep<string> = {
+          param: 'participantId',
+          type: 'select',
+          prompt: 'Choose a participant to remove:',
+          emptyMessage: 'No participants to remove.',
+          load: async () =>
+            currentForRemove.participants.map((p) => ({
+              value: p.id,
+              label: p.telegramUsername ? `@${p.telegramUsername}` : p.displayName,
+            })),
+          parse: (v: string) => v,
+        }
+        try {
+          const participantId = await this.wizardService.collect(removeStep, ctx)
+          await this.scaffoldRepository.removeParticipant(entityId, participantId)
+        } catch (e) {
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
+        }
+        // Re-render participants submenu
+        const afterRemove = await this.scaffoldRepository.findByIdWithParticipants(entityId)
+        if (afterRemove) {
+          await this.transport.editMessage(
+            chatId,
+            messageId,
+            formatScaffoldParticipantsMenu(entityId, afterRemove.participants),
+            buildScaffoldParticipantsKeyboard(entityId)
+          )
+        }
+        return
+      }
       case 'done':
         await this.transport.editMessage(chatId, messageId, formatScaffoldEditMenu(scaffold))
         return // Don't re-render with keyboard
@@ -251,7 +353,7 @@ export class ScaffoldBusiness {
         chatId,
         messageId,
         formatScaffoldEditMenu(updated),
-        buildScaffoldEditKeyboard(entityId, updated.isActive)
+        buildScaffoldEditKeyboard(entityId, updated.isActive, updated.isPrivate)
       )
     }
   }

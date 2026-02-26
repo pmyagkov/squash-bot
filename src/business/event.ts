@@ -8,7 +8,8 @@ import { config } from '~/config'
 import { shouldTrigger } from '~/utils/timeOffset'
 import { parseDate } from '~/utils/dateParser'
 import { isOwnerOrAdmin } from '~/utils/environment'
-import { formatDate, formatCourts } from '~/ui/constants'
+import { formatDate } from '~/ui/constants'
+import { formatEventListItem } from '~/services/formatters/list'
 import type { TelegramTransport, CallbackTypes } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
@@ -466,7 +467,7 @@ export class EventBusiness {
 
       // Send fallback if needed
       if (failedParticipants.length > 0) {
-        await this.sendFallbackNotification(data.chatId, failedParticipants)
+        await this.sendFallbackNotification(event, data.chatId, failedParticipants)
       }
 
       // Update announcement message
@@ -498,11 +499,14 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
-    await Promise.all([
+    const tasks: Promise<void>[] = [
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false, true),
       this.transport.answerCallback(data.callbackId),
-      this.transport.unpinMessage(data.chatId, data.messageId).catch(() => {}),
-    ])
+    ]
+    if (!event.isPrivate) {
+      tasks.push(this.transport.unpinMessage(data.chatId, data.messageId).catch(() => {}))
+    }
+    await Promise.all(tasks)
 
     void this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
 
@@ -523,11 +527,14 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
 
-    await Promise.all([
+    const restoreTasks: Promise<void>[] = [
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
       this.transport.answerCallback(data.callbackId),
-      this.transport.pinMessage(data.chatId, data.messageId).catch(() => {}),
-    ])
+    ]
+    if (!event.isPrivate) {
+      restoreTasks.push(this.transport.pinMessage(data.chatId, data.messageId).catch(() => {}))
+    }
+    await Promise.all(restoreTasks)
 
     void this.logger.log(`User ${data.userId} restored event ${event.id}`)
     const restoredDate = formatDate(dayjs.tz(event.datetime, config.timezone))
@@ -935,7 +942,7 @@ export class EventBusiness {
       )
 
       if (failedParticipants.length > 0) {
-        await this.sendFallbackNotification(source.chat.id, failedParticipants)
+        await this.sendFallbackNotification(event, source.chat.id, failedParticipants)
       }
 
       await this.refreshAnnouncement(event.id)
@@ -973,13 +980,15 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
     await this.refreshAnnouncement(event.id)
 
-    // Re-pin if possible
-    const mainChatId = await this.settingsRepository.getMainChatId()
-    if (mainChatId && event.telegramMessageId) {
-      try {
-        await this.transport.pinMessage(mainChatId, parseInt(event.telegramMessageId, 10))
-      } catch {
-        // Ignore pin errors
+    // Re-pin if possible (only for public events)
+    if (!event.isPrivate && event.telegramMessageId) {
+      const announceChatId = await this.getAnnouncementChatId(event)
+      if (announceChatId) {
+        try {
+          await this.transport.pinMessage(announceChatId, parseInt(event.telegramMessageId, 10))
+        } catch {
+          // Ignore pin errors
+        }
       }
     }
 
@@ -1231,7 +1240,7 @@ export class EventBusiness {
   }
 
   private async handleCreateFromDef(
-    data: { day: string; time: string; courts: number },
+    data: { day: string; time: string; courts: number; isPrivate: boolean },
     source: SourceContext
   ): Promise<void> {
     // Parser already validated day and time — parseDate won't throw
@@ -1252,18 +1261,24 @@ export class EventBusiness {
       courts: data.courts,
       status: 'created',
       ownerId: String(source.user.id),
+      isPrivate: data.isPrivate,
     })
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)}: ${dateFormatted}, ${formatCourts(data.courts)}
-To announce: ${code(`/event announce ${event.id}`)}`
-    await this.transport.sendMessage(source.chat.id, message)
+    const entityText = formatEventListItem(event, dateFormatted)
+    await this.transport.sendMessage(
+      source.chat.id,
+      `📅 Event created\n\n${entityText}\n\nTo announce: ${code(`/event announce ${event.id}`)}`
+    )
     void this.transport.logEvent({
       type: 'event_created',
       eventId: event.id,
       date: dateFormatted,
       courts: data.courts,
+      status: event.status,
+      isPrivate: event.isPrivate,
+      ownerLabel: source.user.username ? `@${source.user.username}` : undefined,
     })
   }
 
@@ -1445,12 +1460,11 @@ To announce: ${code(`/event announce ${event.id}`)}`
       activeEvents.map(async (e) => {
         const date = formatDate(dayjs.tz(e.datetime, config.timezone))
         const ownerLabel = await this.resolveOwnerLabel(e.ownerId)
-        const ownerSuffix = ownerLabel ? ` | 👑 ${ownerLabel}` : ''
-        return `• ${code(e.id)} | ${date} | ${formatCourts(e.courts)} | ${e.status}${ownerSuffix}`
+        return formatEventListItem(e, date, ownerLabel)
       })
     )
 
-    await this.transport.sendMessage(source.chat.id, `📋 Event list\n\n${list.join('\n')}`)
+    await this.transport.sendMessage(source.chat.id, `📋 Event list\n\n${list.join('\n\n')}`)
   }
 
   private async handleAnnounceFromDef(
@@ -1473,7 +1487,10 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     try {
       await this.announceEvent(event.id)
-      await this.transport.sendMessage(source.chat.id, `✅ Event ${code(event.id)} announced`)
+      const updatedEvent = await this.eventRepository.findById(event.id)
+      const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
+      const entityText = formatEventListItem(updatedEvent ?? event, announcedDate)
+      await this.transport.sendMessage(source.chat.id, `📢 Event announced\n\n${entityText}`)
     } catch (error) {
       await this.transport.sendMessage(
         source.chat.id,
@@ -1529,13 +1546,20 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     // Format success message
     const dateFormatted = formatDate(dayjs.tz(event.datetime, config.timezone))
-    const message = `✅ Created event ${code(event.id)} from ${code(scaffold.id)}: ${dateFormatted}, ${formatCourts(scaffold.defaultCourts)}\nTo announce: ${code(`/event announce ${event.id}`)}`
-    await this.transport.sendMessage(source.chat.id, message)
+    const entityText = formatEventListItem(event, dateFormatted)
+    await this.transport.sendMessage(
+      source.chat.id,
+      `📅 Event created from ${code(scaffold.id)}\n\n${entityText}\n\nTo announce: ${code(`/event announce ${event.id}`)}`
+    )
+    const ownerLabel = await this.resolveOwnerLabel(ownerId)
     void this.transport.logEvent({
       type: 'event_created',
       eventId: event.id,
       date: dateFormatted,
       courts: scaffold.defaultCourts,
+      status: event.status,
+      isPrivate: event.isPrivate,
+      ownerLabel,
     })
   }
 
@@ -1554,9 +1578,9 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     await this.transport.sendMessage(source.chat.id, `✅ Event ${code(event.id)} cancelled`)
 
-    // If event was announced, send cancellation notification to the main chat
+    // If event was announced, send cancellation notification to the announcement chat
     if (event.status === 'announced') {
-      const chatId = await this.settingsRepository.getMainChatId()
+      const chatId = await this.getAnnouncementChatId(event)
       if (chatId) {
         await this.transport.sendMessage(chatId, `❌ Event ${code(event.id)} has been cancelled.`)
       }
@@ -1586,13 +1610,13 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
     const messageText = formatAnnouncementText(event, participants, finalized, cancelled)
-    const keyboard = buildInlineKeyboard(
+    const status =
       event.status === 'cancelled'
         ? 'cancelled'
         : event.status === 'finalized'
           ? 'finalized'
           : 'announced'
-    )
+    const keyboard = buildInlineKeyboard(status as EventStatus, event.isPrivate, event.id)
 
     try {
       await this.transport.editMessage(chatId, messageId, messageText, keyboard)
@@ -1646,7 +1670,8 @@ To announce: ${code(`/event announce ${event.id}`)}`
   }
 
   private async sendFallbackNotification(
-    chatId: number,
+    event: Event,
+    fallbackChatId: number,
     failedParticipants: EventParticipant[]
   ): Promise<void> {
     const names = failedParticipants.map((ep) =>
@@ -1656,7 +1681,28 @@ To announce: ${code(`/event announce ${event.id}`)}`
     )
     const botInfo = this.transport.getBotInfo()
     const text = formatFallbackNotificationText(names, botInfo.username ?? '')
-    await this.transport.sendMessage(chatId, text)
+
+    // 3-tier fallback: 1) Owner DM (private events) → 2) Main chat → 3) fallbackChatId
+    if (event.isPrivate) {
+      try {
+        await this.transport.sendMessage(parseInt(event.ownerId, 10), text)
+        return
+      } catch {
+        // Fall through to main chat
+      }
+    }
+
+    const mainChatId = await this.settingsRepository.getMainChatId()
+    if (mainChatId) {
+      try {
+        await this.transport.sendMessage(mainChatId, text)
+        return
+      } catch {
+        // Fall through to fallback
+      }
+    }
+
+    await this.transport.sendMessage(fallbackChatId, text)
   }
 
   private async updateAnnouncementWithPayments(eventId: string): Promise<void> {
@@ -1665,7 +1711,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
       return
     }
 
-    const chatId = await this.settingsRepository.getMainChatId()
+    const chatId = await this.getAnnouncementChatId(event)
     if (!chatId) {
       return
     }
@@ -1681,7 +1727,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
       false,
       paidParticipantIds
     )
-    const keyboard = buildInlineKeyboard(event.status as EventStatus)
+    const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
 
     try {
       await this.transport.editMessage(
@@ -1697,13 +1743,20 @@ To announce: ${code(`/event announce ${event.id}`)}`
     }
   }
 
+  private async getAnnouncementChatId(event: Event): Promise<number | null> {
+    if (event.telegramChatId) {
+      return parseInt(event.telegramChatId, 10)
+    }
+    return this.settingsRepository.getMainChatId()
+  }
+
   private async refreshAnnouncement(eventId: string): Promise<void> {
     const event = await this.eventRepository.findById(eventId)
     if (!event?.telegramMessageId) {
       return
     }
 
-    const chatId = await this.settingsRepository.getMainChatId()
+    const chatId = await this.getAnnouncementChatId(event)
     if (!chatId) {
       return
     }
@@ -1723,7 +1776,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
       event.status === 'cancelled',
       paidParticipantIds
     )
-    const keyboard = buildInlineKeyboard(event.status as EventStatus)
+    const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
 
     try {
       await this.transport.editMessage(
@@ -1748,31 +1801,48 @@ To announce: ${code(`/event announce ${event.id}`)}`
       throw new Error(`Event ${id} not found`)
     }
 
-    const chatId = await this.settingsRepository.getMainChatId()
-    if (!chatId) {
-      throw new Error('Chat ID not configured')
+    let chatId: number
+    if (event.isPrivate) {
+      chatId = parseInt(event.ownerId, 10)
+    } else {
+      const mainChatId = await this.settingsRepository.getMainChatId()
+      if (!mainChatId) {
+        throw new Error('Chat ID not configured')
+      }
+      chatId = mainChatId
     }
 
     // Send announcement via transport layer
     const messageText = formatEventMessage(event)
-    const keyboard = buildInlineKeyboard('announced')
+    const keyboard = buildInlineKeyboard('announced', event.isPrivate, event.id)
     const messageId = await this.transport.sendMessage(chatId, messageText, keyboard)
 
-    // Pin the message
-    try {
-      await this.transport.pinMessage(chatId, messageId)
-    } catch {
-      // Ignore pin errors
+    // Pin the message (only for public events in group chat)
+    if (!event.isPrivate) {
+      try {
+        await this.transport.pinMessage(chatId, messageId)
+      } catch {
+        // Ignore pin errors
+      }
     }
 
-    // Update event with telegram_message_id and status
+    // Update event with telegram_message_id, telegramChatId and status
     const updatedEvent = await this.eventRepository.updateEvent(id, {
       telegramMessageId: String(messageId),
+      telegramChatId: String(chatId),
       status: 'announced',
     })
 
     const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
-    void this.transport.logEvent({ type: 'event_announced', eventId: id, date: announcedDate })
+    const ownerLabel = await this.resolveOwnerLabel(event.ownerId)
+    void this.transport.logEvent({
+      type: 'event_announced',
+      eventId: id,
+      date: announcedDate,
+      courts: event.courts,
+      isPrivate: event.isPrivate,
+      ownerLabel,
+    })
 
     return updatedEvent
   }
@@ -1790,7 +1860,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
 
     // Update message if event was announced
     if (sendNotification && event.status === 'announced' && event.telegramMessageId) {
-      const chatId = await this.settingsRepository.getMainChatId()
+      const chatId = await this.getAnnouncementChatId(event)
       if (chatId) {
         const messageId = parseInt(event.telegramMessageId, 10)
         await this.updateAnnouncementMessage(id, chatId, messageId, false, true)
@@ -1840,7 +1910,20 @@ To announce: ${code(`/event announce ${event.id}`)}`
           courts: scaffold.defaultCourts,
           status: 'created',
           ownerId,
+          isPrivate: scaffold.isPrivate,
         })
+
+        // Copy scaffold participants to private event
+        if (scaffold.isPrivate) {
+          const withParticipants = await this.scaffoldRepository.findByIdWithParticipants(
+            scaffold.id
+          )
+          if (withParticipants) {
+            for (const participant of withParticipants.participants) {
+              await this.participantRepository.addToEvent(event.id, participant.id)
+            }
+          }
+        }
 
         // Immediately announce
         await this.announceEvent(event.id)
@@ -1851,11 +1934,15 @@ To announce: ${code(`/event announce ${event.id}`)}`
         )
 
         const createdDate = formatDate(dayjs.tz(event.datetime, config.timezone))
+        const ownerLabel = await this.resolveOwnerLabel(event.ownerId)
         void this.transport.logEvent({
           type: 'event_created',
           eventId: event.id,
           date: createdDate,
           courts: event.courts,
+          status: event.status,
+          isPrivate: event.isPrivate,
+          ownerLabel,
         })
       } catch (error) {
         await this.logger.error(
@@ -1991,7 +2078,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
     await this.transport.sendMessage(
       source.chat.id,
       formatEventEditMenu(event),
-      buildEventEditKeyboard(data.eventId)
+      buildEventEditKeyboard(data.eventId, event.isPrivate, event.status)
     )
   }
 
@@ -2059,6 +2146,83 @@ To announce: ${code(`/event announce ${event.id}`)}`
         }
         break
       }
+      case 'privacy': {
+        if (event.isPrivate && event.status !== 'created') {
+          await ctx.answerCallbackQuery({
+            text: '❌ Cannot make public: event already announced in private chat',
+          })
+          return
+        }
+        await this.eventRepository.updateEvent(entityId, { isPrivate: !event.isPrivate })
+        break
+      }
+      case '+participant': {
+        if (!event.isPrivate) {
+          return
+        }
+        const currentParticipants = await this.participantRepository.getEventParticipants(entityId)
+        const currentIds = new Set(currentParticipants.map((p) => p.participantId))
+        const addStep: HydratedStep<string> = {
+          param: 'participantId',
+          type: 'select',
+          prompt: 'Choose a participant to add:',
+          emptyMessage: `No participants available. Ask them to <a href="https://t.me/${ctx.me.username}">start a chat with me</a>.`,
+          load: async () => {
+            const all = await this.participantRepository.getParticipants()
+            return all
+              .filter((p) => !currentIds.has(p.id))
+              .map((p) => ({
+                value: p.id,
+                label: p.telegramUsername ? `@${p.telegramUsername}` : p.displayName,
+              }))
+          },
+          parse: (v: string) => v,
+        }
+        try {
+          const participantId = await this.wizardService.collect(addStep, ctx)
+          await this.participantRepository.addToEvent(entityId, participantId)
+        } catch (e) {
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
+        }
+        await this.refreshAnnouncement(entityId)
+        return
+      }
+      case '-participant': {
+        if (!event.isPrivate) {
+          return
+        }
+        const participantsForRemove =
+          await this.participantRepository.getEventParticipants(entityId)
+        if (participantsForRemove.length === 0) {
+          return
+        }
+        const removeStep: HydratedStep<string> = {
+          param: 'participantId',
+          type: 'select',
+          prompt: 'Choose a participant to remove:',
+          emptyMessage: 'No participants to remove.',
+          load: async () =>
+            participantsForRemove.map((p) => ({
+              value: p.participantId,
+              label: p.participant.telegramUsername
+                ? `@${p.participant.telegramUsername}`
+                : p.participant.displayName,
+            })),
+          parse: (v: string) => v,
+        }
+        try {
+          const participantId = await this.wizardService.collect(removeStep, ctx)
+          await this.participantRepository.removeFromEvent(entityId, participantId)
+        } catch (e) {
+          if (!(e instanceof WizardCancelledError)) {
+            throw e
+          }
+        }
+        await this.refreshAnnouncement(entityId)
+        return
+      }
       case 'done':
         await this.transport.editMessage(chatId, messageId, formatEventEditMenu(event))
         return // Don't re-render with keyboard
@@ -2071,7 +2235,7 @@ To announce: ${code(`/event announce ${event.id}`)}`
         chatId,
         messageId,
         formatEventEditMenu(updated),
-        buildEventEditKeyboard(entityId)
+        buildEventEditKeyboard(entityId, updated.isPrivate, updated.status)
       )
     }
   }

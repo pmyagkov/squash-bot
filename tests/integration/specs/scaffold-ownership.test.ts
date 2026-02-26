@@ -31,7 +31,7 @@ describe('scaffold-ownership', () => {
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining('✅ Created scaffold'),
+        expect.stringContaining('📋 Scaffold created'),
         expect.anything()
       )
     })
@@ -45,7 +45,7 @@ describe('scaffold-ownership', () => {
 
       // Extract scaffold ID
       const addCall = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes('✅ Created scaffold')
+        text.includes('📋 Scaffold created')
       )
       const scaffoldId = addCall![1].match(/sc_[\w-]+/)![0]
 

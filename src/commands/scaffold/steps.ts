@@ -20,8 +20,11 @@ export const scaffoldSelectStep: WizardStep<string> = {
         let label = date
         if (s.ownerId) {
           const owner = await participantRepo.findByTelegramId(s.ownerId)
-          if (owner?.telegramUsername) {
-            label = `@${owner.telegramUsername} — ${date}`
+          const ownerName = owner?.telegramUsername
+            ? `@${owner.telegramUsername}`
+            : (owner?.displayName ?? null)
+          if (ownerName) {
+            label = `${ownerName} — ${date}`
           }
         }
         return { value: s.id, label }
@@ -86,5 +89,26 @@ export const courtsStep: WizardStep<number> = {
       throw new ParseError('Number of courts must be a positive number')
     }
     return n
+  },
+}
+
+export const privacyStep: WizardStep<boolean> = {
+  param: 'isPrivate',
+  type: 'select',
+  prompt: 'Public or private?',
+  columns: 2,
+  createLoader: () => async () => [
+    { value: 'public', label: '📢 Public' },
+    { value: 'private', label: '🔒 Private' },
+  ],
+  parse: (input: string): boolean => {
+    const normalized = input.trim().toLowerCase()
+    if (normalized === 'private') {
+      return true
+    }
+    if (normalized === 'public') {
+      return false
+    }
+    throw new ParseError('Choose public or private')
   },
 }

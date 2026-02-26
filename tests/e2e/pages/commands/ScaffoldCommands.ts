@@ -17,9 +17,12 @@ export class ScaffoldCommands extends ChatPage {
    * @param courts - Number of courts
    * @returns Response message from bot
    *
-   * Example from architecture.md:
+   * Example:
    * /scaffold create Tue 21:00 2
-   * → Created scaffold sc_1: Tue 21:00, 2 courts
+   * → 📋 Scaffold created
+   * →
+   * → Tue, 21:00
+   * → 🏟 Courts: 2 | 🟢 Active | 📢 Public | sc_1
    */
   async addScaffold(day: string, time: string, courts: number): Promise<string> {
     const command = `/scaffold create ${day} ${time} ${courts}`
@@ -30,10 +33,13 @@ export class ScaffoldCommands extends ChatPage {
    * List all scaffolds
    * @returns Response message from bot
    *
-   * Example from architecture.md:
+   * Example (2-line entity format):
    * /scaffold list
-   * → sc_1: Tue 21:00, 2 courts, active
-   * → sc_2: Sat 18:00, 3 courts, inactive
+   * → Tue, 21:00 | 👑 @owner
+   * → 🏟 Courts: 2 | 🟢 Active | 📢 Public | sc_1
+   * →
+   * → Sat, 18:00 | 👑 @owner
+   * → 🏟 Courts: 3 | ⏸ Paused | 📢 Public | sc_2
    */
   async listScaffolds(): Promise<string> {
     return await this.sendCommand('/scaffold list')
@@ -66,7 +72,7 @@ export class ScaffoldCommands extends ChatPage {
    * @param scaffoldId - Scaffold ID (e.g., "sc_1")
    * @returns Response message from bot
    *
-   * Example from architecture.md:
+   * Example:
    * /scaffold delete sc_1
    * → sc_1 removed
    */
@@ -80,11 +86,11 @@ export class ScaffoldCommands extends ChatPage {
    * @param response - Bot response text
    * @returns Scaffold ID or null if not found
    *
-   * Example:
-   * "Created scaffold sc_1: Tue 21:00, 2 courts" → "sc_1"
+   * Example (confirmation, 2-line entity format):
+   * "📋 Scaffold created\n\nTue, 21:00\n🏟 Courts: 2 | 🟢 Active | 📢 Public | sc_1" → "sc_1"
    */
   parseScaffoldId(response: string): string | null {
-    const match = response.match(/scaffold (sc_[\w-]+)/)
+    const match = response.match(/(sc_[\w-]+)/)
     return match ? match[1] : null
   }
 
@@ -93,8 +99,9 @@ export class ScaffoldCommands extends ChatPage {
    * @param response - Bot response text
    * @returns Array of scaffold objects
    *
-   * Example:
-   * "sc_1: Tue, 21:00, 🏟 Courts: 2, 🟢 Active" → [{ id: "sc_1", day: "Tue", time: "21:00", courts: 2, active: true }]
+   * New 2-line entity format (blank line between entities):
+   * "Tue, 21:00 | 👑 @owner\n🏟 Courts: 2 | 🟢 Active | 📢 Public | sc_1"
+   * → [{ id: "sc_1", day: "Tue", time: "21:00", courts: 2, active: true }]
    */
   parseScaffoldList(response: string): {
     id: string
@@ -111,17 +118,19 @@ export class ScaffoldCommands extends ChatPage {
       active: boolean
     }[] = []
 
-    // Match pattern: sc_1: Tue, 21:00, 🏟 Courts: 2, 🟢 Active (optional: , 👑 @owner)
-    const regex = /(sc_[\w-]+):\s+(\w+),\s+([\d:]+),\s+🏟 Courts:\s+(\d+),\s+(🟢 Active|⏸ Paused)/g
+    // Match 2-line pattern:
+    // Line 1: Tue, 21:00 | 👑 @owner
+    // Line 2: 🏟 Courts: 2 | 🟢 Active | 📢 Public | sc_1
+    const regex = /(\w+),\s+([\d:]+)\s+\|.*\n🏟 Courts:\s+(\d+)\s+\|\s+(🟢 Active|⏸ Paused)\s+\|.*?\|\s+(sc_[\w-]+)/g
     let match
 
     while ((match = regex.exec(response)) !== null) {
       scaffolds.push({
-        id: match[1],
-        day: match[2],
-        time: match[3],
-        courts: parseInt(match[4], 10),
-        active: match[5] === '🟢 Active',
+        id: match[5],
+        day: match[1],
+        time: match[2],
+        courts: parseInt(match[3], 10),
+        active: match[4] === '🟢 Active',
       })
     }
 
@@ -132,9 +141,11 @@ export class ScaffoldCommands extends ChatPage {
    * Verify scaffold was created successfully
    * @param response - Bot response text
    * @returns True if scaffold was created
+   *
+   * New format: "📋 Scaffold created\n\n..."
    */
   isScaffoldCreated(response: string): boolean {
-    return response.includes('Created scaffold') || response.includes('✅')
+    return response.includes('Scaffold created') || response.includes('✅')
   }
 
   /**

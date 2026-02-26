@@ -4,7 +4,7 @@ import { ParseError } from '~/services/wizard/types'
 const MENU_OPTIONS = [
   { value: 'create', label: '🎾 Create' },
   { value: 'list', label: '📋 List' },
-  { value: 'update', label: '✏️ Edit' },
+  { value: 'update', label: '✏️ Update' },
   { value: 'delete', label: '🗑 Delete' },
   { value: 'transfer', label: '👥 Transfer' },
 ]
