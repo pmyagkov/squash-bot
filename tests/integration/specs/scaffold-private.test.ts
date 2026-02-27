@@ -19,6 +19,9 @@ describe('scaffold-private', () => {
     container.resolve('utilityBusiness').init()
     api = mockBot(bot)
     await bot.init()
+    // Pre-register admin participant so middleware's ensureRegistered doesn't log new registration
+    const participantRepo = container.resolve('participantRepository')
+    await participantRepo.findOrCreateParticipant(String(ADMIN_ID), 'admin', 'Admin')
   })
 
   describe('create private scaffold', () => {

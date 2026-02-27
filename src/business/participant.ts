@@ -6,13 +6,19 @@ import type { AppContainer } from '../container'
 
 export class ParticipantBusiness {
   private participantRepository: ParticipantRepo
-  private transport: TelegramTransport
+  private container: AppContainer
   private logger: Logger
 
   constructor(container: AppContainer) {
     this.participantRepository = container.resolve('participantRepository')
-    this.transport = container.resolve('transport')
+    this.container = container
     this.logger = container.resolve('logger')
+  }
+
+  // Resolve transport lazily to avoid cyclic dependency:
+  // TelegramTransport -> ParticipantBusiness -> TelegramTransport
+  private get transport(): TelegramTransport {
+    return this.container.resolve('transport')
   }
 
   async ensureRegistered(
