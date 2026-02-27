@@ -64,7 +64,7 @@ describe('scaffold-private', () => {
         String(ADMIN_ID),
         true
       )
-      const participant = await participantRepo.findOrCreateParticipant(
+      const { participant } = await participantRepo.findOrCreateParticipant(
         '555555555',
         'alice',
         'Alice'
@@ -89,7 +89,7 @@ describe('scaffold-private', () => {
         String(ADMIN_ID),
         true
       )
-      const participant = await participantRepo.findOrCreateParticipant(
+      const { participant } = await participantRepo.findOrCreateParticipant(
         '555555555',
         'alice',
         'Alice'
@@ -114,7 +114,7 @@ describe('scaffold-private', () => {
         String(ADMIN_ID),
         true
       )
-      const participant = await participantRepo.findOrCreateParticipant(
+      const { participant } = await participantRepo.findOrCreateParticipant(
         '555555555',
         'alice',
         'Alice'

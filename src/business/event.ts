@@ -324,7 +324,7 @@ export class EventBusiness {
     const displayName = `${firstName} ${lastName}`.trim() || data.username || `User ${data.userId}`
 
     // Find or create participant
-    const participant = await this.participantRepository.findOrCreateParticipant(
+    const { participant } = await this.participantRepository.findOrCreateParticipant(
       String(data.userId),
       data.username,
       displayName
@@ -757,7 +757,7 @@ export class EventBusiness {
       `${firstName} ${lastName}`.trim() || source.user.username || `User ${source.user.id}`
 
     // Find or create participant
-    const participant = await this.participantRepository.findOrCreateParticipant(
+    const { participant } = await this.participantRepository.findOrCreateParticipant(
       String(source.user.id),
       source.user.username,
       displayName

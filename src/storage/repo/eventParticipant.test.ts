@@ -34,7 +34,11 @@ describe('EventParticipantRepo', () => {
     })
     testEventId = event.id
 
-    const participant = await participantRepo.findOrCreateParticipant('123', 'test', 'Test User')
+    const { participant } = await participantRepo.findOrCreateParticipant(
+      '123',
+      'test',
+      'Test User'
+    )
     testParticipantId = participant.id
   })
 
@@ -132,7 +136,11 @@ describe('EventParticipantRepo', () => {
     })
 
     it('should not affect other participants', async () => {
-      const participant2 = await participantRepo.findOrCreateParticipant('456', 'user2', 'User Two')
+      const { participant: participant2 } = await participantRepo.findOrCreateParticipant(
+        '456',
+        'user2',
+        'User Two'
+      )
 
       // Add two participants
       await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
@@ -169,8 +177,12 @@ describe('EventParticipantRepo', () => {
 
   describe('getEventParticipants', () => {
     it('should return all participants for event', async () => {
-      const participant2 = await participantRepo.findOrCreateParticipant('456', 'user2', 'User Two')
-      const participant3 = await participantRepo.findOrCreateParticipant(
+      const { participant: participant2 } = await participantRepo.findOrCreateParticipant(
+        '456',
+        'user2',
+        'User Two'
+      )
+      const { participant: participant3 } = await participantRepo.findOrCreateParticipant(
         '789',
         'user3',
         'User Three'

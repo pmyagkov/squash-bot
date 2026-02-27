@@ -86,8 +86,8 @@ describe('fallback-notification', () => {
     const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
     // Add participants via repo (private events don't use join button)
-    const alice = await participantRepo.findOrCreateParticipant('111', 'alice', 'Alice')
-    const bob = await participantRepo.findOrCreateParticipant('222', 'bob', 'Bob')
+    const { participant: alice } = await participantRepo.findOrCreateParticipant('111', 'alice', 'Alice')
+    const { participant: bob } = await participantRepo.findOrCreateParticipant('222', 'bob', 'Bob')
     await participantRepo.addToEvent(event.id, alice.id)
     await participantRepo.addToEvent(event.id, bob.id)
 

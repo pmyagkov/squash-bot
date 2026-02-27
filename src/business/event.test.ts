@@ -417,7 +417,7 @@ describe('EventBusiness', () => {
       eventRepo.findById.mockResolvedValue(event)
 
       const participant = buildParticipant({ id: 'p_new', telegramId: '555' })
-      participantRepo.findOrCreateParticipant.mockResolvedValue(participant)
+      participantRepo.findOrCreateParticipant.mockResolvedValue({ participant, isNew: true })
       participantRepo.addToEvent.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_join', participantId: 'p_new', participant }),
@@ -452,7 +452,7 @@ describe('EventBusiness', () => {
       eventRepo.findById.mockResolvedValue(event)
 
       const participant = buildParticipant({ id: 'p_existing' })
-      participantRepo.findOrCreateParticipant.mockResolvedValue(participant)
+      participantRepo.findOrCreateParticipant.mockResolvedValue({ participant, isNew: false })
       participantRepo.addToEvent.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({
@@ -490,7 +490,7 @@ describe('EventBusiness', () => {
       eventRepo.findById.mockResolvedValue(event)
 
       const participant = buildParticipant()
-      participantRepo.findOrCreateParticipant.mockResolvedValue(participant)
+      participantRepo.findOrCreateParticipant.mockResolvedValue({ participant, isNew: false })
       participantRepo.addToEvent.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_edit' }),
