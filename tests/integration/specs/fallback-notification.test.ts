@@ -33,12 +33,12 @@ describe('fallback-notification', () => {
 
   async function setupAnnouncedEventWithParticipants(
     courts: number,
-    participantData: Array<{
+    participantData: {
       userId: number
       username?: string
       firstName: string
       participations?: number
-    }>
+    }[]
   ) {
     const event = await eventRepository.createEvent({
       datetime: new Date('2024-01-20T19:00:00Z'),
@@ -68,6 +68,58 @@ describe('fallback-notification', () => {
 
     return { event: announcedEvent!, messageId }
   }
+
+  it('should send fallback to owner DM for private event', async () => {
+    // Create private event directly via repo (with participants already added)
+    const participantRepo = container.resolve('participantRepository')
+
+    const event = await eventRepository.createEvent({
+      datetime: new Date('2024-01-20T19:00:00Z'),
+      courts: 2,
+      status: 'created',
+      ownerId: String(ADMIN_ID),
+      isPrivate: true,
+    })
+    await eventBusiness.announceEvent(event.id)
+
+    const announcedEvent = await eventRepository.findById(event.id)
+    const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
+
+    // Add participants via repo (private events don't use join button)
+    const alice = await participantRepo.findOrCreateParticipant('111', 'alice', 'Alice')
+    const bob = await participantRepo.findOrCreateParticipant('222', 'bob', 'Bob')
+    await participantRepo.addToEvent(event.id, alice.id)
+    await participantRepo.addToEvent(event.id, bob.id)
+
+    // Make DM to user 222 (bob) fail
+    api.sendMessage.mockImplementation(async (chatId: number | string) => {
+      if (chatId === 222) throw new Error("Forbidden: bot can't initiate conversation")
+      return {
+        message_id: Math.floor(Math.random() * 1000000),
+        chat: { id: chatId, type: 'group', title: 'Test Chat' },
+        date: Math.floor(Date.now() / 1000),
+        from: { id: 0, is_bot: true, first_name: 'Bot' },
+      } as Message.TextMessage
+    })
+    api.sendMessage.mockClear()
+
+    // Finalize — triggers payment DMs and fallback
+    const finalizeUpdate = createCallbackQueryUpdate({
+      userId: ADMIN_ID,
+      chatId: ADMIN_ID, // private event announcement is in owner DM
+      messageId,
+      data: 'event:finalize',
+    })
+    await bot.handleUpdate(finalizeUpdate)
+
+    // Fallback should go to owner DM (ADMIN_ID), not to TEST_CHAT_ID
+    const fallbackCall = api.sendMessage.mock.calls.find(
+      ([chatId, text]) =>
+        chatId === ADMIN_ID && typeof text === 'string' && text.includes("can't reach")
+    )
+    expect(fallbackCall).toBeDefined()
+    expect(fallbackCall![1]).toContain('@bob')
+  })
 
   it('should send fallback message when DM delivery fails', async () => {
     const { messageId } = await setupAnnouncedEventWithParticipants(2, [

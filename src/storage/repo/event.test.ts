@@ -23,6 +23,8 @@ describe('calculateNextOccurrence', () => {
         time: '21:00',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -42,6 +44,8 @@ describe('calculateNextOccurrence', () => {
         time: '18:00',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -61,6 +65,8 @@ describe('calculateNextOccurrence', () => {
         time: '11:00', // Earlier than current time (12:00)
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -80,6 +86,8 @@ describe('calculateNextOccurrence', () => {
         time: '10:00',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -102,6 +110,8 @@ describe('calculateNextOccurrence', () => {
         time: '11:00', // Earlier than current time
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -120,6 +130,8 @@ describe('calculateNextOccurrence', () => {
         time: '20:00', // Later than current time
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -139,6 +151,8 @@ describe('calculateNextOccurrence', () => {
         time: '09:30',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -153,6 +167,8 @@ describe('calculateNextOccurrence', () => {
         time: '00:00',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -167,6 +183,8 @@ describe('calculateNextOccurrence', () => {
         time: '23:59',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -181,6 +199,8 @@ describe('calculateNextOccurrence', () => {
         time: '2100',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       expect(() => calculateNextOccurrence(scaffold)).toThrow(
@@ -195,6 +215,8 @@ describe('calculateNextOccurrence', () => {
         time: '24:00',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       expect(() => calculateNextOccurrence(scaffold)).toThrow(
@@ -209,6 +231,8 @@ describe('calculateNextOccurrence', () => {
         time: '12:60',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       expect(() => calculateNextOccurrence(scaffold)).toThrow(
@@ -236,6 +260,8 @@ describe('calculateNextOccurrence', () => {
           time: '19:00',
           defaultCourts: 2,
           isActive: true,
+          isPrivate: false,
+          participants: [],
         }
 
         const nextOccurrence = calculateNextOccurrence(scaffold)
@@ -250,6 +276,8 @@ describe('calculateNextOccurrence', () => {
         time: '19:00',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       expect(() => calculateNextOccurrence(scaffold)).toThrow(
@@ -264,6 +292,8 @@ describe('calculateNextOccurrence', () => {
         time: '19:00',
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       expect(() => calculateNextOccurrence(scaffold)).toThrow('Invalid scaffold: missing dayOfWeek')
@@ -278,6 +308,8 @@ describe('calculateNextOccurrence', () => {
         time: undefined as unknown as string,
         defaultCourts: 2,
         isActive: true,
+        isPrivate: false,
+        participants: [],
       }
 
       expect(() => calculateNextOccurrence(scaffold)).toThrow('Invalid scaffold: missing time')

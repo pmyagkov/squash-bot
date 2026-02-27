@@ -51,6 +51,7 @@ export class EventRepo {
     courts: number
     status?: EventStatus
     ownerId: string
+    isPrivate?: boolean
   }): Promise<Event> {
     const id = `ev_${nanoid(8)}`
     const status = data.status || 'created'
@@ -69,6 +70,7 @@ export class EventRepo {
         courts: data.courts,
         status,
         ownerId: data.ownerId,
+        isPrivate: data.isPrivate ?? false,
       })
       .returning()
 
@@ -98,6 +100,8 @@ export class EventRepo {
       courts?: number
       ownerId?: string
       datetime?: Date
+      isPrivate?: boolean
+      telegramChatId?: string
     }
   ): Promise<Event> {
     // Validate status if provided
@@ -118,6 +122,8 @@ export class EventRepo {
         ...(updates.courts !== undefined && { courts: updates.courts }),
         ...(updates.ownerId !== undefined && { ownerId: updates.ownerId }),
         ...(updates.datetime !== undefined && { datetime: updates.datetime }),
+        ...(updates.isPrivate !== undefined && { isPrivate: updates.isPrivate }),
+        ...(updates.telegramChatId !== undefined && { telegramChatId: updates.telegramChatId }),
       })
       .where(eq(events.id, id))
       .returning()
@@ -139,6 +145,8 @@ export class EventRepo {
       telegramMessageId: row.telegramMessageId ?? undefined,
       paymentMessageId: row.paymentMessageId ?? undefined,
       ownerId: row.ownerId,
+      isPrivate: row.isPrivate,
+      telegramChatId: row.telegramChatId ?? undefined,
       deletedAt: row.deletedAt ?? undefined,
     }
   }

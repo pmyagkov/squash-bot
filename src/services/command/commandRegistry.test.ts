@@ -7,7 +7,9 @@ describe('CommandRegistry', () => {
     const registry = new CommandRegistry()
     const def: CommandDef<{ eventId: string }> = {
       parser: ({ args }) => {
-        if (args.length > 0) return { parsed: { eventId: args[0] }, missing: [] }
+        if (args.length > 0) {
+          return { parsed: { eventId: args[0] }, missing: [] }
+        }
         return { parsed: {}, missing: ['eventId'] }
       },
       steps: [],

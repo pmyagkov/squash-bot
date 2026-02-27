@@ -349,7 +349,7 @@ describe('EventBusiness', () => {
       )
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
-        expect.stringContaining('Created event')
+        expect.stringContaining('Event created')
       )
     })
 

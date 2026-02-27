@@ -26,6 +26,14 @@ export const BTN_TURN_ON = '▶️ Turn on'
 export const BTN_TURN_OFF = '⏸ Turn off'
 export const BTN_DONE = '✅ Done'
 
+// Private events
+export const BTN_ADD_PARTICIPANT = '➕ Participant'
+export const BTN_REMOVE_PARTICIPANT = '➖ Participant'
+export const BTN_MAKE_PRIVATE = '🔒 Make private'
+export const BTN_MAKE_PUBLIC = '📢 Make public'
+export const BTN_PARTICIPANTS = '👥 Participants'
+export const BTN_BACK = '⬅️ Back'
+
 // Wizard buttons
 export const BTN_WIZARD_CANCEL = '❌ Cancel'
 
@@ -35,3 +43,14 @@ export const formatCourts = (n: number): string => `🏟 Courts: ${n}`
 // Status labels
 export const formatActiveStatus = (isActive: boolean): string =>
   isActive ? '🟢 Active' : '⏸ Paused'
+
+const EVENT_STATUS_LABELS: Record<string, string> = {
+  created: '📝 Created',
+  announced: '📣 Announced',
+  finalized: '✅ Finalized',
+  cancelled: '❌ Cancelled',
+}
+export const formatEventStatus = (status: string): string => EVENT_STATUS_LABELS[status] ?? status
+
+export const formatPrivacy = (isPrivate: boolean): string =>
+  isPrivate ? '🔒 Private' : '📢 Public'

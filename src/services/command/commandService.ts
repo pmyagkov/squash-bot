@@ -1,6 +1,7 @@
 import type { Context } from 'grammy'
 import type { AppContainer } from '~/container'
 import type { RegisteredCommand, SourceContext } from './types'
+import type { CommandRegistry } from './commandRegistry'
 import type { WizardService } from '~/services/wizard/wizardService'
 import type { HydratedStep, WizardStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
@@ -32,14 +33,27 @@ export class CommandService {
       // 3. Collect missing params via wizard
       for (const param of result.missing) {
         const step = registered.steps.find((s) => s.param === param)
-        if (!step) throw new Error(`No wizard step defined for param "${String(param)}"`)
+        if (!step) {
+          throw new Error(`No wizard step defined for param "${String(param)}"`)
+        }
 
         const hydrated = this.hydrateStep(step)
         ;(result.parsed as Record<string, unknown>)[param as string] =
           await this.wizardService.collect(hydrated, ctx)
       }
 
-      // 4. Build source context
+      // 4. Handle redirect (menu commands)
+      if (registered.redirect) {
+        const targetKey = registered.redirect(result.parsed)
+        const registry: CommandRegistry = this.container.resolve('commandRegistry')
+        const target = registry.get(targetKey)
+        if (target) {
+          await this.run({ registered: target, args: [], ctx })
+        }
+        return
+      }
+
+      // 5. Build source context
       const chatType = ctx.chat?.type === 'private' ? ('private' as const) : ('group' as const)
       const chatTitle = ctx.chat && 'title' in ctx.chat ? ctx.chat.title : undefined
       const chat = { id: ctx.chat?.id ?? 0, type: chatType, title: chatTitle }
@@ -53,7 +67,7 @@ export class CommandService {
         ? { type: 'callback', callbackId: ctx.callbackQuery.id, chat, user }
         : { type: 'command', chat, user }
 
-      // 5. Call handler
+      // 6. Call handler
       await registered.handler(result.parsed, source)
     } catch (error) {
       if (error instanceof WizardCancelledError) {

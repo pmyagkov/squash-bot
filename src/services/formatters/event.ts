@@ -13,6 +13,8 @@ import {
   BTN_CANCEL_EVENT,
   BTN_RESTORE,
   BTN_UNFINALIZE,
+  BTN_ADD_PARTICIPANT,
+  BTN_REMOVE_PARTICIPANT,
   formatDate,
   formatCourts,
 } from '~/ui/constants'
@@ -36,7 +38,11 @@ export interface EventParticipantDisplay {
 /**
  * Builds inline keyboard based on event status
  */
-export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
+export function buildInlineKeyboard(
+  status: EventStatus,
+  isPrivate?: boolean,
+  eventId?: string
+): InlineKeyboard {
   if (status === 'cancelled') {
     return new InlineKeyboard().text(BTN_RESTORE, 'event:undo-cancel')
   }
@@ -45,7 +51,20 @@ export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
     return new InlineKeyboard().text(BTN_UNFINALIZE, 'event:undo-finalize')
   }
 
-  // Active event (announced status)
+  // Private event — owner manages participants manually
+  if (isPrivate && eventId) {
+    return new InlineKeyboard()
+      .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
+      .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
+      .row()
+      .text(BTN_ADD_COURT, 'event:add-court')
+      .text(BTN_REMOVE_COURT, 'event:delete-court')
+      .row()
+      .text(BTN_FINALIZE, 'event:finalize')
+      .text(BTN_CANCEL_EVENT, 'event:cancel')
+  }
+
+  // Public event — self-serve join/leave
   return new InlineKeyboard()
     .text(BTN_JOIN, 'event:join')
     .text(BTN_LEAVE, 'event:leave')
@@ -62,8 +81,9 @@ export function buildInlineKeyboard(status: EventStatus): InlineKeyboard {
  */
 export function formatEventMessage(event: Event): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
+  const icon = event.isPrivate ? '🔒' : '🎾'
 
-  return `🎾 Squash: ${formatDate(eventDate)}
+  return `${icon} Squash: ${formatDate(eventDate)}
 ${formatCourts(event.courts)}
 
 Participants:
@@ -81,8 +101,9 @@ export function formatAnnouncementText(
   paidParticipantIds: Set<string> = new Set()
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
+  const icon = event.isPrivate ? '🔒' : '🎾'
 
-  let messageText = `🎾 Squash: ${formatDate(eventDate)}\n${formatCourts(event.courts)}\n\n`
+  let messageText = `${icon} Squash: ${formatDate(eventDate)}\n${formatCourts(event.courts)}\n\n`
 
   // Add participants
   if (participants.length === 0) {
@@ -162,16 +183,18 @@ export function formatPersonalPaymentText(
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const totalCost = courts * courtPrice
 
-  // Convert chatId for deep link (remove -100 prefix for supergroups)
-  // tg:// protocol works in both web and production mobile app
-  const chatIdStr = String(chatId).replace(/^-100/, '')
-  const link = `tg://privatepost?channel=${chatIdStr}&post=${messageId}`
-
   let text = `💰 Payment for Squash ${formatDate(eventDate)}\n\n`
   text += `${formatCourts(courts)} × ${courtPrice} din = ${totalCost} din\n`
   text += `Participants: ${totalParticipants}\n`
-  text += `<a href="${link}">Full details</a>\n\n`
-  text += `Your amount: ${amount} din`
+
+  // Private events have no group message to link to
+  if (!event.isPrivate) {
+    const chatIdStr = String(chatId).replace(/^-100/, '')
+    const link = `tg://privatepost?channel=${chatIdStr}&post=${messageId}`
+    text += `<a href="${link}">Full details</a>\n`
+  }
+
+  text += `\nYour amount: ${amount} din`
 
   return text
 }

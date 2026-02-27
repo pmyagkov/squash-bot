@@ -43,9 +43,22 @@ export class ParticipantRepo {
     username?: string,
     displayName?: string
   ): Promise<Participant> {
-    // Try to find existing participant
     const existing = await this.findByTelegramId(telegramId)
     if (existing) {
+      // Update if username or displayName changed
+      const newUsername = username ?? existing.telegramUsername
+      const newDisplayName = displayName || existing.displayName
+      if (newUsername !== existing.telegramUsername || newDisplayName !== existing.displayName) {
+        const [updated] = await db
+          .update(participants)
+          .set({
+            telegramUsername: newUsername,
+            displayName: newDisplayName,
+          })
+          .where(eq(participants.id, existing.id))
+          .returning()
+        return this.toDomain(updated)
+      }
       return existing
     }
 

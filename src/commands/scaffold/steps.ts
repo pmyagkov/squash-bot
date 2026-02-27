@@ -1,5 +1,6 @@
 import type { WizardStep } from '~/services/wizard/types'
 import { ParseError } from '~/services/wizard/types'
+import { formatParticipantLabel } from '~/services/formatters/participant'
 import type { DayOfWeek } from '~/types'
 import { parseDayOfWeek } from '~/helpers/dateTime'
 
@@ -20,7 +21,9 @@ export const scaffoldSelectStep: WizardStep<string> = {
         let label = date
         if (s.ownerId) {
           const owner = await participantRepo.findByTelegramId(s.ownerId)
-          if (owner?.telegramUsername) label = `@${owner.telegramUsername} — ${date}`
+          if (owner) {
+            label = `${formatParticipantLabel(owner)} — ${date}`
+          }
         }
         return { value: s.id, label }
       })
@@ -34,7 +37,9 @@ export const usernameStep: WizardStep<string> = {
   prompt: 'Enter target username (e.g. @username):',
   parse: (input: string): string => {
     const trimmed = input.trim()
-    if (!trimmed) throw new ParseError('Username cannot be empty')
+    if (!trimmed) {
+      throw new ParseError('Username cannot be empty')
+    }
     return trimmed.startsWith('@') ? trimmed.substring(1) : trimmed
   },
 }
@@ -47,7 +52,9 @@ export const dayStep: WizardStep<DayOfWeek> = {
   createLoader: () => async () => DAYS.map((d) => ({ value: d, label: d })),
   parse: (input: string): DayOfWeek => {
     const day = parseDayOfWeek(input)
-    if (!day) throw new ParseError(`Invalid day: ${input}. Use Mon, Tue, Wed, Thu, Fri, Sat, Sun`)
+    if (!day) {
+      throw new ParseError(`Invalid day: ${input}. Use Mon, Tue, Wed, Thu, Fri, Sat, Sun`)
+    }
     return day
   },
 }
@@ -76,7 +83,30 @@ export const courtsStep: WizardStep<number> = {
   ],
   parse: (input: string): number => {
     const n = parseInt(input, 10)
-    if (isNaN(n) || n < 1) throw new ParseError('Number of courts must be a positive number')
+    if (isNaN(n) || n < 1) {
+      throw new ParseError('Number of courts must be a positive number')
+    }
     return n
+  },
+}
+
+export const privacyStep: WizardStep<boolean> = {
+  param: 'isPrivate',
+  type: 'select',
+  prompt: 'Public or private?',
+  columns: 2,
+  createLoader: () => async () => [
+    { value: 'public', label: '📢 Public' },
+    { value: 'private', label: '🔒 Private' },
+  ],
+  parse: (input: string): boolean => {
+    const normalized = input.trim().toLowerCase()
+    if (normalized === 'private') {
+      return true
+    }
+    if (normalized === 'public') {
+      return false
+    }
+    throw new ParseError('Choose public or private')
   },
 }

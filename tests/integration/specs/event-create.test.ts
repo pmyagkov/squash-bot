@@ -134,17 +134,18 @@ describe('event-create', () => {
 
           // Check success message format
           const call = api.sendMessage.mock.calls.find(([, text]) =>
-            text.includes('✅ Created event')
+            text.includes('📅 Event created')
           )
           expect(call).toBeDefined()
-          expect(call![1]).toContain(`✅ Created event <code>${event.id}</code>`)
+          expect(call![1]).toContain('📅 Event created')
           expect(call![1]).toContain('🏟 Courts: 2')
+          expect(call![1]).toContain(`<code>${event.id}</code>`)
           expect(call![1]).toContain(`To announce: <code>/event announce ${event.id}</code>`)
           // Check message format: should match pattern
-          // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: <code>/event announce ev_xxx</code>"
+          // Format: "📅 Event created\n\nDay, DD Mon, HH:mm\n🏟 Courts: N | STATUS | PRIVACY | <code>ev_xxx</code>\nTo announce: <code>/event announce ev_xxx</code>"
           // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
           expect(call![1]).toMatch(
-            /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: <code>\/event announce ev_[\w-]+<\/code>$/
+            /^📅 Event created\n\n[A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}\n🏟 Courts: \d+ \| .+ \| .+ \| <code>ev_[\w-]+<\/code>\n\nTo announce: <code>\/event announce ev_[\w-]+<\/code>$/
           )
         })
 
@@ -493,20 +494,21 @@ describe('event-create', () => {
         // Check that bot sent a response with correct format
         expect(api.sendMessage).toHaveBeenCalled()
         const successCall = api.sendMessage.mock.calls.find(([, text]) =>
-          text.includes('✅ Created event')
+          text.includes('📅 Event created')
         )
         expect(successCall).toBeDefined()
 
         // Verify message contains all required parts
-        expect(successCall![1]).toContain(`✅ Created event <code>${createdEvent.id}</code>`)
+        expect(successCall![1]).toContain('📅 Event created')
         expect(successCall![1]).toContain('🏟 Courts: 2')
+        expect(successCall![1]).toContain(`<code>${createdEvent.id}</code>`)
         expect(successCall![1]).toContain(`To announce: <code>/event announce ${createdEvent.id}</code>`)
 
         // Check full message format matches expected pattern
-        // Format: "✅ Created event ev_xxx: Day, DD Mon, HH:mm, 🏟 Courts: N\nTo announce: <code>/event announce ev_xxx</code>"
+        // Format: "📅 Event created\n\nDay, DD Mon, HH:mm\n🏟 Courts: N | STATUS | PRIVACY | <code>ev_xxx</code>\nTo announce: <code>/event announce ev_xxx</code>"
         // Note: nanoid can generate IDs with hyphens and underscores, so we use [\w-]+ instead of \w+
         expect(successCall![1]).toMatch(
-          /^✅ Created event <code>ev_[\w-]+<\/code>: [A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}, 🏟 Courts: \d+\nTo announce: <code>\/event announce ev_[\w-]+<\/code>$/
+          /^📅 Event created\n\n[A-Za-z]{3}, \d{1,2} [A-Za-z]{3}, \d{2}:\d{2}\n🏟 Courts: \d+ \| .+ \| .+ \| <code>ev_[\w-]+<\/code>\n\nTo announce: <code>\/event announce ev_[\w-]+<\/code>$/
         )
       })
     })
@@ -601,12 +603,31 @@ describe('event-create', () => {
           expect.anything()
         )
 
-        // Step 4: Enter courts → handler runs
+        // Step 4: Enter courts → privacyStep
         api.sendMessage.mockClear()
         await bot.handleUpdate(
           createTextMessageUpdate('2', {
             userId: ADMIN_ID,
             chatId: TEST_CHAT_ID,
+          })
+        )
+        await tick()
+
+        // Verify privacy prompt was sent
+        expect(api.sendMessage).toHaveBeenCalledWith(
+          TEST_CHAT_ID,
+          expect.stringContaining('Public or private'),
+          expect.anything()
+        )
+
+        // Step 5: Select privacy → handler runs
+        api.sendMessage.mockClear()
+        await bot.handleUpdate(
+          createCallbackQueryUpdate({
+            userId: ADMIN_ID,
+            chatId: TEST_CHAT_ID,
+            messageId: 1,
+            data: 'wizard:select:public',
           })
         )
 
@@ -615,7 +636,7 @@ describe('event-create', () => {
         // Verify event was created
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('✅ Created event'),
+          expect.stringContaining('📅 Event created'),
           expect.anything()
         )
 
@@ -670,7 +691,7 @@ describe('event-create', () => {
 
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining('✅ Created event'),
+          expect.stringContaining('📅 Event created'),
           expect.anything()
         )
 
@@ -745,7 +766,7 @@ describe('event-create', () => {
         // Check success message includes announce instruction
         expect(api.sendMessage).toHaveBeenCalledWith(
           TEST_CHAT_ID,
-          expect.stringContaining(`✅ Created event`),
+          expect.stringContaining(`📅 Event created`),
           expect.anything()
         )
         expect(api.sendMessage).toHaveBeenCalledWith(
@@ -943,7 +964,7 @@ describe('event-create', () => {
 
       // Verify logEvent notification was sent
       const logEventCall = api.sendMessage.mock.calls.find(
-        ([, text]) => typeof text === 'string' && text.includes('📅 Event created:')
+        ([, text]) => typeof text === 'string' && text.includes('📅 Event created')
       )
       expect(logEventCall).toBeDefined()
     })
@@ -1048,6 +1069,119 @@ describe('event-create', () => {
 
       const events = await eventRepository.getEvents()
       expect(events).toHaveLength(0)
+    })
+  })
+
+  describe('subcommand menu', () => {
+    let bot: Bot
+    let api: BotApiMock
+    let container: TestContainer
+
+    beforeEach(async () => {
+      bot = new Bot('test-token')
+      container = createTestContainer(bot)
+      container.resolve('eventBusiness').init()
+      container.resolve('scaffoldBusiness').init()
+      container.resolve('utilityBusiness').init()
+      api = mockBot(bot)
+      await bot.init()
+    })
+
+    it('select create → dispatches to create wizard', async () => {
+      // Step 1: Send /event (no args) — wizard shows menu buttons
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      // Verify menu prompt with inline keyboard
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Choose an action'),
+        expect.objectContaining({
+          reply_markup: expect.objectContaining({
+            inline_keyboard: expect.arrayContaining([
+              expect.arrayContaining([
+                expect.objectContaining({ text: '🎾 Create', callback_data: 'wizard:select:create' }),
+              ]),
+            ]),
+          }),
+        })
+      )
+
+      // Step 2: Select "create" via callback
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:create',
+        })
+      )
+      await tick()
+
+      // Verify date prompt appeared (from event:create wizard)
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Choose a date'),
+        expect.anything()
+      )
+    })
+
+    it('select list → shows event list', async () => {
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:select:list',
+        })
+      )
+      await tick()
+
+      // event:list handler should have been called
+      // It either shows events or "no events" message
+      expect(api.sendMessage).toHaveBeenCalled()
+    })
+
+    it('cancel wizard → no command dispatched', async () => {
+      bot.handleUpdate(
+        createTextMessageUpdate('/event', {
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+        })
+      )
+      await tick()
+
+      api.sendMessage.mockClear()
+      await bot.handleUpdate(
+        createCallbackQueryUpdate({
+          userId: ADMIN_ID,
+          chatId: TEST_CHAT_ID,
+          messageId: 1,
+          data: 'wizard:cancel',
+        })
+      )
+      await tick()
+
+      // Should only see "Cancelled." message, no subcommand output
+      const cancelCall = api.sendMessage.mock.calls.find(
+        ([, text]) => typeof text === 'string' && text.includes('Cancelled')
+      )
+      expect(cancelCall).toBeDefined()
     })
   })
 })

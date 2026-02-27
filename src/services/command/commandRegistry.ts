@@ -18,6 +18,18 @@ export class CommandRegistry {
     })
   }
 
+  registerMenu<T>(key: string, def: CommandDef<T>, redirect: (data: T) => string): void {
+    if (this.commands.has(key)) {
+      throw new Error(`Command "${key}" is already registered`)
+    }
+    this.commands.set(key, {
+      parser: def.parser as RegisteredCommand['parser'],
+      steps: def.steps,
+      handler: async () => {},
+      redirect: redirect as RegisteredCommand['redirect'],
+    })
+  }
+
   get(key: string): RegisteredCommand | undefined {
     return this.commands.get(key)
   }

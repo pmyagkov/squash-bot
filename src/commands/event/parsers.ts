@@ -15,7 +15,9 @@ export async function resolveEventId({
   if (ctx.callbackQuery?.message) {
     const repo = container.resolve('eventRepository')
     const event = await repo.findByMessageId(String(ctx.callbackQuery.message.message_id))
-    if (!event) throw new ParseError('Event not found for this message')
+    if (!event) {
+      throw new ParseError('Event not found for this message')
+    }
     return { parsed: { eventId: event.id }, missing: [] }
   }
 
@@ -37,7 +39,9 @@ export function resolveEventIdAndUsername({
 }
 
 export function resolveDeletedEventId({ args }: ParserInput): ParseResult<{ eventId: string }> {
-  if (args.length >= 1) return { parsed: { eventId: args[0] }, missing: [] }
+  if (args.length >= 1) {
+    return { parsed: { eventId: args[0] }, missing: [] }
+  }
   return { parsed: {}, missing: [], error: 'Usage: /event undo-delete <eventId>' }
 }
 
