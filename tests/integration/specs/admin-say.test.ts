@@ -85,10 +85,10 @@ describe('admin-say', () => {
     )
     await tick()
 
-    // Fallback message to group with mention
+    // Standard fallback notification to group (not the original message)
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      '@unknown, Sorry!',
+      expect.stringContaining('start a chat with me'),
       expect.anything()
     )
     // Confirmation about fallback
@@ -113,10 +113,10 @@ describe('admin-say', () => {
     )
     await tick()
 
-    // Fallback message to group with mention
+    // Standard fallback notification to group (not the original message)
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      '@failuser, Hello!',
+      expect.stringContaining('start a chat with me'),
       expect.anything()
     )
   })

@@ -6,6 +6,7 @@ import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { AppContainer } from '../container'
 import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
 import { sayDef, type SayData } from '~/commands/utility/say'
+import { formatFallbackNotificationText } from '~/services/formatters/event'
 
 /**
  * Business logic for utility commands
@@ -132,10 +133,14 @@ Use /help to see available commands.`
     const participant = await this.participantRepository.findByUsername(username)
 
     if (!participant?.telegramId) {
-      await this.transport.sendMessage(mainChatId, `${data.target}, ${data.message}`)
+      const fallback = formatFallbackNotificationText(
+        [data.target],
+        this.transport.getBotInfo().username ?? ''
+      )
+      await this.transport.sendMessage(mainChatId, fallback)
       await this.transport.sendMessage(
         source.chat.id,
-        `User ${data.target} not found, sent to group chat`
+        `User ${data.target} not found, sent fallback to group chat`
       )
       return
     }
@@ -144,11 +149,15 @@ Use /help to see available commands.`
       await this.transport.sendMessage(Number(participant.telegramId), data.message)
       await this.transport.sendMessage(source.chat.id, `Message sent to ${data.target}`)
     } catch {
-      // Fallback: send to group chat with mention
-      await this.transport.sendMessage(mainChatId, `${data.target}, ${data.message}`)
+      // Fallback: send standard notification to group chat
+      const fallback = formatFallbackNotificationText(
+        [data.target],
+        this.transport.getBotInfo().username ?? ''
+      )
+      await this.transport.sendMessage(mainChatId, fallback)
       await this.transport.sendMessage(
         source.chat.id,
-        `Sent to group chat (DM to ${data.target} failed)`
+        `Sent fallback to group chat (DM to ${data.target} failed)`
       )
     }
   }
