@@ -318,17 +318,12 @@ export class EventBusiness {
       return
     }
 
-    // Build display name from available data
-    const firstName = data.firstName || ''
-    const lastName = data.lastName || ''
-    const displayName = `${firstName} ${lastName}`.trim() || data.username || `User ${data.userId}`
-
-    // Find or create participant
-    const { participant } = await this.participantRepository.findOrCreateParticipant(
-      String(data.userId),
-      data.username,
-      displayName
-    )
+    // Participant was registered by middleware
+    const participant = await this.participantRepository.findByTelegramId(String(data.userId))
+    if (!participant) {
+      await this.transport.answerCallback(data.callbackId, 'Registration failed. Please try again.')
+      return
+    }
 
     // Add to event
     await this.participantRepository.addToEvent(event.id, participant.id)
@@ -343,7 +338,7 @@ export class EventBusiness {
     void this.transport.logEvent({
       type: 'participant_joined',
       eventId: event.id,
-      userName: displayName,
+      userName: participant.displayName,
     })
   }
 
@@ -750,18 +745,12 @@ export class EventBusiness {
       return
     }
 
-    // Build display name from SourceContext
-    const firstName = source.user.firstName || ''
-    const lastName = source.user.lastName || ''
-    const displayName =
-      `${firstName} ${lastName}`.trim() || source.user.username || `User ${source.user.id}`
-
-    // Find or create participant
-    const { participant } = await this.participantRepository.findOrCreateParticipant(
-      String(source.user.id),
-      source.user.username,
-      displayName
-    )
+    // Participant was registered by middleware
+    const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+    if (!participant) {
+      await this.transport.sendMessage(source.chat.id, 'Registration failed. Please try again.')
+      return
+    }
 
     // Add to event
     await this.participantRepository.addToEvent(event.id, participant.id)
@@ -780,7 +769,7 @@ export class EventBusiness {
     void this.transport.logEvent({
       type: 'participant_joined',
       eventId: event.id,
-      userName: displayName,
+      userName: participant.displayName,
     })
   }
 
