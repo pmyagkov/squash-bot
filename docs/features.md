@@ -1073,9 +1073,10 @@ Initialize conversation with bot to enable personal messages.
 
 **Flow:**
 1. User sends `/start` command to bot (in private chat)
-2. Bot sends welcome message
-3. Conversation initialized → bot can now send personal notifications to this user
-4. Future payment notifications will be delivered successfully
+2. Bot registers user as participant (findOrCreateParticipant with telegram ID, username, display name)
+3. Bot sends welcome message
+4. Conversation initialized → bot can now send personal notifications to this user
+5. Future payment notifications will be delivered successfully
 
 **Welcome message:**
 ```
@@ -1102,10 +1103,32 @@ To see your history: /my history
 
 ## Service commands
 
-### say
+### admin-say ✅
 
-/admin say любой текст, разделённый пробелами до конца строки. — Текст отправляется в общий чат от имени бота.
-/admin say @username любой текст — Текст отправляется в личку человеку.
+Send a message from the bot to the group chat or to a specific user via DM.
+
+**Actor:** Admin
+**Chat:** Private
+
+**Flow (group message):**
+1. Admin sends `/admin say Hello everyone!`
+2. Bot sends "Hello everyone!" to the main group chat
+3. Bot confirms to admin: "Message sent to group chat"
+
+**Flow (DM to user):**
+1. Admin sends `/admin say @username Hello!`
+2. Bot looks up participant by username in the database
+3. Bot sends "Hello!" as DM to the user using their telegram ID
+4. Bot confirms to admin: "Message sent to @username"
+
+**Fallback:**
+- User not in DB → message sent to group chat with @mention ("User @username not found, sent to group chat")
+- DM delivery fails → message sent to group chat with @mention
+
+**Errors:**
+- No text provided → "Usage: /admin say [text] or /admin say @username [text]"
+- DM target with no text → same usage message
+- Not admin → "This command is only available to administrators"
 
 ---
 

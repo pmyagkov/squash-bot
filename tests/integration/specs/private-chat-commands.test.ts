@@ -6,7 +6,7 @@ import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 
-describe('command-private-chat-only', () => {
+describe('private-chat-commands', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer
@@ -38,7 +38,7 @@ describe('command-private-chat-only', () => {
     // Should send warning message
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      'This command is not supported in group chats. Please send it in a private message to the bot.',
+      expect.stringContaining('t.me/test_bot'),
       expect.anything()
     )
 
@@ -60,5 +60,59 @@ describe('command-private-chat-only', () => {
     const events = await eventRepository.getEvents()
     expect(events).toHaveLength(1)
     expect(events[0].courts).toBe(2)
+  })
+
+  it('should redirect command from group chat to private', async () => {
+    await bot.handleUpdate(
+      createTextMessageUpdate('/help', {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        chatType: 'group',
+      })
+    )
+
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      expect.stringContaining('t.me/test_bot'),
+      expect.anything()
+    )
+    // Should NOT have processed the command
+    expect(api.sendMessage).not.toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      expect.stringContaining('Available commands'),
+      expect.anything()
+    )
+  })
+
+  it('should process command from private chat normally', async () => {
+    await bot.handleUpdate(
+      createTextMessageUpdate('/help', {
+        userId: ADMIN_ID,
+        chatId: ADMIN_ID,
+        chatType: 'private',
+      })
+    )
+
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      ADMIN_ID,
+      expect.stringContaining('Available commands'),
+      expect.anything()
+    )
+  })
+
+  it('should redirect admin command from group chat', async () => {
+    await bot.handleUpdate(
+      createTextMessageUpdate('/admin say hello', {
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        chatType: 'group',
+      })
+    )
+
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      TEST_CHAT_ID,
+      expect.stringContaining('t.me/test_bot'),
+      expect.anything()
+    )
   })
 })
