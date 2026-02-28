@@ -39,8 +39,8 @@ describe('event-private', () => {
    */
   async function setupPrivateAnnouncedEvent(courts = 2) {
     // Pre-create participants so wizard has options
-    const alice = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
-    const bob = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
+    const { participant: alice } = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
+    const { participant: bob } = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
 
     const event = await eventRepository.createEvent({
       datetime: new Date('2024-01-20T19:00:00Z'),
@@ -375,12 +375,12 @@ describe('event-private', () => {
         true
       )
 
-      const alice = await participantRepository.findOrCreateParticipant(
+      const { participant: alice } = await participantRepository.findOrCreateParticipant(
         '555555555',
         'alice',
         'Alice'
       )
-      const bob = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
+      const { participant: bob } = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
       await scaffoldRepository.addParticipant(scaffold.id, alice.id)
       await scaffoldRepository.addParticipant(scaffold.id, bob.id)
 

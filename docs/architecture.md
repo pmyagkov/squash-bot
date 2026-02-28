@@ -45,6 +45,7 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 src/
 ├── business/                      # Business logic and orchestration
 │   ├── event.ts                   # EventBusiness: event workflows + callback/command handlers
+│   ├── participant.ts             # ParticipantBusiness: centralized participant registration
 │   ├── scaffold.ts                # ScaffoldBusiness: scaffold command handlers
 │   └── utility.ts                 # UtilityBusiness: utility command handlers (start, help, etc.)
 ├── services/
@@ -114,6 +115,11 @@ src/
 │  │ - handleCreate()│ │ - handleEdit()  │ │ - handleMyId()                  ││
 │  │ - handleEdit()  │ │ - handleRemove()│ │ - handleGetChatId()             ││
 │  └─────────────────┘ └─────────────────┘ └─────────────────────────────────┘│
+│  ┌──────────────────────────────────────────────────────────────────────────┐│
+│  │ ParticipantBusiness                                                      ││
+│  │ - ensureRegistered() — called by middleware, wraps findOrCreateParticipant││
+│  │   Fires participant_registered log event for new participants            ││
+│  └──────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
                 │
                 │ uses
@@ -232,6 +238,7 @@ const bot = new Bot(config.telegram.botToken)
 const container = createAppContainer(bot)
 
 // 3. Initialize business classes (registers handlers in transport)
+// Note: ParticipantBusiness has no init() — it is used by TelegramTransport middleware directly
 container.resolve('eventBusiness').init()
 container.resolve('scaffoldBusiness').init()
 container.resolve('utilityBusiness').init()

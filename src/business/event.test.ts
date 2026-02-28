@@ -406,7 +406,7 @@ describe('EventBusiness', () => {
   // ── handleJoin ─────────────────────────────────────────────────────
 
   describe('handleJoin', () => {
-    test('new participant → creates participant + event_participant', async ({ container }) => {
+    test('registered participant → looks up and adds to event', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const transport = container.resolve('transport')
@@ -417,7 +417,7 @@ describe('EventBusiness', () => {
       eventRepo.findById.mockResolvedValue(event)
 
       const participant = buildParticipant({ id: 'p_new', telegramId: '555' })
-      participantRepo.findOrCreateParticipant.mockResolvedValue(participant)
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
       participantRepo.addToEvent.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_join', participantId: 'p_new', participant }),
@@ -437,12 +437,12 @@ describe('EventBusiness', () => {
         username: 'alice',
       })
 
-      expect(participantRepo.findOrCreateParticipant).toHaveBeenCalledWith('555', 'alice', 'Alice')
+      expect(participantRepo.findByTelegramId).toHaveBeenCalledWith('555')
       expect(participantRepo.addToEvent).toHaveBeenCalledWith('ev_join', 'p_new')
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_join')
     })
 
-    test('existing participant → increments participations', async ({ container }) => {
+    test('existing participant → adds to event', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const transport = container.resolve('transport')
@@ -452,7 +452,7 @@ describe('EventBusiness', () => {
       eventRepo.findById.mockResolvedValue(event)
 
       const participant = buildParticipant({ id: 'p_existing' })
-      participantRepo.findOrCreateParticipant.mockResolvedValue(participant)
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
       participantRepo.addToEvent.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({
@@ -490,7 +490,7 @@ describe('EventBusiness', () => {
       eventRepo.findById.mockResolvedValue(event)
 
       const participant = buildParticipant()
-      participantRepo.findOrCreateParticipant.mockResolvedValue(participant)
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
       participantRepo.addToEvent.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_edit' }),

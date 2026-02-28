@@ -165,7 +165,7 @@ getParticipants(): Promise<Participant[]>
 findById(id: string): Promise<Participant | undefined>
 findByTelegramId(telegramId: string): Promise<Participant | undefined>
 findByUsername(username: string): Promise<Participant | undefined>
-findOrCreateParticipant(telegramId: string, username?: string, displayName?: string): Promise<Participant>
+findOrCreateParticipant(telegramId: string, username?: string, displayName?: string): Promise<{ participant: Participant; isNew: boolean }>
 ```
 
 Also delegates `addToEvent()`, `removeFromEvent()`, `getEventParticipants()` to EventParticipantRepo for backwards compatibility.

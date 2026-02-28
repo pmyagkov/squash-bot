@@ -21,13 +21,14 @@ describe('ParticipantRepo', () => {
 
   describe('findOrCreateParticipant', () => {
     it('should create new participant with all fields', async () => {
-      const participant = await participantRepo.findOrCreateParticipant(
+      const { participant, isNew } = await participantRepo.findOrCreateParticipant(
         '123456',
         'john_doe',
         'John Doe'
       )
 
       // Verify return value
+      expect(isNew).toBe(true)
       expect(participant.id).toMatch(/^pt_/)
       expect(participant.telegramId).toBe('123456')
       expect(participant.telegramUsername).toBe('john_doe')
@@ -45,9 +46,14 @@ describe('ParticipantRepo', () => {
     })
 
     it('should create participant without username', async () => {
-      const participant = await participantRepo.findOrCreateParticipant('789', undefined, 'Jane')
+      const { participant, isNew } = await participantRepo.findOrCreateParticipant(
+        '789',
+        undefined,
+        'Jane'
+      )
 
       // Verify return value
+      expect(isNew).toBe(true)
       expect(participant.id).toMatch(/^pt_/)
       expect(participant.telegramId).toBe('789')
       expect(participant.telegramUsername).toBeUndefined()
@@ -64,7 +70,7 @@ describe('ParticipantRepo', () => {
     })
 
     it('should use username as display name if display name not provided', async () => {
-      const participant = await participantRepo.findOrCreateParticipant('999', 'username_only')
+      const { participant } = await participantRepo.findOrCreateParticipant('999', 'username_only')
 
       // Verify return value
       expect(participant.displayName).toBe('username_only')
@@ -79,7 +85,7 @@ describe('ParticipantRepo', () => {
     })
 
     it('should use fallback display name if nothing provided', async () => {
-      const participant = await participantRepo.findOrCreateParticipant('555')
+      const { participant } = await participantRepo.findOrCreateParticipant('555')
 
       // Verify return value
       expect(participant.displayName).toBe('User 555')
@@ -94,8 +100,14 @@ describe('ParticipantRepo', () => {
     })
 
     it('should return existing participant and update changed fields', async () => {
-      const first = await participantRepo.findOrCreateParticipant('111', 'first', 'First User')
-      const second = await participantRepo.findOrCreateParticipant('111', 'second', 'Second User')
+      const { participant: first, isNew: isNewFirst } =
+        await participantRepo.findOrCreateParticipant('111', 'first', 'First User')
+      const { participant: second, isNew: isNewSecond } =
+        await participantRepo.findOrCreateParticipant('111', 'second', 'Second User')
+
+      // Verify isNew flags
+      expect(isNewFirst).toBe(true)
+      expect(isNewSecond).toBe(false)
 
       // Verify IDs are the same
       expect(second.id).toBe(first.id)
@@ -111,7 +123,7 @@ describe('ParticipantRepo', () => {
     })
 
     it('should actually persist participant to database', async () => {
-      const participant = await participantRepo.findOrCreateParticipant(
+      const { participant } = await participantRepo.findOrCreateParticipant(
         '777',
         'test_user',
         'Test User'
@@ -159,7 +171,11 @@ describe('ParticipantRepo', () => {
 
   describe('findById', () => {
     it('should find participant by id', async () => {
-      const created = await participantRepo.findOrCreateParticipant('444', 'test', 'Test User')
+      const { participant: created } = await participantRepo.findOrCreateParticipant(
+        '444',
+        'test',
+        'Test User'
+      )
 
       // Verify via direct DB query
       const dbResult = await db.select().from(participants).where(eq(participants.id, created.id))
@@ -191,7 +207,11 @@ describe('ParticipantRepo', () => {
 
   describe('findByTelegramId', () => {
     it('should find participant by telegram id', async () => {
-      const created = await participantRepo.findOrCreateParticipant('666', 'tg_user', 'TG User')
+      const { participant: created } = await participantRepo.findOrCreateParticipant(
+        '666',
+        'tg_user',
+        'TG User'
+      )
 
       // Verify via direct DB query
       const dbResult = await db
