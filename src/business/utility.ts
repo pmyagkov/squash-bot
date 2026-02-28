@@ -53,12 +53,6 @@ export class UtilityBusiness {
   // === Command Handlers ===
 
   private async handleStart(source: SourceContext): Promise<void> {
-    await this.participantRepository.findOrCreateParticipant(
-      String(source.user.id),
-      source.user.username,
-      [source.user.firstName, source.user.lastName].filter(Boolean).join(' ') || undefined
-    )
-
     const welcomeMessage = `Welcome to Squash Bot! 🎾
 
 This bot helps organize squash events with automated scheduling and payment tracking.
