@@ -2,6 +2,8 @@ import { mockClass } from './utils'
 import { EventBusiness } from '~/business/event'
 import { ScaffoldBusiness } from '~/business/scaffold'
 import { UtilityBusiness } from '~/business/utility'
+import { ParticipantBusiness } from '~/business/participant'
+import { buildParticipant } from '@fixtures'
 
 /**
  * Mock for EventBusiness
@@ -35,5 +37,14 @@ export function mockUtilityBusiness() {
 
   mock.init.mockReturnValue(undefined)
 
+  return mock
+}
+
+/**
+ * Mock for ParticipantBusiness
+ */
+export function mockParticipantBusiness() {
+  const mock = mockClass<typeof ParticipantBusiness>()
+  mock.ensureRegistered.mockResolvedValue(buildParticipant())
   return mock
 }

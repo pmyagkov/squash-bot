@@ -422,7 +422,7 @@ describe('event-participants', () => {
       })
 
       // Add participant directly via repo
-      const participant = await participantRepository.findOrCreateParticipant(
+      const { participant } = await participantRepository.findOrCreateParticipant(
         String(NON_ADMIN_ID),
         'player1',
         'Player One'

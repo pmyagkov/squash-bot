@@ -10,7 +10,7 @@ import type { WizardService } from '~/services/wizard/wizardService'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { CommandService } from '~/services/command/commandService'
 import type { SettingsRepo } from '~/storage/repo/settings'
-import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { ParticipantBusiness } from '~/business/participant'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -32,17 +32,21 @@ export class TelegramTransport {
     private commandRegistry: CommandRegistry,
     private commandService: CommandService,
     private settingsRepository: SettingsRepo,
-    private participantRepository: ParticipantRepo
+    private participantBusiness: ParticipantBusiness
   ) {
     // Eager participant registration: register/update on every interaction
     this.bot.use(async (ctx, next) => {
       if (ctx.from) {
-        const displayName = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ')
-        await this.participantRepository.findOrCreateParticipant(
-          String(ctx.from.id),
-          ctx.from.username,
-          displayName || undefined
-        )
+        try {
+          const displayName = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ')
+          await this.participantBusiness.ensureRegistered(
+            String(ctx.from.id),
+            ctx.from.username,
+            displayName || undefined
+          )
+        } catch (error) {
+          void this.logger.warn(`Failed to register participant ${ctx.from.id}: ${error}`)
+        }
       }
       await next()
     })
