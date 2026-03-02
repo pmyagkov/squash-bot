@@ -775,8 +775,9 @@ export class EventBusiness {
     // Add to event
     await this.participantRepository.addToEvent(event.id, participant.id)
 
-    // Update announcement if it exists
+    // Update announcement and reminder if they exist
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     // Reply
     if (source.type === 'callback') {
@@ -815,6 +816,7 @@ export class EventBusiness {
 
     await this.participantRepository.removeFromEvent(event.id, participant.id)
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
@@ -843,6 +845,7 @@ export class EventBusiness {
     const newCourts = event.courts + 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
@@ -879,6 +882,7 @@ export class EventBusiness {
     const newCourts = event.courts - 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
@@ -956,6 +960,7 @@ export class EventBusiness {
       }
 
       await this.refreshAnnouncement(event.id)
+      await this.refreshReminder(event.id)
 
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId)
@@ -989,6 +994,7 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     // Re-pin if possible (only for public events)
     if (!event.isPrivate && event.telegramMessageId) {
@@ -1054,6 +1060,7 @@ export class EventBusiness {
       await this.paymentRepository.deleteByEvent(event.id)
       await this.eventRepository.updateEvent(event.id, { status: 'announced' })
       await this.refreshAnnouncement(event.id)
+      await this.refreshReminder(event.id)
 
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId)
@@ -2193,6 +2200,7 @@ export class EventBusiness {
           }
         }
         await this.refreshAnnouncement(entityId)
+        await this.refreshReminder(entityId)
         return
       }
       case '-participant': {
@@ -2227,6 +2235,7 @@ export class EventBusiness {
           }
         }
         await this.refreshAnnouncement(entityId)
+        await this.refreshReminder(entityId)
         return
       }
       case 'done':
