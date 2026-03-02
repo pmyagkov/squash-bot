@@ -11,6 +11,7 @@ import { TEST_CONFIG } from '@fixtures/config'
 import { EventBusiness, calculateNextOccurrence, isEligibleForReminder } from '~/business/event'
 import type { MockAppContainer } from '@mocks'
 import type { SourceContext } from '~/services/command/types'
+import type { InlineKeyboard } from 'grammy'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MockCalls = [string, (data: any) => Promise<void>][]
@@ -1301,6 +1302,187 @@ describe('EventBusiness', () => {
         const urlButton = rows.flat().find((btn) => 'url' in btn)
         expect(urlButton).toBeDefined()
       }
+    })
+  })
+
+  // ── refreshReminder ──────────────────────────────────────────────────
+
+  describe('refreshReminder', () => {
+    test('updates reminder message when sent notification exists', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({
+        id: 'ev_test',
+        status: 'announced',
+        telegramMessageId: '100',
+        telegramChatId: '-1001234567890',
+      })
+      eventRepo.findById.mockResolvedValue(event)
+      participantRepo.getEventParticipants.mockResolvedValue([
+        buildEventParticipant({
+          eventId: 'ev_test',
+          participantId: 'p1',
+          participant: buildParticipant({ id: 'p1', displayName: 'Alice' }),
+        }),
+      ])
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.refreshReminder('ev_test')
+
+      expect(notificationRepo.findSentByTypeAndEventId).toHaveBeenCalledWith(
+        'event-not-finalized',
+        'ev_test'
+      )
+      expect(transport.editMessage).toHaveBeenCalledWith(
+        999,
+        200,
+        expect.stringContaining('Alice'),
+        expect.anything()
+      )
+    })
+
+    test('does nothing when no sent notification exists', async ({ container }) => {
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(undefined)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.refreshReminder('ev_test')
+
+      expect(transport.editMessage).not.toHaveBeenCalled()
+    })
+
+    test('does nothing when notification has no messageId', async ({ container }) => {
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: undefined, chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.refreshReminder('ev_test')
+
+      expect(transport.editMessage).not.toHaveBeenCalled()
+    })
+
+    test('updates reminder with finalized status text when event is finalized', async ({
+      container,
+    }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_fin', status: 'finalized' })
+      eventRepo.findById.mockResolvedValue(event)
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.refreshReminder('ev_fin')
+
+      expect(transport.editMessage).toHaveBeenCalledWith(
+        999,
+        200,
+        expect.stringContaining('finalized'),
+        undefined
+      )
+    })
+
+    test('updates reminder with cancelled status text when event is cancelled', async ({
+      container,
+    }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_can', status: 'cancelled' })
+      eventRepo.findById.mockResolvedValue(event)
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.refreshReminder('ev_can')
+
+      expect(transport.editMessage).toHaveBeenCalledWith(
+        999,
+        200,
+        expect.stringContaining('cancelled'),
+        undefined
+      )
+    })
+
+    test('includes announcement URL in keyboard when event has chat and message IDs', async ({
+      container,
+    }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({
+        id: 'ev_url',
+        status: 'announced',
+        telegramMessageId: '456',
+        telegramChatId: '-1001234567890',
+      })
+      eventRepo.findById.mockResolvedValue(event)
+      participantRepo.getEventParticipants.mockResolvedValue([])
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.refreshReminder('ev_url')
+
+      // The keyboard should contain a URL button
+      const keyboard = transport.editMessage.mock.calls[0][3] as InlineKeyboard
+      expect(keyboard).toBeDefined()
+      const rows = keyboard.inline_keyboard
+      const urlButton = rows.flat().find((btn) => 'url' in btn)
+      expect(urlButton).toBeDefined()
+    })
+
+    test('logs error and does not throw on failure', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+      const logger = container.resolve('logger')
+
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+      eventRepo.findById.mockResolvedValue(buildEvent({ id: 'ev_err', status: 'announced' }))
+      participantRepo.getEventParticipants.mockResolvedValue([])
+      transport.editMessage.mockRejectedValue(new Error('Telegram error'))
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await expect(business.refreshReminder('ev_err')).resolves.not.toThrow()
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Telegram error'))
     })
   })
 })

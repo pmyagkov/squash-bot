@@ -2292,6 +2292,62 @@ export class EventBusiness {
     return count
   }
 
+  /**
+   * Refreshes the reminder DM message with current event data.
+   * Best-effort: catches and logs errors, never throws.
+   */
+  async refreshReminder(eventId: string): Promise<void> {
+    try {
+      const notification = await this.notificationRepository.findSentByTypeAndEventId(
+        'event-not-finalized',
+        eventId
+      )
+      if (!notification?.messageId || !notification?.chatId) {
+        return
+      }
+
+      const event = await this.eventRepository.findById(eventId)
+      if (!event) {
+        return
+      }
+
+      const chatId = parseInt(notification.chatId, 10)
+      const messageId = parseInt(notification.messageId, 10)
+
+      // For finalized/cancelled events, replace reminder with status text (no keyboard)
+      if (event.status === 'finalized' || event.status === 'cancelled') {
+        const statusText =
+          event.status === 'finalized' ? '✅ Event finalized' : '❌ Event cancelled'
+        await this.transport.editMessage(chatId, messageId, statusText, undefined)
+        return
+      }
+
+      // Refresh with current participant data
+      const eventParticipants = await this.participantRepository.getEventParticipants(eventId)
+      const participants = eventParticipants.map((ep) => ({
+        displayName: ep.participant.displayName,
+        participantId: ep.participantId,
+        participations: ep.participations,
+      }))
+      const message = formatNotFinalizedReminder(event, participants)
+
+      // Build announce URL for the "Go to announcement" button
+      let announceUrl: string | undefined
+      if (event.telegramChatId && event.telegramMessageId) {
+        const channelId = event.telegramChatId.replace(/^-100/, '')
+        announceUrl = `https://t.me/c/${channelId}/${event.telegramMessageId}`
+      }
+
+      const keyboard = buildReminderKeyboard(event.id, announceUrl)
+
+      await this.transport.editMessage(chatId, messageId, message, keyboard)
+    } catch (error) {
+      await this.logger.error(
+        `Error updating reminder for ${eventId}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
   async notificationHandler(notification: Notification): Promise<HandlerResult> {
     const eventId = notification.params.eventId as string
     const event = await this.eventRepository.findById(eventId)
