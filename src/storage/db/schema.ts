@@ -34,6 +34,9 @@ export const scaffolds = pgTable('scaffolds', {
     .notNull(),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id'),
+  isPrivate: booleanInt('is_private')
+    .default(sql`0`)
+    .notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
@@ -48,6 +51,10 @@ export const events = pgTable('events', {
   paymentMessageId: text('payment_message_id'),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id').notNull(),
+  isPrivate: booleanInt('is_private')
+    .default(sql`0`)
+    .notNull(),
+  telegramChatId: text('telegram_chat_id'),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
@@ -93,6 +100,22 @@ export const payments = pgTable('payments', {
   personalMessageId: text('personal_message_id'),
 })
 
+// Scaffold default participants junction table
+export const scaffoldParticipants = pgTable(
+  'scaffold_participants',
+  {
+    id: text('id').primaryKey(),
+    scaffoldId: text('scaffold_id')
+      .references(() => scaffolds.id, { onDelete: 'cascade' })
+      .notNull(),
+    participantId: text('participant_id')
+      .references(() => participants.id)
+      .notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [unique().on(table.scaffoldId, table.participantId)]
+)
+
 // Settings table
 export const settings = pgTable('settings', {
   key: text('key').primaryKey(),
@@ -116,6 +139,7 @@ export const notifications = pgTable('notifications', {
 // Relations
 export const scaffoldsRelations = relations(scaffolds, ({ many }) => ({
   events: many(events),
+  defaultParticipants: many(scaffoldParticipants),
 }))
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
@@ -130,6 +154,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
 export const participantsRelations = relations(participants, ({ many }) => ({
   eventParticipations: many(eventParticipants),
   payments: many(payments),
+  scaffoldParticipations: many(scaffoldParticipants),
 }))
 
 export const eventParticipantsRelations = relations(eventParticipants, ({ one }) => ({
@@ -150,6 +175,17 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   }),
   participant: one(participants, {
     fields: [payments.participantId],
+    references: [participants.id],
+  }),
+}))
+
+export const scaffoldParticipantsRelations = relations(scaffoldParticipants, ({ one }) => ({
+  scaffold: one(scaffolds, {
+    fields: [scaffoldParticipants.scaffoldId],
+    references: [scaffolds.id],
+  }),
+  participant: one(participants, {
+    fields: [scaffoldParticipants.participantId],
     references: [participants.id],
   }),
 }))

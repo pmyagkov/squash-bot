@@ -20,6 +20,7 @@ export default tseslint.config(
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       'prettier/prettier': 'error',
       '@typescript-eslint/array-type': 'error',
+      curly: 'error',
     },
     languageOptions: {
       ecmaVersion: 2022,

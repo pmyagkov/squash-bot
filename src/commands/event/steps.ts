@@ -1,5 +1,6 @@
 import type { WizardStep } from '~/services/wizard/types'
 import { ParseError } from '~/services/wizard/types'
+import { formatParticipantLabel } from '~/services/formatters/participant'
 import { parseDate } from '~/utils/dateParser'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
@@ -28,7 +29,9 @@ export const eventDateStep: WizardStep<string> = {
   },
   parse: (input: string): string => {
     const normalized = input.trim()
-    if (!normalized) throw new ParseError('Day cannot be empty')
+    if (!normalized) {
+      throw new ParseError('Day cannot be empty')
+    }
     try {
       parseDate(normalized)
     } catch {
@@ -64,8 +67,31 @@ export const eventCourtsStep: WizardStep<number> = {
   ],
   parse: (input: string): number => {
     const n = parseInt(input, 10)
-    if (isNaN(n) || n < 1) throw new ParseError('Number of courts must be a positive number')
+    if (isNaN(n) || n < 1) {
+      throw new ParseError('Number of courts must be a positive number')
+    }
     return n
+  },
+}
+
+export const eventPrivacyStep: WizardStep<boolean> = {
+  param: 'isPrivate',
+  type: 'select',
+  prompt: 'Public or private?',
+  columns: 2,
+  createLoader: () => async () => [
+    { value: 'public', label: '📢 Public' },
+    { value: 'private', label: '🔒 Private' },
+  ],
+  parse: (input: string): boolean => {
+    const normalized = input.trim().toLowerCase()
+    if (normalized === 'private') {
+      return true
+    }
+    if (normalized === 'public') {
+      return false
+    }
+    throw new ParseError('Choose public or private')
   },
 }
 
@@ -86,7 +112,9 @@ export const eventSelectStep: WizardStep<string> = {
         let label = date
         if (e.ownerId) {
           const owner = await participantRepo.findByTelegramId(e.ownerId)
-          if (owner?.telegramUsername) label = `@${owner.telegramUsername} — ${date}`
+          if (owner) {
+            label = `${formatParticipantLabel(owner)} — ${date}`
+          }
         }
         return { value: e.id, label }
       })
@@ -100,7 +128,9 @@ export const usernameStep: WizardStep<string> = {
   prompt: 'Enter target username (e.g. @username):',
   parse: (input: string): string => {
     const trimmed = input.trim()
-    if (!trimmed) throw new ParseError('Username cannot be empty')
+    if (!trimmed) {
+      throw new ParseError('Username cannot be empty')
+    }
     return trimmed.startsWith('@') ? trimmed.substring(1) : trimmed
   },
 }
@@ -121,7 +151,9 @@ export const scaffoldSelectStep: WizardStep<string> = {
         let label = date
         if (s.ownerId) {
           const owner = await participantRepo.findByTelegramId(s.ownerId)
-          if (owner?.telegramUsername) label = `@${owner.telegramUsername} — ${date}`
+          if (owner) {
+            label = `${formatParticipantLabel(owner)} — ${date}`
+          }
         }
         return { value: s.id, label }
       })

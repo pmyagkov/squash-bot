@@ -3,6 +3,7 @@ import { createApiServer } from './services/transport/api'
 import { config } from './config'
 import { validateEnvConfig, validateDbSettings } from './config/validate'
 import { createAppContainer } from './container'
+import { crashProcess } from './utils/crashProcess'
 
 async function main() {
   try {
@@ -68,13 +69,20 @@ async function main() {
     })
 
     // 7. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
-    bot.start({
-      onStart: (botInfo) => {
-        logger.log(`Telegram bot started as @${botInfo.username}`)
-        const transport = container.resolve('transport')
-        transport.logEvent({ type: 'bot_started', botUsername: botInfo.username })
-      },
-    })
+    // If the polling loop crashes (409 Conflict, fatal transport error),
+    // exit so Docker can restart the container
+    bot
+      .start({
+        onStart: (botInfo) => {
+          logger.log(`Telegram bot started as @${botInfo.username}`)
+          const transport = container.resolve('transport')
+          transport.logEvent({ type: 'bot_started', botUsername: botInfo.username })
+        },
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error)
+        crashProcess(`Bot polling crashed: ${message}`, logger)
+      })
 
     // 8. Start API server
     const server = await createApiServer(bot, container)
@@ -94,13 +102,13 @@ async function main() {
     process.on('SIGTERM', shutdown)
     process.on('SIGINT', shutdown)
 
-    // 10. Process-level error handlers to prevent crashes
-    process.on('uncaughtException', async (error) => {
-      await logger.error(`Uncaught exception: ${error.message}`)
+    // 10. Process-level error handlers — crash so Docker restarts the container
+    process.on('uncaughtException', (error) => {
+      crashProcess(`Uncaught exception: ${error.message}`, logger)
     })
-    process.on('unhandledRejection', async (reason) => {
+    process.on('unhandledRejection', (reason) => {
       const message = reason instanceof Error ? reason.message : String(reason)
-      await logger.error(`Unhandled rejection: ${message}`)
+      crashProcess(`Unhandled rejection: ${message}`, logger)
     })
   } catch (error) {
     console.error('Failed to start application:', error)

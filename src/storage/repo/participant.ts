@@ -42,11 +42,24 @@ export class ParticipantRepo {
     telegramId: string,
     username?: string,
     displayName?: string
-  ): Promise<Participant> {
-    // Try to find existing participant
+  ): Promise<{ participant: Participant; isNew: boolean }> {
     const existing = await this.findByTelegramId(telegramId)
     if (existing) {
-      return existing
+      // Update if username or displayName changed
+      const newUsername = username ?? existing.telegramUsername
+      const newDisplayName = displayName || existing.displayName
+      if (newUsername !== existing.telegramUsername || newDisplayName !== existing.displayName) {
+        const [updated] = await db
+          .update(participants)
+          .set({
+            telegramUsername: newUsername,
+            displayName: newDisplayName,
+          })
+          .where(eq(participants.id, existing.id))
+          .returning()
+        return { participant: this.toDomain(updated), isNew: false }
+      }
+      return { participant: existing, isNew: false }
     }
 
     // Create new participant
@@ -63,7 +76,7 @@ export class ParticipantRepo {
       })
       .returning()
 
-    return this.toDomain(participant)
+    return { participant: this.toDomain(participant), isNew: true }
   }
 
   private toDomain(row: typeof participants.$inferSelect): Participant {

@@ -9,6 +9,7 @@ import { TelegramProvider } from '~/services/logger/providers/telegram'
 import { EventBusiness } from '~/business/event'
 import { ScaffoldBusiness } from '~/business/scaffold'
 import { UtilityBusiness } from '~/business/utility'
+import { ParticipantBusiness } from '~/business/participant'
 import { EventRepo } from '~/storage/repo/event'
 import { ScaffoldRepo } from '~/storage/repo/scaffold'
 import { EventParticipantRepo } from '~/storage/repo/eventParticipant'
@@ -66,6 +67,7 @@ export function createTestContainer(bot: Bot): TestContainer {
     eventBusiness: asClass(EventBusiness).singleton(),
     scaffoldBusiness: asClass(ScaffoldBusiness).singleton(),
     utilityBusiness: asClass(UtilityBusiness).singleton(),
+    participantBusiness: asClass(ParticipantBusiness).singleton(),
   })
 
   return container

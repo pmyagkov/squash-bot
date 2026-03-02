@@ -67,7 +67,7 @@ describe('event-announce', () => {
       // Check success message
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        expect.stringContaining(`✅ Event <code>${event.id}</code> announced`),
+        expect.stringContaining('📢 Event announced'),
         expect.anything()
       )
 

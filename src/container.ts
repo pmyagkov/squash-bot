@@ -11,6 +11,8 @@ import type { ScaffoldBusiness } from './business/scaffold'
 import { ScaffoldBusiness as ScaffoldBusinessImpl } from './business/scaffold'
 import type { UtilityBusiness } from './business/utility'
 import { UtilityBusiness as UtilityBusinessImpl } from './business/utility'
+import type { ParticipantBusiness } from './business/participant'
+import { ParticipantBusiness as ParticipantBusinessImpl } from './business/participant'
 import type { EventRepo } from './storage/repo/event'
 import { EventRepo as EventRepoImpl } from './storage/repo/event'
 import type { ScaffoldRepo } from './storage/repo/scaffold'
@@ -53,6 +55,7 @@ export interface Container {
   eventBusiness: EventBusiness
   scaffoldBusiness: ScaffoldBusiness
   utilityBusiness: UtilityBusiness
+  participantBusiness: ParticipantBusiness
 }
 
 export type AppContainer = AwilixContainer<Container>
@@ -93,6 +96,7 @@ export function createAppContainer(bot: Bot): AppContainer {
     eventBusiness: asClass(EventBusinessImpl).singleton(),
     scaffoldBusiness: asClass(ScaffoldBusinessImpl).singleton(),
     utilityBusiness: asClass(UtilityBusinessImpl).singleton(),
+    participantBusiness: asClass(ParticipantBusinessImpl).singleton(),
   })
 
   return container

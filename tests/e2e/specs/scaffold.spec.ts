@@ -219,4 +219,20 @@ test.describe('Scaffold Commands', () => {
     if (scaffoldId) await scaffoldCommands.removeScaffold(scaffoldId)
     console.log('✅ Re-prompt validation test completed')
   })
+
+  test('should show menu when /scaffold sent without args and dispatch to list', async ({
+    scaffoldCommands,
+  }) => {
+    // Send /scaffold without args
+    const response = await scaffoldCommands.sendCommand('/scaffold')
+
+    // Bot should show "Choose an action:" with buttons
+    expect(response).toContain('Choose an action')
+
+    // Click "📋 List" button
+    await scaffoldCommands.clickInlineButton('📋 List')
+
+    // Wait for list response
+    await scaffoldCommands.page.waitForTimeout(2000)
+  })
 })

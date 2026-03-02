@@ -39,6 +39,7 @@ describe('Mock System Integration', () => {
       courts: 2,
       status: 'created' as const,
       ownerId: '111111111',
+      isPrivate: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     }

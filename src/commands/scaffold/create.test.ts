@@ -14,7 +14,7 @@ describe('scaffoldCreateDef parser', () => {
   it('parses all three args', () => {
     const result = scaffoldCreateDef.parser(dummyInput(['Tue', '21:00', '2']))
     expect(result).toEqual({
-      parsed: { day: 'Tue', time: '21:00', courts: 2 },
+      parsed: { day: 'Tue', time: '21:00', courts: 2, isPrivate: false },
       missing: [],
     })
   })
@@ -23,20 +23,25 @@ describe('scaffoldCreateDef parser', () => {
     const result = scaffoldCreateDef.parser(dummyInput([]))
     expect(result).toEqual({
       parsed: {},
-      missing: ['day', 'time', 'courts'],
+      missing: ['day', 'time', 'courts', 'isPrivate'],
     })
   })
 
   it('returns all missing for insufficient args (1 or 2)', async () => {
     const result1 = await scaffoldCreateDef.parser(dummyInput(['Tue']))
-    expect(result1.missing).toEqual(['day', 'time', 'courts'])
+    expect(result1.missing).toEqual(['day', 'time', 'courts', 'isPrivate'])
     const result2 = await scaffoldCreateDef.parser(dummyInput(['Tue', '21:00']))
-    expect(result2.missing).toEqual(['day', 'time', 'courts'])
+    expect(result2.missing).toEqual(['day', 'time', 'courts', 'isPrivate'])
   })
 
-  it('has three steps: day, time, courts', () => {
-    expect(scaffoldCreateDef.steps).toHaveLength(3)
-    expect(scaffoldCreateDef.steps.map((s) => s.param)).toEqual(['day', 'time', 'courts'])
+  it('has four steps including privacy', () => {
+    expect(scaffoldCreateDef.steps).toHaveLength(4)
+    expect(scaffoldCreateDef.steps.map((s) => s.param)).toEqual([
+      'day',
+      'time',
+      'courts',
+      'isPrivate',
+    ])
   })
 
   it('returns error for invalid day', () => {

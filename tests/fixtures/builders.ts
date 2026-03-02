@@ -18,6 +18,8 @@ export function buildEvent(overrides?: Partial<Event>): Event {
     paymentMessageId: undefined,
     announcementDeadline: undefined,
     ownerId: String(TEST_CONFIG.adminId),
+    isPrivate: false,
+    telegramChatId: undefined,
     deletedAt: undefined,
     ...overrides,
   }
@@ -34,6 +36,8 @@ export function buildScaffold(overrides?: Partial<Scaffold>): Scaffold {
     defaultCourts: 2,
     isActive: true,
     announcementDeadline: undefined,
+    isPrivate: false,
+    participants: [],
     deletedAt: undefined,
     ...overrides,
   }

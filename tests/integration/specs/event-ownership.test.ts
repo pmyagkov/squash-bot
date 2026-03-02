@@ -31,7 +31,7 @@ describe('event-ownership', () => {
         await bot.handleUpdate(update)
 
         const addCall = api.sendMessage.mock.calls.find(([, text]) =>
-          text.includes('✅ Created event')
+          text.includes('📅 Event created')
         )
         const eventId = addCall![1].match(/ev_[\w-]+/)![0]
 
@@ -59,7 +59,7 @@ describe('event-ownership', () => {
         await bot.handleUpdate(update)
 
         const addCall = api.sendMessage.mock.calls.find(([, text]) =>
-          text.includes('✅ Created event')
+          text.includes('📅 Event created')
         )
         const eventId = addCall![1].match(/ev_[\w-]+/)![0]
 
@@ -79,7 +79,7 @@ describe('event-ownership', () => {
         await bot.handleUpdate(update)
 
         const addCall = api.sendMessage.mock.calls.find(([, text]) =>
-          text.includes('✅ Created event')
+          text.includes('📅 Event created')
         )
         const eventId = addCall![1].match(/ev_[\w-]+/)![0]
 

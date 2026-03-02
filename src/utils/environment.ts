@@ -10,7 +10,9 @@ export async function isAdmin(
   settingsRepo: Pick<SettingsRepo, 'getAdminId'>
 ): Promise<boolean> {
   const adminId = await settingsRepo.getAdminId()
-  if (!adminId) return false
+  if (!adminId) {
+    return false
+  }
   return userId.toString() === adminId
 }
 

@@ -37,6 +37,7 @@ coverage/
 .dockerignore
 
 docs/plans/
+docs/BUGS.md
 test-results/
 playwright-report/
 .auth/

@@ -50,7 +50,9 @@ export class NotificationService {
    */
   async cancel(type: NotificationType, eventId: string): Promise<Notification | undefined> {
     const existing = await this.notificationRepository.findPendingByTypeAndEventId(type, eventId)
-    if (!existing) return undefined
+    if (!existing) {
+      return undefined
+    }
     return this.notificationRepository.updateStatus(existing.id, 'cancelled')
   }
 

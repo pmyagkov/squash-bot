@@ -22,7 +22,7 @@ function mockWizardService() {
 }
 
 function mockContainer() {
-  return { resolve: vi.fn() } as never
+  return { resolve: vi.fn() }
 }
 
 describe('CommandService', () => {
@@ -33,7 +33,7 @@ describe('CommandService', () => {
   beforeEach(() => {
     wizard = mockWizardService()
     container = mockContainer()
-    service = new CommandService(container, wizard as never)
+    service = new CommandService(container as never, wizard as never)
   })
 
   it('calls handler directly when all params parsed', async () => {
@@ -201,6 +201,31 @@ describe('CommandService', () => {
         user: { id: 42, username: 'janedoe', firstName: 'Jane', lastName: undefined },
       }
     )
+  })
+
+  it('follows redirect instead of calling handler', async () => {
+    const menuHandler = vi.fn()
+    const targetHandler = vi.fn().mockResolvedValue(undefined)
+    const menuCommand: RegisteredCommand<{ subcommand: string }> = {
+      parser: () => ({ parsed: { subcommand: 'create' }, missing: [] }),
+      steps: [],
+      handler: menuHandler,
+      redirect: (data) => `event:${data.subcommand}`,
+    }
+    const targetCommand: RegisteredCommand = {
+      parser: () => ({ parsed: {}, missing: [] }),
+      steps: [],
+      handler: targetHandler,
+    }
+    const registry = { get: vi.fn().mockReturnValue(targetCommand) }
+    container.resolve.mockReturnValue(registry)
+    const ctx = mockCtx()
+
+    await service.run({ registered: menuCommand as RegisteredCommand, args: [], ctx })
+
+    expect(menuHandler).not.toHaveBeenCalled()
+    expect(registry.get).toHaveBeenCalledWith('event:create')
+    expect(targetHandler).toHaveBeenCalled()
   })
 
   it('catches WizardCancelledError and replies Cancelled.', async () => {

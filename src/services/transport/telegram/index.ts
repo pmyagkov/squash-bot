@@ -10,6 +10,7 @@ import type { WizardService } from '~/services/wizard/wizardService'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { CommandService } from '~/services/command/commandService'
 import type { SettingsRepo } from '~/storage/repo/settings'
+import type { ParticipantBusiness } from '~/business/participant'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -30,8 +31,26 @@ export class TelegramTransport {
     private wizardService: WizardService,
     private commandRegistry: CommandRegistry,
     private commandService: CommandService,
-    private settingsRepository: SettingsRepo
+    private settingsRepository: SettingsRepo,
+    private participantBusiness: ParticipantBusiness
   ) {
+    // Eager participant registration: register/update on every interaction
+    this.bot.use(async (ctx, next) => {
+      if (ctx.from) {
+        try {
+          const displayName = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ')
+          await this.participantBusiness.ensureRegistered(
+            String(ctx.from.id),
+            ctx.from.username,
+            displayName || undefined
+          )
+        } catch (error) {
+          void this.logger.warn(`Failed to register participant ${ctx.from.id}: ${error}`)
+        }
+      }
+      await next()
+    })
+
     // Intercept plain text for wizard input (registered before bot.command handlers)
     this.bot.on('message:text', async (ctx, next) => {
       if (ctx.message.text.startsWith('/')) {
@@ -94,7 +113,9 @@ export class TelegramTransport {
       await this.bot.api.editMessageText(chatId, messageId, text, { reply_markup: keyboard })
     } catch (e) {
       // Telegram returns this when content hasn't changed — safe to ignore
-      if (e instanceof Error && e.message.includes('message is not modified')) return
+      if (e instanceof Error && e.message.includes('message is not modified')) {
+        return
+      }
       throw e
     }
   }
@@ -141,7 +162,9 @@ export class TelegramTransport {
     // Wizard routing: handle wizard-specific callbacks
     if (rawAction === 'wizard:cancel') {
       const userId = ctx.from?.id
-      if (userId) this.wizardService.cancel(userId)
+      if (userId) {
+        this.wizardService.cancel(userId)
+      }
       await ctx.deleteMessage().catch(() => {})
       await ctx.answerCallbackQuery()
       return

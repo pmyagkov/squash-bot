@@ -135,6 +135,36 @@ Owner or global admin can transfer scaffold to another user via `/scaffold trans
 
 ---
 
+### event-private ✅
+
+Private scaffolds and events — announcements go to owner's DM, owner manages participants manually.
+
+**Scaffold privacy:**
+- Create private scaffold: `/scaffold create Tue 21:00 2 private`
+- Toggle privacy via edit menu: `🔒 Private` / `🔓 Public` button
+- Private scaffolds have a default participant list managed via Participants submenu
+- `🔒` indicator shown in scaffold list
+
+**Private event behavior:**
+- Events inherit `isPrivate` from scaffold (or set via `private` arg on manual create)
+- Announcement sent to **owner's DM** instead of group chat (no pin)
+- Inline keyboard shows `[+ Participant]` / `[- Participant]` instead of `[I'm in]` / `[I'm out]`
+- Owner adds/removes participants via wizard picker
+- Scaffold participants are auto-copied to event on creation
+- Privacy toggle in edit menu (cannot make public once announced privately)
+- `🔒` indicator shown in event list
+
+**3-tier fallback for payment notifications:**
+1. Owner DM (private events)
+2. Main chat
+3. Original chat (fallback)
+
+**Constraints:**
+- Cannot switch announced private event to public
+- Pin/unpin skipped for private events (cancel/restore)
+
+---
+
 ## Event Management
 
 ### event-create ✅
@@ -1141,6 +1171,28 @@ Commands only work in private chat with the bot. Group chat is reserved for anno
 
 ---
 
+### eager-registration ✅
+
+Automatic participant registration on every bot interaction.
+
+**Actor:** System (middleware)
+**Trigger:** Any message or callback from a Telegram user
+
+**Flow:**
+1. User sends any message or clicks any inline button
+2. Middleware extracts `telegram_id`, `username`, and `display_name` from the update
+3. Middleware calls `ParticipantBusiness.ensureRegistered()` (single registration point)
+4. `ensureRegistered()` delegates to `ParticipantRepo.findOrCreateParticipant()` which returns `{ participant, isNew }`
+5. If the participant is new, a `participant_registered` log event is fired
+6. Processing continues to the actual command/callback handler
+
+**Implementation details:**
+- Single registration point: only the grammY middleware in `TelegramTransport` calls `ensureRegistered()`
+- Registration is wrapped in try/catch — failures are logged but do not block the user's action
+- Profile data (username, display name) is updated on every interaction, keeping records current
+
+---
+
 ### logging
 
 Structured logging with JSON output and typed Telegram notifications.
@@ -1157,7 +1209,7 @@ Structured logging with JSON output and typed Telegram notifications.
 **Event notifications (`transport.logEvent()`):**
 - Typed events: `SystemEvent | BusinessEvent`
 - SystemEvent: `bot_started`, `bot_stopped`, `unhandled_error`
-- BusinessEvent: `event_created`, `event_announced`, `event_finalized`, `event_cancelled`, `event_restored`, `participant_joined`, `participant_left`, `court_added`, `court_removed`, `payment_received`, `payment_check_completed`, `scaffold_created`, `scaffold_toggled`, `scaffold_removed`
+- BusinessEvent: `event_created`, `event_announced`, `event_finalized`, `event_cancelled`, `event_restored`, `participant_joined`, `participant_left`, `court_added`, `court_removed`, `payment_received`, `payment_check_completed`, `scaffold_created`, `scaffold_toggled`, `scaffold_removed`, `participant_registered`
 - Formatted by `formatLogEvent()` and sent to Telegram log chat
 
 **Testing:**

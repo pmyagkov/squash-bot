@@ -27,8 +27,27 @@ describe('formatLogEvent', () => {
         eventId: 'ev_123',
         date: 'Sat 20 Jan 19:00',
         courts: 2,
+        status: 'created',
+        isPrivate: false,
       }
-      expect(formatLogEvent(event)).toBe('📅 Event created: Sat 20 Jan 19:00, 2 courts')
+      expect(formatLogEvent(event)).toBe(
+        '📅 Event created\n\nSat 20 Jan 19:00\n🏟 Courts: 2 | 📝 Created | 📢 Public | <code>ev_123</code>'
+      )
+    })
+
+    it('should format event_created with owner', () => {
+      const event: BusinessEvent = {
+        type: 'event_created',
+        eventId: 'ev_123',
+        date: 'Sat 20 Jan 19:00',
+        courts: 2,
+        status: 'created',
+        isPrivate: true,
+        ownerLabel: '@alice',
+      }
+      expect(formatLogEvent(event)).toBe(
+        '📅 Event created\n\nSat 20 Jan 19:00 | 👑 <code>@alice</code>\n🏟 Courts: 2 | 📝 Created | 🔒 Private | <code>ev_123</code>'
+      )
     })
 
     it('should format event_announced', () => {
@@ -36,8 +55,26 @@ describe('formatLogEvent', () => {
         type: 'event_announced',
         eventId: 'ev_123',
         date: 'Sat 20 Jan 19:00',
+        courts: 2,
+        isPrivate: false,
       }
-      expect(formatLogEvent(event)).toBe('📢 Event announced: Sat 20 Jan 19:00')
+      expect(formatLogEvent(event)).toBe(
+        '📢 Event announced\n\nSat 20 Jan 19:00\n🏟 Courts: 2 | 📢 Public | <code>ev_123</code>'
+      )
+    })
+
+    it('should format event_announced with owner and private', () => {
+      const event: BusinessEvent = {
+        type: 'event_announced',
+        eventId: 'ev_123',
+        date: 'Sat 20 Jan 19:00',
+        courts: 3,
+        isPrivate: true,
+        ownerLabel: '@bob',
+      }
+      expect(formatLogEvent(event)).toBe(
+        '📢 Event announced\n\nSat 20 Jan 19:00 | 👑 <code>@bob</code>\n🏟 Courts: 3 | 🔒 Private | <code>ev_123</code>'
+      )
     })
 
     it('should format event_finalized', () => {
@@ -118,8 +155,28 @@ describe('formatLogEvent', () => {
         day: 'Tue',
         time: '21:00',
         courts: 2,
+        isActive: true,
+        isPrivate: false,
       }
-      expect(formatLogEvent(event)).toBe('📋 Scaffold created: Tue 21:00, 2 courts')
+      expect(formatLogEvent(event)).toBe(
+        '📋 Scaffold created\n\nTue, 21:00\n🏟 Courts: 2 | 🟢 Active | 📢 Public | <code>sc_123</code>'
+      )
+    })
+
+    it('should format scaffold_created with owner and private', () => {
+      const event: BusinessEvent = {
+        type: 'scaffold_created',
+        scaffoldId: 'sc_456',
+        day: 'Wed',
+        time: '19:00',
+        courts: 3,
+        isActive: false,
+        isPrivate: true,
+        ownerLabel: '@charlie',
+      }
+      expect(formatLogEvent(event)).toBe(
+        '📋 Scaffold created\n\nWed, 19:00 | 👑 <code>@charlie</code>\n🏟 Courts: 3 | ⏸ Paused | 🔒 Private | <code>sc_456</code>'
+      )
     })
 
     it('should format scaffold_toggled', () => {

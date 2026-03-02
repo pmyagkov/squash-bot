@@ -1,5 +1,10 @@
 import type { LogEvent } from '~/types/logEvent'
 import { code } from '~/helpers/format'
+import { formatCourts, formatActiveStatus, formatEventStatus, formatPrivacy } from '~/ui/constants'
+
+function ownerSuffix(ownerLabel?: string): string {
+  return ownerLabel ? ` | 👑 ${code(ownerLabel)}` : ''
+}
 
 export function formatLogEvent(event: LogEvent): string {
   switch (event.type) {
@@ -10,9 +15,9 @@ export function formatLogEvent(event: LogEvent): string {
     case 'unhandled_error':
       return `❌ Unhandled error: ${event.error}`
     case 'event_created':
-      return `📅 Event created: ${event.date}, ${event.courts} courts`
+      return `📅 Event created\n\n${event.date}${ownerSuffix(event.ownerLabel)}\n${formatCourts(event.courts)} | ${formatEventStatus(event.status)} | ${formatPrivacy(event.isPrivate)} | ${code(event.eventId)}`
     case 'event_announced':
-      return `📢 Event announced: ${event.date}`
+      return `📢 Event announced\n\n${event.date}${ownerSuffix(event.ownerLabel)}\n${formatCourts(event.courts)} | ${formatPrivacy(event.isPrivate)} | ${code(event.eventId)}`
     case 'event_finalized':
       return `✅ Event finalized: ${event.date}, ${event.participantCount} players`
     case 'event_cancelled':
@@ -32,12 +37,14 @@ export function formatLogEvent(event: LogEvent): string {
     case 'payment_check_completed':
       return `🔍 Payment check completed: ${event.eventsChecked} events checked`
     case 'scaffold_created':
-      return `📋 Scaffold created: ${event.day} ${event.time}, ${event.courts} courts`
+      return `📋 Scaffold created\n\n${event.day}, ${event.time}${ownerSuffix(event.ownerLabel)}\n${formatCourts(event.courts)} | ${formatActiveStatus(event.isActive)} | ${formatPrivacy(event.isPrivate)} | ${code(event.scaffoldId)}`
     case 'scaffold_toggled':
       return `🔀 Scaffold ${code(event.scaffoldId)}: ${event.active ? 'activated' : 'deactivated'}`
     case 'scaffold_deleted':
       return `🗑 Scaffold deleted: ${code(event.scaffoldId)}`
     case 'not_finalized_reminder':
       return `⏰ Not-finalized reminder: ${code(event.eventId)} (${event.date})`
+    case 'participant_registered':
+      return `👤 New participant: ${event.displayName} (${code(event.participantId)})`
   }
 }

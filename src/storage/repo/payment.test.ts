@@ -35,7 +35,11 @@ describe('PaymentRepo', () => {
     })
     testEventId = event.id
 
-    const participant = await participantRepo.findOrCreateParticipant('123', 'test', 'Test User')
+    const { participant } = await participantRepo.findOrCreateParticipant(
+      '123',
+      'test',
+      'Test User'
+    )
     testParticipantId = participant.id
   })
 
@@ -89,7 +93,11 @@ describe('PaymentRepo', () => {
         courts: 2,
         ownerId: '111111111',
       })
-      const participant2 = await participantRepo.findOrCreateParticipant('456', 'user2', 'User Two')
+      const { participant: participant2 } = await participantRepo.findOrCreateParticipant(
+        '456',
+        'user2',
+        'User Two'
+      )
 
       await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
       await paymentRepo.createPayment(testEventId, participant2.id, 2500)

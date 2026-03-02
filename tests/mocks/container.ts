@@ -3,7 +3,7 @@ import { Bot } from 'grammy'
 import type { MockProxy } from 'vitest-mock-extended'
 import { mockConfig } from './config'
 import { mockEventRepo, mockScaffoldRepo, mockEventParticipantRepo, mockPaymentRepo, mockSettingsRepo, mockParticipantRepo, mockNotificationRepo } from './repos'
-import { mockEventBusiness, mockScaffoldBusiness, mockUtilityBusiness } from './business'
+import { mockEventBusiness, mockScaffoldBusiness, mockUtilityBusiness, mockParticipantBusiness } from './business'
 import { mockNotificationService } from './services'
 import { mockTelegramTransport } from './transport'
 import { mockLogger } from './logger'
@@ -18,6 +18,7 @@ import type { NotificationService } from '~/services/notification'
 import type { EventBusiness } from '~/business/event'
 import type { ScaffoldBusiness } from '~/business/scaffold'
 import type { UtilityBusiness } from '~/business/utility'
+import type { ParticipantBusiness } from '~/business/participant'
 import type { TelegramTransport } from '~/services/transport/telegram'
 import type { Logger } from '~/services/logger'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
@@ -52,6 +53,7 @@ export interface MockContainer {
   eventBusiness: MockProxy<InstanceType<typeof EventBusiness>>
   scaffoldBusiness: MockProxy<InstanceType<typeof ScaffoldBusiness>>
   utilityBusiness: MockProxy<InstanceType<typeof UtilityBusiness>>
+  participantBusiness: MockProxy<InstanceType<typeof ParticipantBusiness>>
 }
 
 /**
@@ -109,6 +111,7 @@ export function createMockContainer(overrides?: Partial<MockContainer>): MockApp
     eventBusiness: asValue(overrides?.eventBusiness ?? mockEventBusiness()),
     scaffoldBusiness: asValue(overrides?.scaffoldBusiness ?? mockScaffoldBusiness()),
     utilityBusiness: asValue(overrides?.utilityBusiness ?? mockUtilityBusiness()),
+    participantBusiness: asValue(overrides?.participantBusiness ?? mockParticipantBusiness()),
   })
 
   return container

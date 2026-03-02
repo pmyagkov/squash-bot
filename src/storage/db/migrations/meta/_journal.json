@@ -19,8 +19,15 @@
     {
       "idx": 2,
       "version": "7",
+      "when": 1772000000000,
+      "tag": "0002_private_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
       "when": 1772027362178,
-      "tag": "0002_mushy_tiger_shark",
+      "tag": "0003_mushy_tiger_shark",
       "breakpoints": true
     }
   ]
