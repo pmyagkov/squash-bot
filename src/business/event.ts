@@ -2257,7 +2257,7 @@ export class EventBusiness {
     for (const event of unfinalizedEvents) {
       try {
         const existing = await this.notificationRepository.findPendingByTypeAndEventId(
-          'not_finalized',
+          'event-not-finalized',
           event.id
         )
         if (existing) {
@@ -2265,7 +2265,7 @@ export class EventBusiness {
         }
 
         await this.notificationRepository.create({
-          type: 'not_finalized',
+          type: 'event-not-finalized',
           status: 'pending',
           recipientId: event.ownerId,
           params: { eventId: event.id },
@@ -2293,14 +2293,14 @@ export class EventBusiness {
       return { action: 'cancel' }
     }
 
-    if (notification.type === 'not_finalized') {
+    if (notification.type === 'event-not-finalized') {
       if (event.status !== 'announced') {
         return { action: 'cancel' }
       }
       const hoursElapsed = Math.floor((Date.now() - event.datetime.getTime()) / (1000 * 60 * 60))
       const message = formatNotFinalizedReminder(event, hoursElapsed)
       void this.transport.logEvent({
-        type: 'not_finalized_reminder',
+        type: 'event-not-finalized-reminder',
         eventId: event.id,
         date: dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm'),
       })

@@ -20,11 +20,11 @@ describe('NotificationService', () => {
         .findPendingByTypeAndEventId.mockResolvedValue(undefined)
       container.resolve('notificationRepository').create.mockResolvedValue(created)
 
-      const result = await service.schedule('not_finalized', '123456', { eventId: 'ev_abc' }, 0)
+      const result = await service.schedule('event-not-finalized', '123456', { eventId: 'ev_abc' }, 0)
 
       expect(container.resolve('notificationRepository').create).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'not_finalized',
+          type: 'event-not-finalized',
           status: 'pending',
           recipientId: '123456',
           params: { eventId: 'ev_abc' },
@@ -41,7 +41,7 @@ describe('NotificationService', () => {
         .findPendingByTypeAndEventId.mockResolvedValue(existing)
       container.resolve('notificationRepository').updateScheduledAt.mockResolvedValue(updated)
 
-      const result = await service.schedule('not_finalized', '123456', { eventId: 'ev_abc' }, 30)
+      const result = await service.schedule('event-not-finalized', '123456', { eventId: 'ev_abc' }, 30)
 
       expect(container.resolve('notificationRepository').updateScheduledAt).toHaveBeenCalledWith(
         5,
@@ -61,7 +61,7 @@ describe('NotificationService', () => {
         .findPendingByTypeAndEventId.mockResolvedValue(existing)
       container.resolve('notificationRepository').updateStatus.mockResolvedValue(cancelled)
 
-      const result = await service.cancel('not_finalized', 'ev_abc')
+      const result = await service.cancel('event-not-finalized', 'ev_abc')
 
       expect(container.resolve('notificationRepository').updateStatus).toHaveBeenCalledWith(
         5,
@@ -75,7 +75,7 @@ describe('NotificationService', () => {
         .resolve('notificationRepository')
         .findPendingByTypeAndEventId.mockResolvedValue(undefined)
 
-      const result = await service.cancel('not_finalized', 'ev_abc')
+      const result = await service.cancel('event-not-finalized', 'ev_abc')
       expect(result).toBeUndefined()
     })
   })

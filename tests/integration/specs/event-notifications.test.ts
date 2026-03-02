@@ -61,7 +61,7 @@ describe('Event Notifications', () => {
       })
 
       await notificationRepository.create({
-        type: 'not_finalized',
+        type: 'event-not-finalized',
         status: 'pending',
         recipientId: '123456',
         params: { eventId: event.id },
@@ -100,7 +100,7 @@ describe('Event Notifications', () => {
 
       const notification = {
         id: 1,
-        type: 'not_finalized' as const,
+        type: 'event-not-finalized' as const,
         status: 'pending' as const,
         recipientId: '123456',
         params: { eventId: event.id },
@@ -128,7 +128,7 @@ describe('Event Notifications', () => {
 
       const notification = {
         id: 1,
-        type: 'not_finalized' as const,
+        type: 'event-not-finalized' as const,
         status: 'pending' as const,
         recipientId: '123456',
         params: { eventId: event.id },

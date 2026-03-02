@@ -70,7 +70,7 @@ export interface Settings {
 }
 
 // Notification types
-export type NotificationType = 'not_finalized'
+export type NotificationType = 'event-not-finalized'
 export type NotificationStatus = 'pending' | 'sent' | 'cancelled'
 
 // Notification

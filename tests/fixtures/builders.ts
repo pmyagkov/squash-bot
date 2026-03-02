@@ -93,7 +93,7 @@ export function buildParticipant(overrides?: Partial<Participant>): Participant 
 export function buildNotification(overrides?: Partial<Notification>): Notification {
   return {
     id: 1,
-    type: 'not_finalized',
+    type: 'event-not-finalized',
     status: 'pending',
     recipientId: String(TEST_CONFIG.adminId),
     params: { eventId: 'ev_test123' },
