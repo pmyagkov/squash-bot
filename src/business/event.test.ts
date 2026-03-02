@@ -7,7 +7,7 @@ import {
   buildPayment,
 } from '@fixtures'
 import { TEST_CONFIG } from '@fixtures/config'
-import { EventBusiness, calculateNextOccurrence } from '~/business/event'
+import { EventBusiness, calculateNextOccurrence, isEligibleForReminder } from '~/business/event'
 import type { MockAppContainer } from '@mocks'
 import type { SourceContext } from '~/services/command/types'
 
@@ -1152,5 +1152,47 @@ describe('EventBusiness', () => {
         expect(transport.answerCallback).toHaveBeenCalledWith(`cb_${action}`, 'Event not found')
       })
     }
+  })
+
+  describe('isEligibleForReminder', () => {
+    test('returns true for announced event past threshold', () => {
+      const event = buildEvent({
+        status: 'announced',
+        datetime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago
+      })
+      expect(isEligibleForReminder(event, 1.5, new Date())).toBe(true)
+    })
+
+    test('returns false for announced event before threshold', () => {
+      const event = buildEvent({
+        status: 'announced',
+        datetime: new Date(Date.now() - 0.5 * 60 * 60 * 1000), // 30min ago
+      })
+      expect(isEligibleForReminder(event, 1.5, new Date())).toBe(false)
+    })
+
+    test('returns false for finalized event', () => {
+      const event = buildEvent({
+        status: 'finalized',
+        datetime: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      })
+      expect(isEligibleForReminder(event, 1.5, new Date())).toBe(false)
+    })
+
+    test('returns false for cancelled event', () => {
+      const event = buildEvent({
+        status: 'cancelled',
+        datetime: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      })
+      expect(isEligibleForReminder(event, 1.5, new Date())).toBe(false)
+    })
+
+    test('returns false for future event', () => {
+      const event = buildEvent({
+        status: 'announced',
+        datetime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2h from now
+      })
+      expect(isEligibleForReminder(event, 1.5, new Date())).toBe(false)
+    })
   })
 })

@@ -163,6 +163,19 @@ export function eventExists(events: Event[], scaffoldId: string, datetime: Date)
 }
 
 /**
+ * Checks whether an event is eligible for a "not finalized" reminder notification.
+ * An event qualifies when it is still in 'announced' status and its start time
+ * is at least `thresholdHours` in the past.
+ */
+export function isEligibleForReminder(event: Event, thresholdHours: number, now: Date): boolean {
+  if (event.status !== 'announced') {
+    return false
+  }
+  const hoursSinceStart = (now.getTime() - event.datetime.getTime()) / (1000 * 60 * 60)
+  return hoursSinceStart >= thresholdHours
+}
+
+/**
  * Business logic orchestrator for events
  */
 export class EventBusiness {
@@ -2244,13 +2257,7 @@ export class EventBusiness {
     const allEvents = await this.eventRepository.getEvents()
     const now = new Date()
 
-    const unfinalizedEvents = allEvents.filter((e) => {
-      if (e.status !== 'announced') {
-        return false
-      }
-      const hoursSinceStart = (now.getTime() - e.datetime.getTime()) / (1000 * 60 * 60)
-      return hoursSinceStart >= thresholdHours
-    })
+    const unfinalizedEvents = allEvents.filter((e) => isEligibleForReminder(e, thresholdHours, now))
 
     let count = 0
 
