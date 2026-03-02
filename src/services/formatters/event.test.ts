@@ -574,6 +574,7 @@ describe('event formatters', () => {
       ]
       const result = formatNotFinalizedReminder(event, participants)
       expect(result).toContain('has not been finalized')
+      expect(result).toContain('20 January')
       expect(result).toContain('19:00')
       expect(result).toContain('Alice')
       expect(result).toContain('Bob')
