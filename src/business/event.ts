@@ -178,6 +178,16 @@ export function isEligibleForReminder(event: Event, thresholdHours: number, now:
 }
 
 /**
+ * Builds a Telegram deep link URL for an announcement message.
+ * Format: https://t.me/c/{channelId}/{messageId}
+ * channelId = chatId without the -100 prefix.
+ */
+export function buildAnnouncementUrl(chatId: string, messageId: string): string {
+  const channelId = chatId.replace(/^-100/, '')
+  return `https://t.me/c/${channelId}/${messageId}`
+}
+
+/**
  * Business logic orchestrator for events
  */
 export class EventBusiness {
@@ -2170,9 +2180,6 @@ export class EventBusiness {
         break
       }
       case '+participant': {
-        if (!event.isPrivate) {
-          return
-        }
         const currentParticipants = await this.participantRepository.getEventParticipants(entityId)
         const currentIds = new Set(currentParticipants.map((p) => p.participantId))
         const addStep: HydratedStep<string> = {
@@ -2204,9 +2211,6 @@ export class EventBusiness {
         return
       }
       case '-participant': {
-        if (!event.isPrivate) {
-          return
-        }
         const participantsForRemove =
           await this.participantRepository.getEventParticipants(entityId)
         if (participantsForRemove.length === 0) {
@@ -2340,12 +2344,10 @@ export class EventBusiness {
       }))
       const message = formatNotFinalizedReminder(event, participants)
 
-      // Build announce URL for the "Go to announcement" button
-      let announceUrl: string | undefined
-      if (event.telegramChatId && event.telegramMessageId) {
-        const channelId = event.telegramChatId.replace(/^-100/, '')
-        announceUrl = `https://t.me/c/${channelId}/${event.telegramMessageId}`
-      }
+      const announceUrl =
+        event.telegramChatId && event.telegramMessageId
+          ? buildAnnouncementUrl(event.telegramChatId, event.telegramMessageId)
+          : undefined
 
       const keyboard = buildReminderKeyboard(event.id, announceUrl)
 
@@ -2378,14 +2380,10 @@ export class EventBusiness {
       }))
       const message = formatNotFinalizedReminder(event, participants)
 
-      // Build announce URL for the "Go to announcement" button
-      let announceUrl: string | undefined
-      if (event.telegramChatId && event.telegramMessageId) {
-        // Telegram deep link: https://t.me/c/{channel_id}/{message_id}
-        // channel_id = chatId without the -100 prefix
-        const channelId = event.telegramChatId.replace(/^-100/, '')
-        announceUrl = `https://t.me/c/${channelId}/${event.telegramMessageId}`
-      }
+      const announceUrl =
+        event.telegramChatId && event.telegramMessageId
+          ? buildAnnouncementUrl(event.telegramChatId, event.telegramMessageId)
+          : undefined
 
       const keyboard = buildReminderKeyboard(event.id, announceUrl)
 
