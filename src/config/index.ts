@@ -49,6 +49,11 @@ function getConfig() {
       port: parseInt(process.env.PORT || '3010', 10),
       apiKey: process.env.API_KEY!,
     },
+    notifications: {
+      reminderThresholdHours: parseFloat(
+        process.env.NOTIFICATIONS_REMINDER_THRESHOLD_HOURS || '1.5'
+      ),
+    },
     timezone: process.env.TIMEZONE || 'Europe/Belgrade',
   }
 }

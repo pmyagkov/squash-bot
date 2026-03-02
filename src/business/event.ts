@@ -2239,7 +2239,7 @@ export class EventBusiness {
   // === Notification Methods ===
 
   async checkUnfinalizedEvents(): Promise<number> {
-    const REMINDER_THRESHOLD_HOURS = 1.5
+    const thresholdHours = config.notifications.reminderThresholdHours
 
     const allEvents = await this.eventRepository.getEvents()
     const now = new Date()
@@ -2249,7 +2249,7 @@ export class EventBusiness {
         return false
       }
       const hoursSinceStart = (now.getTime() - e.datetime.getTime()) / (1000 * 60 * 60)
-      return hoursSinceStart >= REMINDER_THRESHOLD_HOURS
+      return hoursSinceStart >= thresholdHours
     })
 
     let count = 0

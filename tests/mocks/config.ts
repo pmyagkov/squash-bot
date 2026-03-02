@@ -22,6 +22,9 @@ export function mockConfig(overrides?: Partial<ConfigType>): ConfigType {
       port: 3010,
       apiKey: TEST_CONFIG.apiKey,
     },
+    notifications: {
+      reminderThresholdHours: 1.5,
+    },
     timezone: TEST_CONFIG.timezone,
   }
 
