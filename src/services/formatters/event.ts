@@ -213,12 +213,48 @@ export function formatPaidPersonalPaymentText(baseText: string, paidDate: Date):
 /**
  * Formats not-finalized event reminder for admin
  */
-export function formatNotFinalizedReminder(event: Event, hoursElapsed: number): string {
+export function formatNotFinalizedReminder(
+  event: Event,
+  participants: { displayName: string; participantId: string; participations: number }[]
+): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const dateStr = eventDate.format('D MMMM')
   const timeStr = eventDate.format('HH:mm')
 
-  return `Event on ${dateStr} ${timeStr} has not been finalized.\nIt started ${hoursElapsed}h ago. Please finalize it.`
+  let text = `⏰ Event on ${dateStr} ${timeStr} has not been finalized:\n\n`
+
+  if (participants.length === 0) {
+    text += 'Participants:\n(nobody yet)'
+  } else {
+    const totalCount = participants.reduce((sum, p) => sum + p.participations, 0)
+    text += `Participants (${totalCount}):\n`
+    text += participants.map((p, i) => `${i + 1}. ${p.displayName}`).join('\n')
+  }
+
+  text += `\n\n${formatCourts(event.courts)}`
+  text += '\n\nHit Finalize if details are right, otherwise — change the details.'
+
+  return text
+}
+
+/**
+ * Builds inline keyboard for event reminder message
+ */
+export function buildReminderKeyboard(eventId: string, announceUrl?: string): InlineKeyboard {
+  const kb = new InlineKeyboard()
+    .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
+    .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
+    .row()
+    .text(BTN_ADD_COURT, 'event:add-court')
+    .text(BTN_REMOVE_COURT, 'event:delete-court')
+    .row()
+    .text(BTN_FINALIZE, 'event:finalize')
+
+  if (announceUrl) {
+    kb.row().url('🔗 Go to announcement', announceUrl)
+  }
+
+  return kb
 }
 
 /**

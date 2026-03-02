@@ -2304,8 +2304,7 @@ export class EventBusiness {
       if (event.status !== 'announced') {
         return { action: 'cancel' }
       }
-      const hoursElapsed = Math.floor((Date.now() - event.datetime.getTime()) / (1000 * 60 * 60))
-      const message = formatNotFinalizedReminder(event, hoursElapsed)
+      const message = formatNotFinalizedReminder(event, [])
       void this.transport.logEvent({
         type: 'event-not-finalized-reminder',
         eventId: event.id,
