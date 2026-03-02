@@ -67,5 +67,6 @@ export function mockNotificationRepo() {
   const mock = mockClass<typeof NotificationRepo>()
   mock.findDue.mockResolvedValue([])
   mock.findPendingByTypeAndEventId.mockResolvedValue(undefined)
+  mock.findSentByTypeAndEventId.mockResolvedValue(undefined)
   return mock
 }

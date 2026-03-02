@@ -100,6 +100,8 @@ export function buildNotification(overrides?: Partial<Notification>): Notificati
     scheduledAt: new Date(),
     sentAt: undefined,
     createdAt: new Date(),
+    messageId: undefined,
+    chatId: undefined,
     ...overrides,
   }
 }

@@ -134,6 +134,8 @@ export const notifications = pgTable('notifications', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .default(sql`now()`)
     .notNull(),
+  messageId: text('message_id'),
+  chatId: text('chat_id'),
 })
 
 // Relations

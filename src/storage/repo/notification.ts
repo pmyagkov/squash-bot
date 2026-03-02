@@ -71,6 +71,30 @@ export class NotificationRepo {
     return this.toDomain(row)
   }
 
+  async updateMessageRef(id: number, messageId: string, chatId: string): Promise<Notification> {
+    const [row] = await db
+      .update(notifications)
+      .set({ messageId, chatId })
+      .where(eq(notifications.id, id))
+      .returning()
+    return this.toDomain(row)
+  }
+
+  async findSentByTypeAndEventId(
+    type: NotificationType,
+    eventId: string
+  ): Promise<Notification | undefined> {
+    const results = await db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.type, type), eq(notifications.status, 'sent')))
+    const match = results.find((r) => {
+      const params = JSON.parse(r.params) as Record<string, unknown>
+      return params.eventId === eventId
+    })
+    return match ? this.toDomain(match) : undefined
+  }
+
   private toDomain(row: typeof notifications.$inferSelect): Notification {
     return {
       id: row.id,
@@ -81,6 +105,8 @@ export class NotificationRepo {
       scheduledAt: row.scheduledAt,
       sentAt: row.sentAt ?? undefined,
       createdAt: row.createdAt,
+      messageId: row.messageId ?? undefined,
+      chatId: row.chatId ?? undefined,
     }
   }
 }

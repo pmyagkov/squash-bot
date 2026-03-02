@@ -142,7 +142,9 @@ function createTables(db: ReturnType<typeof drizzle>) {
       params TEXT NOT NULL,
       scheduled_at TEXT NOT NULL,
       sent_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      message_id TEXT,
+      chat_id TEXT
     )
   `)
 }

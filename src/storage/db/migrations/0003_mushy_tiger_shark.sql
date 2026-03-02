@@ -6,7 +6,9 @@ CREATE TABLE "notifications" (
 	"params" text NOT NULL,
 	"scheduled_at" timestamp with time zone NOT NULL,
 	"sent_at" timestamp with time zone,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"message_id" text,
+	"chat_id" text
 );
 --> statement-breakpoint
 ALTER TABLE "payments" ALTER COLUMN "is_paid" SET DEFAULT 0;--> statement-breakpoint

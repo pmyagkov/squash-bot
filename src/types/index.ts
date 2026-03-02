@@ -83,6 +83,8 @@ export interface Notification {
   scheduledAt: Date
   sentAt?: Date
   createdAt: Date
+  messageId?: string
+  chatId?: string
 }
 
 // Log events
