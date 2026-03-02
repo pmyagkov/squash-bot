@@ -1,10 +1,13 @@
+import type { InlineKeyboardMarkup } from 'grammy/types'
 import type { AppContainer } from '~/container'
 import type { NotificationRepo } from '~/storage/repo/notification'
 import type { TelegramTransport } from '~/services/transport/telegram'
 import type { Logger } from '~/services/logger'
 import type { Notification, NotificationType } from '~/types'
 
-type HandlerResult = { action: 'send'; message: string } | { action: 'cancel' }
+export type HandlerResult =
+  | { action: 'send'; message: string; keyboard?: InlineKeyboardMarkup }
+  | { action: 'cancel' }
 
 export class NotificationService {
   private notificationRepository: NotificationRepo
@@ -71,7 +74,16 @@ export class NotificationService {
         const result = await handler(notification)
 
         if (result.action === 'send') {
-          await this.transport.sendMessage(Number(notification.recipientId), result.message)
+          const msgId = await this.transport.sendMessage(
+            Number(notification.recipientId),
+            result.message,
+            result.keyboard
+          )
+          await this.notificationRepository.updateMessageRef(
+            notification.id,
+            String(msgId),
+            notification.recipientId
+          )
           const updated = await this.notificationRepository.updateStatus(
             notification.id,
             'sent',

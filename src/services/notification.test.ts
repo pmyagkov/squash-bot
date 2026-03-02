@@ -87,19 +87,58 @@ describe('NotificationService', () => {
       container
         .resolve('notificationRepository')
         .updateStatus.mockResolvedValue(buildNotification({ status: 'sent' }))
-      container.resolve('transport').sendMessage.mockResolvedValue(1)
+      container
+        .resolve('notificationRepository')
+        .updateMessageRef.mockResolvedValue(buildNotification())
+      container.resolve('transport').sendMessage.mockResolvedValue(42)
 
       const handler = async () => ({ action: 'send' as const, message: 'Test message' })
       const result = await service.processQueue(handler)
 
       expect(container.resolve('transport').sendMessage).toHaveBeenCalledWith(
         123456,
-        'Test message'
+        'Test message',
+        undefined
+      )
+      expect(container.resolve('notificationRepository').updateMessageRef).toHaveBeenCalledWith(
+        notification.id,
+        '42',
+        '123456'
       )
       expect(container.resolve('notificationRepository').updateStatus).toHaveBeenCalledWith(
         notification.id,
         'sent',
         expect.any(Date)
+      )
+      expect(result).toHaveLength(1)
+    })
+
+    it('sends message with keyboard and saves messageRef', async () => {
+      const notification = buildNotification({ recipientId: '789' })
+      const keyboard = {
+        inline_keyboard: [[{ text: 'Finalize', callback_data: 'finalize:ev_test123' }]],
+      }
+      container.resolve('notificationRepository').findDue.mockResolvedValue([notification])
+      container
+        .resolve('notificationRepository')
+        .updateStatus.mockResolvedValue(buildNotification({ status: 'sent' }))
+      container
+        .resolve('notificationRepository')
+        .updateMessageRef.mockResolvedValue(buildNotification())
+      container.resolve('transport').sendMessage.mockResolvedValue(99)
+
+      const handler = async () => ({ action: 'send' as const, message: 'Reminder', keyboard })
+      const result = await service.processQueue(handler)
+
+      expect(container.resolve('transport').sendMessage).toHaveBeenCalledWith(
+        789,
+        'Reminder',
+        keyboard
+      )
+      expect(container.resolve('notificationRepository').updateMessageRef).toHaveBeenCalledWith(
+        notification.id,
+        '99',
+        '789'
       )
       expect(result).toHaveLength(1)
     })
