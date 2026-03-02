@@ -5,6 +5,7 @@ import {
   buildParticipant,
   buildEventParticipant,
   buildPayment,
+  buildNotification,
 } from '@fixtures'
 import { TEST_CONFIG } from '@fixtures/config'
 import { EventBusiness, calculateNextOccurrence, isEligibleForReminder } from '~/business/event'
@@ -1193,6 +1194,113 @@ describe('EventBusiness', () => {
         datetime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2h from now
       })
       expect(isEligibleForReminder(event, 1.5, new Date())).toBe(false)
+    })
+  })
+
+  // ── notificationHandler ──────────────────────────────────────────────
+
+  describe('notificationHandler', () => {
+    test('returns rich message with keyboard for event-not-finalized', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+
+      const event = buildEvent({
+        id: 'ev_test',
+        status: 'announced',
+        telegramMessageId: '100',
+        telegramChatId: '-1001234567890',
+      })
+      eventRepo.findById.mockResolvedValue(event)
+      participantRepo.getEventParticipants.mockResolvedValue([
+        buildEventParticipant({
+          participantId: 'p1',
+          participations: 1,
+          participant: buildParticipant({ id: 'p1', displayName: 'Alice' }),
+        }),
+      ])
+
+      const notification = buildNotification({
+        type: 'event-not-finalized',
+        params: { eventId: 'ev_test' },
+      })
+
+      const business = new EventBusiness(container)
+      business.init()
+      const result = await business.notificationHandler(notification)
+
+      expect(result.action).toBe('send')
+      if (result.action === 'send') {
+        expect(result.message).toContain('Alice')
+        expect(result.message).toContain('has not been finalized')
+        expect(result.keyboard).toBeDefined()
+      }
+    })
+
+    test('cancels if event is already finalized', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+
+      eventRepo.findById.mockResolvedValue(buildEvent({ id: 'ev_fin', status: 'finalized' }))
+
+      const notification = buildNotification({
+        type: 'event-not-finalized',
+        params: { eventId: 'ev_fin' },
+      })
+
+      const business = new EventBusiness(container)
+      business.init()
+      const result = await business.notificationHandler(notification)
+
+      expect(result.action).toBe('cancel')
+    })
+
+    test('cancels if event not found', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+
+      eventRepo.findById.mockResolvedValue(undefined)
+
+      const notification = buildNotification({
+        type: 'event-not-finalized',
+        params: { eventId: 'ev_missing' },
+      })
+
+      const business = new EventBusiness(container)
+      business.init()
+      const result = await business.notificationHandler(notification)
+
+      expect(result.action).toBe('cancel')
+    })
+
+    test('includes announce URL in keyboard when event has telegram refs', async ({
+      container,
+    }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+
+      const event = buildEvent({
+        id: 'ev_url',
+        status: 'announced',
+        telegramMessageId: '456',
+        telegramChatId: '-1001234567890',
+      })
+      eventRepo.findById.mockResolvedValue(event)
+      participantRepo.getEventParticipants.mockResolvedValue([])
+
+      const notification = buildNotification({
+        type: 'event-not-finalized',
+        params: { eventId: 'ev_url' },
+      })
+
+      const business = new EventBusiness(container)
+      business.init()
+      const result = await business.notificationHandler(notification)
+
+      expect(result.action).toBe('send')
+      if (result.action === 'send' && result.keyboard) {
+        // Check that keyboard has a URL button
+        const rows = result.keyboard.inline_keyboard
+        const urlButton = rows.flat().find((btn) => 'url' in btn)
+        expect(urlButton).toBeDefined()
+      }
     })
   })
 })

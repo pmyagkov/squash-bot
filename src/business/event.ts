@@ -30,6 +30,7 @@ import type { Notification } from '~/types'
 import { EventLock } from '~/utils/eventLock'
 import {
   buildInlineKeyboard,
+  buildReminderKeyboard,
   formatAnnouncementText,
   formatEventMessage,
   formatPersonalPaymentText,
@@ -37,6 +38,7 @@ import {
   formatFallbackNotificationText,
   formatNotFinalizedReminder,
 } from '~/services/formatters/event'
+import type { HandlerResult } from '~/services/notification'
 import { eventJoinDef } from '~/commands/event/join'
 import { eventActionDef } from '~/commands/event/eventAction'
 import { eventCreateDef } from '~/commands/event/create'
@@ -2290,9 +2292,7 @@ export class EventBusiness {
     return count
   }
 
-  async notificationHandler(
-    notification: Notification
-  ): Promise<{ action: 'send'; message: string } | { action: 'cancel' }> {
+  async notificationHandler(notification: Notification): Promise<HandlerResult> {
     const eventId = notification.params.eventId as string
     const event = await this.eventRepository.findById(eventId)
 
@@ -2304,13 +2304,33 @@ export class EventBusiness {
       if (event.status !== 'announced') {
         return { action: 'cancel' }
       }
-      const message = formatNotFinalizedReminder(event, [])
+
+      const eventParticipants = await this.participantRepository.getEventParticipants(eventId)
+      const participants = eventParticipants.map((ep) => ({
+        displayName: ep.participant.displayName,
+        participantId: ep.participantId,
+        participations: ep.participations,
+      }))
+      const message = formatNotFinalizedReminder(event, participants)
+
+      // Build announce URL for the "Go to announcement" button
+      let announceUrl: string | undefined
+      if (event.telegramChatId && event.telegramMessageId) {
+        // Telegram deep link: https://t.me/c/{channel_id}/{message_id}
+        // channel_id = chatId without the -100 prefix
+        const channelId = event.telegramChatId.replace(/^-100/, '')
+        announceUrl = `https://t.me/c/${channelId}/${event.telegramMessageId}`
+      }
+
+      const keyboard = buildReminderKeyboard(event.id, announceUrl)
+
       void this.transport.logEvent({
         type: 'event-not-finalized-reminder',
         eventId: event.id,
         date: dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm'),
       })
-      return { action: 'send', message }
+
+      return { action: 'send', message, keyboard }
     }
 
     return { action: 'cancel' }
