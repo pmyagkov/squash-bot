@@ -3,6 +3,7 @@ import type { AppContainer } from '~/container'
 import type { NotificationRepo } from '~/storage/repo/notification'
 import type { TelegramTransport } from '~/services/transport/telegram'
 import type { Logger } from '~/services/logger'
+import type { EventBusiness } from '~/business/event'
 import type { Notification, NotificationType } from '~/types'
 
 export type HandlerResult =
@@ -13,11 +14,13 @@ export class NotificationService {
   private notificationRepository: NotificationRepo
   private transport: TelegramTransport
   private logger: Logger
+  private eventBusiness: EventBusiness
 
   constructor(container: AppContainer) {
     this.notificationRepository = container.resolve('notificationRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
+    this.eventBusiness = container.resolve('eventBusiness')
   }
 
   /**
@@ -60,17 +63,27 @@ export class NotificationService {
   }
 
   /**
-   * Process all due notifications.
-   * For each, calls the handler to decide whether to send or cancel.
+   * Route a notification to the correct business handler based on type prefix.
    */
-  async processQueue(
-    handler: (notification: Notification) => Promise<HandlerResult>
-  ): Promise<Notification[]> {
+  private resolveHandler(notification: Notification): (n: Notification) => Promise<HandlerResult> {
+    const { type } = notification
+    if (type.startsWith('event-')) {
+      return (n) => this.eventBusiness.notificationHandler(n)
+    }
+    throw new Error(`Unknown notification type: ${type}`)
+  }
+
+  /**
+   * Process all due notifications.
+   * For each, resolves the handler and decides whether to send or cancel.
+   */
+  async processQueue(): Promise<Notification[]> {
     const dueNotifications = await this.notificationRepository.findDue()
     const processed: Notification[] = []
 
     for (const notification of dueNotifications) {
       try {
+        const handler = this.resolveHandler(notification)
         const result = await handler(notification)
 
         if (result.action === 'send') {

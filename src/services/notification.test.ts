@@ -1,14 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { NotificationService } from './notification'
 import { createMockContainer } from '@mocks'
+import { mockEventBusiness } from '@mocks/business'
 import { buildNotification } from '@fixtures/builders'
+import type { MockAppContainer } from '@mocks'
 
 describe('NotificationService', () => {
   let service: NotificationService
-  let container: ReturnType<typeof createMockContainer>
+  let container: MockAppContainer
+  let eventBusiness: ReturnType<typeof mockEventBusiness>
 
   beforeEach(() => {
-    container = createMockContainer()
+    eventBusiness = mockEventBusiness()
+    container = createMockContainer({ eventBusiness })
     service = new NotificationService(container)
   })
 
@@ -20,7 +24,12 @@ describe('NotificationService', () => {
         .findPendingByTypeAndEventId.mockResolvedValue(undefined)
       container.resolve('notificationRepository').create.mockResolvedValue(created)
 
-      const result = await service.schedule('event-not-finalized', '123456', { eventId: 'ev_abc' }, 0)
+      const result = await service.schedule(
+        'event-not-finalized',
+        '123456',
+        { eventId: 'ev_abc' },
+        0
+      )
 
       expect(container.resolve('notificationRepository').create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -41,7 +50,12 @@ describe('NotificationService', () => {
         .findPendingByTypeAndEventId.mockResolvedValue(existing)
       container.resolve('notificationRepository').updateScheduledAt.mockResolvedValue(updated)
 
-      const result = await service.schedule('event-not-finalized', '123456', { eventId: 'ev_abc' }, 30)
+      const result = await service.schedule(
+        'event-not-finalized',
+        '123456',
+        { eventId: 'ev_abc' },
+        30
+      )
 
       expect(container.resolve('notificationRepository').updateScheduledAt).toHaveBeenCalledWith(
         5,
@@ -91,10 +105,14 @@ describe('NotificationService', () => {
         .resolve('notificationRepository')
         .updateMessageRef.mockResolvedValue(buildNotification())
       container.resolve('transport').sendMessage.mockResolvedValue(42)
+      eventBusiness.notificationHandler.mockResolvedValue({
+        action: 'send',
+        message: 'Test message',
+      })
 
-      const handler = async () => ({ action: 'send' as const, message: 'Test message' })
-      const result = await service.processQueue(handler)
+      const result = await service.processQueue()
 
+      expect(eventBusiness.notificationHandler).toHaveBeenCalledWith(notification)
       expect(container.resolve('transport').sendMessage).toHaveBeenCalledWith(
         123456,
         'Test message',
@@ -126,9 +144,13 @@ describe('NotificationService', () => {
         .resolve('notificationRepository')
         .updateMessageRef.mockResolvedValue(buildNotification())
       container.resolve('transport').sendMessage.mockResolvedValue(99)
+      eventBusiness.notificationHandler.mockResolvedValue({
+        action: 'send',
+        message: 'Reminder',
+        keyboard,
+      })
 
-      const handler = async () => ({ action: 'send' as const, message: 'Reminder', keyboard })
-      const result = await service.processQueue(handler)
+      const result = await service.processQueue()
 
       expect(container.resolve('transport').sendMessage).toHaveBeenCalledWith(
         789,
@@ -149,10 +171,11 @@ describe('NotificationService', () => {
       container
         .resolve('notificationRepository')
         .updateStatus.mockResolvedValue(buildNotification({ status: 'cancelled' }))
+      eventBusiness.notificationHandler.mockResolvedValue({ action: 'cancel' })
 
-      const handler = async () => ({ action: 'cancel' as const })
-      const result = await service.processQueue(handler)
+      const result = await service.processQueue()
 
+      expect(eventBusiness.notificationHandler).toHaveBeenCalledWith(notification)
       expect(container.resolve('transport').sendMessage).not.toHaveBeenCalled()
       expect(container.resolve('notificationRepository').updateStatus).toHaveBeenCalledWith(
         notification.id,
