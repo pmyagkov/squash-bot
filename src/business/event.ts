@@ -1283,12 +1283,14 @@ export class EventBusiness {
       .toDate()
 
     // Create event
+    const defaultCollectorId = await this.settingsRepository.getDefaultCollectorId()
     const event = await this.eventRepository.createEvent({
       datetime,
       courts: data.courts,
       status: 'created',
       ownerId: String(source.user.id),
       isPrivate: data.isPrivate,
+      collectorId: defaultCollectorId ?? undefined,
     })
 
     // Format success message
@@ -1570,6 +1572,7 @@ export class EventBusiness {
       courts: scaffold.defaultCourts,
       status: 'created',
       ownerId,
+      collectorId: scaffold.collectorId,
     })
 
     // Format success message
@@ -1941,6 +1944,7 @@ export class EventBusiness {
           status: 'created',
           ownerId,
           isPrivate: scaffold.isPrivate,
+          collectorId: scaffold.collectorId,
         })
 
         // Copy scaffold participants to private event

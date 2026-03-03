@@ -1113,6 +1113,44 @@ describe('EventBusiness', () => {
       expect(count).toBe(0)
       expect(eventRepo.createEvent).not.toHaveBeenCalled()
     })
+
+    test('event inherits collectorId from scaffold', async ({ container }) => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
+      const eventRepo = container.resolve('eventRepository')
+      const settingsRepo = container.resolve('settingsRepository')
+      const transport = container.resolve('transport')
+
+      const scaffold = buildScaffold({
+        id: 'sc_col',
+        collectorId: 'pt_collector1',
+        isActive: true,
+        ownerId: String(TEST_CONFIG.adminId),
+      })
+      scaffoldRepo.getScaffolds.mockResolvedValue([scaffold])
+      eventRepo.getEvents.mockResolvedValue([])
+
+      const createdEvent = buildEvent({ id: 'ev_col', collectorId: 'pt_collector1' })
+      eventRepo.createEvent.mockResolvedValue(createdEvent)
+
+      // For announceEvent
+      eventRepo.findById.mockResolvedValue(createdEvent)
+      settingsRepo.getMainChatId.mockResolvedValue(TEST_CONFIG.chatId)
+      transport.sendMessage.mockResolvedValue(999)
+      eventRepo.updateEvent.mockResolvedValue(
+        buildEvent({ id: 'ev_col', status: 'announced', telegramMessageId: '999' })
+      )
+
+      settingsRepo.getTimezone.mockResolvedValue('Europe/Belgrade')
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-7d 12:00')
+
+      const business = new EventBusiness(container)
+
+      await business.checkAndCreateEventsFromScaffolds()
+
+      expect(eventRepo.createEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ collectorId: 'pt_collector1' })
+      )
+    })
   })
 
   // ── Edge cases: event not found for callbacks ──────────────────────
