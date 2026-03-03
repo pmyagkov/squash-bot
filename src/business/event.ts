@@ -2127,6 +2127,39 @@ export class EventBusiness {
     return createdCount
   }
 
+  /**
+   * Auto-announces manual events in 'created' status when their datetime
+   * is within the announcement deadline threshold.
+   */
+  async checkAndAnnounceCreatedEvents(): Promise<number> {
+    const allEvents = await this.eventRepository.getEvents()
+    const createdEvents = allEvents.filter((e) => e.status === 'created')
+
+    let count = 0
+
+    for (const event of createdEvents) {
+      try {
+        const deadline =
+          event.announcementDeadline ?? (await this.settingsRepository.getAnnouncementDeadline())
+        const timezone = await this.settingsRepository.getTimezone()
+
+        if (!shouldTrigger(deadline, event.datetime, timezone)) {
+          continue
+        }
+
+        await this.announceEvent(event.id)
+        count++
+        await this.logger.log(`Auto-announced created event ${event.id}`)
+      } catch (error) {
+        await this.logger.error(
+          `Failed to auto-announce event ${event.id}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+    }
+
+    return count
+  }
+
   private async handleDeleteFromDef(
     data: { eventId: string },
     source: SourceContext

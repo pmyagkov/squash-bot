@@ -1690,4 +1690,63 @@ describe('EventBusiness', () => {
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Telegram error'))
     })
   })
+
+  // ── checkAndAnnounceCreatedEvents ────────────────────────────────
+
+  describe('checkAndAnnounceCreatedEvents', () => {
+    test('announces manual event past announcement deadline', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const settingsRepo = container.resolve('settingsRepository')
+      const transport = container.resolve('transport')
+
+      // Event tomorrow at 18:00, status=created
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(18, 0, 0, 0)
+
+      const event = buildEvent({
+        id: 'ev_manual1',
+        status: 'created',
+        scaffoldId: undefined,
+        datetime: tomorrow,
+        ownerId: '111',
+        telegramMessageId: undefined,
+      })
+
+      eventRepo.getEvents.mockResolvedValue([event])
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
+      settingsRepo.getTimezone.mockResolvedValue('UTC')
+      settingsRepo.getMainChatId.mockResolvedValue(-100123)
+
+      // announceEvent internals
+      eventRepo.findById.mockResolvedValue(event)
+      transport.sendMessage.mockResolvedValue(456)
+      eventRepo.updateEvent.mockResolvedValue({
+        ...event,
+        status: 'announced',
+        telegramMessageId: '456',
+      })
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const count = await business.checkAndAnnounceCreatedEvents()
+
+      expect(count).toBe(1)
+      expect(transport.sendMessage).toHaveBeenCalled()
+    })
+
+    test('skips already announced events', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+
+      eventRepo.getEvents.mockResolvedValue([buildEvent({ id: 'ev_ann', status: 'announced' })])
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const count = await business.checkAndAnnounceCreatedEvents()
+
+      expect(count).toBe(0)
+    })
+  })
 })
