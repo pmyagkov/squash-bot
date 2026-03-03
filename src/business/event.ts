@@ -628,6 +628,7 @@ export class EventBusiness {
       ])
 
       void this.logger.log(`User ${data.userId} unfinalized event ${event.id}`)
+      void this.transport.logEvent({ type: 'event_unfinalized', event })
     } finally {
       this.eventLock.release(event.id)
     }
@@ -781,6 +782,15 @@ export class EventBusiness {
       await this.updateAnnouncementWithPayments(eventId)
 
       await this.transport.answerCallback(data.callbackId)
+
+      const paymentEvent = await this.eventRepository.findById(eventId)
+      if (paymentEvent) {
+        void this.transport.logEvent({
+          type: 'payment_cancelled',
+          event: paymentEvent,
+          participant,
+        })
+      }
     } finally {
       this.eventLock.release(eventId)
     }
@@ -1096,6 +1106,7 @@ export class EventBusiness {
       }
 
       await this.logger.log(`User ${source.user.id} unfinalized event ${event.id}`)
+      void this.transport.logEvent({ type: 'event_unfinalized', event })
     } finally {
       this.eventLock.release(event.id)
     }
@@ -1280,6 +1291,15 @@ export class EventBusiness {
         await this.transport.answerCallback(source.callbackId)
       } else {
         await this.transport.sendMessage(source.chat.id, `✅ Payment marked as unpaid`)
+      }
+
+      const paymentEvent = await this.eventRepository.findById(data.eventId)
+      if (paymentEvent) {
+        void this.transport.logEvent({
+          type: 'payment_cancelled',
+          event: paymentEvent,
+          participant,
+        })
       }
     } finally {
       this.eventLock.release(data.eventId)
@@ -1487,6 +1507,7 @@ export class EventBusiness {
       source.chat.id,
       `✅ @${data.targetUsername} marked as unpaid for ${code(event.id)}`
     )
+    void this.transport.logEvent({ type: 'payment_cancelled', event, participant })
   }
 
   // === Command Handlers ===
@@ -2007,6 +2028,7 @@ export class EventBusiness {
 
       await this.transport.sendMessage(source.chat.id, `✅ Event ${code(data.eventId)} deleted`)
       await this.logger.log(`User ${source.user.id} deleted event ${data.eventId}`)
+      void this.transport.logEvent({ type: 'event_deleted', event })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
@@ -2041,6 +2063,7 @@ export class EventBusiness {
       await this.eventRepository.restore(data.eventId)
       await this.transport.sendMessage(source.chat.id, `✅ Event ${code(data.eventId)} restored`)
       await this.logger.log(`User ${source.user.id} restored event ${data.eventId}`)
+      void this.transport.logEvent({ type: 'event_undeleted', event })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
@@ -2075,6 +2098,8 @@ export class EventBusiness {
       return
     }
 
+    const from = await this.participantRepository.findByTelegramId(event.ownerId)
+
     await this.eventRepository.updateEvent(event.id, { ownerId: target.telegramId })
 
     await this.transport.sendMessage(
@@ -2084,6 +2109,9 @@ export class EventBusiness {
     await this.logger.log(
       `User ${source.user.id} transferred event ${event.id} to @${data.targetUsername}`
     )
+    if (from) {
+      void this.transport.logEvent({ type: 'event_transferred', event, from, to: target })
+    }
   }
 
   // === Edit Menu ===
