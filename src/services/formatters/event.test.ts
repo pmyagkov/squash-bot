@@ -190,7 +190,7 @@ describe('event formatters', () => {
 
       const result = formatAnnouncementText(baseEvent, participants)
 
-      expect(result).toContain('Participants (2)')
+      expect(result).toContain('Participants — 2:')
       expect(result).toContain('@john_doe')
       expect(result).toContain('@jane_smith')
     })
@@ -208,7 +208,7 @@ describe('event formatters', () => {
 
       const result = formatAnnouncementText(baseEvent, participants)
 
-      expect(result).toContain('Participants (2)')
+      expect(result).toContain('Participants — 2:')
       expect(result).toContain('@john_doe (×2)')
     })
 
@@ -559,7 +559,7 @@ describe('event formatters', () => {
   })
 
   describe('formatNotFinalizedReminder', () => {
-    it('formats reminder with participants and courts', () => {
+    it('formats reminder same as announcement body', () => {
       const event: Event = {
         id: 'ev_test123',
         datetime: new Date('2024-01-20T19:00:00+01:00'),
@@ -568,18 +568,34 @@ describe('event formatters', () => {
         ownerId: '111111111',
         isPrivate: false,
       }
-      const participants = [
-        { displayName: 'Alice', participantId: 'p1', participations: 1 },
-        { displayName: 'Bob', participantId: 'p2', participations: 1 },
+      const participants: EventParticipantDisplay[] = [
+        { participant: { telegramUsername: 'alice', displayName: 'Alice' }, participations: 1 },
+        { participant: { telegramUsername: 'bob', displayName: 'Bob' }, participations: 1 },
       ]
       const result = formatNotFinalizedReminder(event, participants)
-      expect(result).toContain('has not been finalized')
-      expect(result).toContain('20 January')
-      expect(result).toContain('19:00')
-      expect(result).toContain('Alice')
-      expect(result).toContain('Bob')
+      expect(result).toContain('not finalized')
+      expect(result).toContain('Sat, 20 Jan, 19:00')
       expect(result).toContain('Courts: 2')
-      expect(result).toContain('Finalize')
+      expect(result).toContain('Participants — 2:')
+      expect(result).toContain('@alice, @bob')
+      expect(result).toContain('"✅ Finalize"')
+    })
+
+    it('uses displayName when no username', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T19:00:00+01:00'),
+        courts: 1,
+        status: 'announced',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+      const participants: EventParticipantDisplay[] = [
+        { participant: { displayName: 'Alice' }, participations: 1 },
+      ]
+      const result = formatNotFinalizedReminder(event, participants)
+      expect(result).toContain('Alice')
+      expect(result).not.toContain('@')
     })
 
     it('shows empty participant list when no participants', () => {

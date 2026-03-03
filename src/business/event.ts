@@ -2378,8 +2378,11 @@ export class EventBusiness {
       // Refresh with current participant data
       const eventParticipants = await this.participantRepository.getEventParticipants(eventId)
       const participants = eventParticipants.map((ep) => ({
-        displayName: ep.participant.displayName,
-        participantId: ep.participantId,
+        participant: {
+          id: ep.participant.id,
+          telegramUsername: ep.participant.telegramUsername,
+          displayName: ep.participant.displayName,
+        },
         participations: ep.participations,
       }))
       const message = formatNotFinalizedReminder(event, participants)
@@ -2419,8 +2422,11 @@ export class EventBusiness {
 
       const eventParticipants = await this.participantRepository.getEventParticipants(eventId)
       const participants = eventParticipants.map((ep) => ({
-        displayName: ep.participant.displayName,
-        participantId: ep.participantId,
+        participant: {
+          id: ep.participant.id,
+          telegramUsername: ep.participant.telegramUsername,
+          displayName: ep.participant.displayName,
+        },
         participations: ep.participations,
       }))
       const message = formatNotFinalizedReminder(event, participants)

@@ -174,7 +174,7 @@ describe('event-private', () => {
       const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants (1):')
+      expect(lastEdit?.[2]).toContain('Participants — 1:')
       expect(lastEdit?.[2]).toContain('@alice')
     })
   })
@@ -278,7 +278,7 @@ describe('event-private', () => {
       const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants (1):')
+      expect(lastEdit?.[2]).toContain('Participants — 1:')
       expect(lastEdit?.[2]).toContain('@bob')
       expect(lastEdit?.[2]).not.toContain('@alice')
     })

@@ -1339,8 +1339,8 @@ describe('EventBusiness', () => {
 
       expect(result.action).toBe('send')
       if (result.action === 'send') {
-        expect(result.message).toContain('Alice')
-        expect(result.message).toContain('has not been finalized')
+        expect(result.message).toContain('@testuser')
+        expect(result.message).toContain('not finalized')
         expect(result.keyboard).toBeDefined()
       }
     })
@@ -1452,7 +1452,7 @@ describe('EventBusiness', () => {
       expect(transport.editMessage).toHaveBeenCalledWith(
         999,
         200,
-        expect.stringContaining('Alice'),
+        expect.stringContaining('@testuser'),
         expect.anything()
       )
     })

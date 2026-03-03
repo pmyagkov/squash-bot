@@ -113,7 +113,7 @@ describe('Event Notifications', () => {
 
       expect(result.action).toBe('send')
       if (result.action === 'send') {
-        expect(result.message).toContain('has not been finalized')
+        expect(result.message).toContain('not finalized')
       }
     })
 
