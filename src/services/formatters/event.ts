@@ -335,7 +335,6 @@ export function formatFallbackNotificationText(
   botUsername: string
 ): string {
   const mentions = participantNames.join(', ')
-  const link = `tg://resolve?domain=${botUsername}&start`
 
-  return `⚠️ I can't reach you personally, guys\n\n${mentions}\n\nPlease <a href="${link}">start a chat with me</a>\n\n(Click the link and send /start)`
+  return `⚠️ I can't reach you personally, guys\n\n${mentions}\n\nPlease write to @${botUsername} and send /start`
 }

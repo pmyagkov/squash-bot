@@ -721,7 +721,7 @@ describe('event formatters', () => {
 
       expect(result).toContain("can't reach")
       expect(result).toContain('@alice, @bob')
-      expect(result).toContain('tg://resolve?domain=test_bot&start')
+      expect(result).toContain('@test_bot')
       expect(result).toContain('/start')
     })
   })

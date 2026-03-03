@@ -38,7 +38,7 @@ describe('private-chat-commands', () => {
     // Should send warning message
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('tg://resolve?domain=test_bot&start'),
+      expect.stringContaining('@test_bot'),
       expect.anything()
     )
 
@@ -73,7 +73,7 @@ describe('private-chat-commands', () => {
 
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('tg://resolve?domain=test_bot&start'),
+      expect.stringContaining('@test_bot'),
       expect.anything()
     )
     // Should NOT have processed the command
@@ -111,7 +111,7 @@ describe('private-chat-commands', () => {
 
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('tg://resolve?domain=test_bot&start'),
+      expect.stringContaining('@test_bot'),
       expect.anything()
     )
   })
