@@ -2300,11 +2300,20 @@ export class EventBusiness {
 
     for (const event of unfinalizedEvents) {
       try {
-        const existing = await this.notificationRepository.findPendingByTypeAndEventId(
+        const pending = await this.notificationRepository.findPendingByTypeAndEventId(
           'event-not-finalized',
           event.id
         )
-        if (existing) {
+        if (pending) {
+          continue
+        }
+
+        // Already sent and being kept up-to-date by refreshReminder
+        const sent = await this.notificationRepository.findSentByTypeAndEventId(
+          'event-not-finalized',
+          event.id
+        )
+        if (sent) {
           continue
         }
 
@@ -2333,16 +2342,25 @@ export class EventBusiness {
    */
   async refreshReminder(eventId: string): Promise<void> {
     try {
+      void this.logger.log(`[refreshReminder] called for ${eventId}`)
       const notification = await this.notificationRepository.findSentByTypeAndEventId(
         'event-not-finalized',
         eventId
       )
       if (!notification?.messageId || !notification?.chatId) {
+        void this.logger.log(
+          `[refreshReminder] no sent notification found for ${eventId} (notification=${JSON.stringify(notification)})`
+        )
         return
       }
 
+      void this.logger.log(
+        `[refreshReminder] found notification id=${notification.id} messageId=${notification.messageId} chatId=${notification.chatId}`
+      )
+
       const event = await this.eventRepository.findById(eventId)
       if (!event) {
+        void this.logger.log(`[refreshReminder] event ${eventId} not found`)
         return
       }
 
@@ -2374,10 +2392,14 @@ export class EventBusiness {
 
       const keyboard = buildReminderKeyboard(event.id, announceUrl)
 
+      void this.logger.log(
+        `[refreshReminder] editing message chatId=${chatId} messageId=${messageId}`
+      )
       await this.transport.editMessage(chatId, messageId, message, keyboard)
+      void this.logger.log(`[refreshReminder] success for ${eventId}`)
     } catch (error) {
       await this.logger.error(
-        `Error updating reminder for ${eventId}: ${error instanceof Error ? error.message : String(error)}`
+        `[refreshReminder] error for ${eventId}: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }

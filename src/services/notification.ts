@@ -131,6 +131,7 @@ export class NotificationService {
   private async cleanupOldNotification(notification: Notification): Promise<void> {
     const eventId = notification.params.eventId as string | undefined
     if (!eventId) {
+      await this.logger.log(`[cleanup] no eventId in params, skipping`)
       return
     }
 
@@ -139,14 +140,24 @@ export class NotificationService {
       eventId
     )
     if (!old?.messageId || !old?.chatId) {
+      await this.logger.log(
+        `[cleanup] no old sent notification for type=${notification.type} eventId=${eventId} (old=${JSON.stringify(old)})`
+      )
       return
     }
 
+    await this.logger.log(
+      `[cleanup] found old notification id=${old.id} messageId=${old.messageId} chatId=${old.chatId}, deleting`
+    )
     try {
       await this.transport.deleteMessage(Number(old.chatId), Number(old.messageId))
-    } catch {
-      // Message may already be deleted — safe to ignore
+      await this.logger.log(`[cleanup] deleted message ${old.messageId} in chat ${old.chatId}`)
+    } catch (error) {
+      await this.logger.log(
+        `[cleanup] delete failed: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
     await this.notificationRepository.updateStatus(old.id, 'cancelled')
+    await this.logger.log(`[cleanup] marked notification ${old.id} as cancelled`)
   }
 }
