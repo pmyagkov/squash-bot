@@ -2135,13 +2135,16 @@ export class EventBusiness {
     const allEvents = await this.eventRepository.getEvents()
     const createdEvents = allEvents.filter((e) => e.status === 'created')
 
+    if (createdEvents.length === 0) return 0
+
+    const timezone = await this.settingsRepository.getTimezone()
+    const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
+
     let count = 0
 
     for (const event of createdEvents) {
       try {
-        const deadline =
-          event.announcementDeadline ?? (await this.settingsRepository.getAnnouncementDeadline())
-        const timezone = await this.settingsRepository.getTimezone()
+        const deadline = event.announcementDeadline ?? defaultDeadline
 
         if (!shouldTrigger(deadline, event.datetime, timezone)) {
           continue

@@ -1748,5 +1748,30 @@ describe('EventBusiness', () => {
 
       expect(count).toBe(0)
     })
+
+    test('skips created event before announcement deadline', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const settingsRepo = container.resolve('settingsRepository')
+
+      const farFuture = new Date()
+      farFuture.setDate(farFuture.getDate() + 30)
+
+      const event = buildEvent({
+        id: 'ev_future',
+        status: 'created',
+        datetime: farFuture,
+      })
+
+      eventRepo.getEvents.mockResolvedValue([event])
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
+      settingsRepo.getTimezone.mockResolvedValue('UTC')
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const count = await business.checkAndAnnounceCreatedEvents()
+
+      expect(count).toBe(0)
+    })
   })
 })
