@@ -178,7 +178,8 @@ export function formatPersonalPaymentText(
   courtPrice: number,
   totalParticipants: number,
   chatId: number,
-  messageId: string
+  messageId: string,
+  collectorPaymentInfo?: string
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const totalCost = courts * courtPrice
@@ -195,6 +196,10 @@ export function formatPersonalPaymentText(
   }
 
   text += `\nYour amount: ${amount} din`
+
+  if (collectorPaymentInfo) {
+    text += `\n\n💳 ${collectorPaymentInfo}`
+  }
 
   return text
 }

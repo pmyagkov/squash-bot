@@ -1669,6 +1669,19 @@ export class EventBusiness {
     const failedParticipants: EventParticipant[] = []
     const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
 
+    // Resolve collector's payment info
+    let collectorPaymentInfo: string | undefined
+    if (event.collectorId) {
+      const collector = await this.participantRepository.findById(event.collectorId)
+      collectorPaymentInfo = collector?.paymentInfo
+    } else {
+      const defaultCollectorId = await this.settingsRepository.getDefaultCollectorId()
+      if (defaultCollectorId) {
+        const collector = await this.participantRepository.findById(defaultCollectorId)
+        collectorPaymentInfo = collector?.paymentInfo
+      }
+    }
+
     for (let i = 0; i < participants.length; i++) {
       const ep = participants[i]
       const payment = payments[i]
@@ -1686,7 +1699,8 @@ export class EventBusiness {
         courtPrice,
         totalParticipations,
         chatId,
-        event.telegramMessageId!
+        event.telegramMessageId!,
+        collectorPaymentInfo
       )
       const keyboard = new InlineKeyboard().text('✅ I paid', `payment:mark-paid:${event.id}`)
 

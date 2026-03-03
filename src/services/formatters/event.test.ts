@@ -525,6 +525,40 @@ describe('event formatters', () => {
       expect(result).not.toContain('Full details')
     })
 
+    it('should include collector payment info when provided', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'finalized',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+
+      const result = formatPersonalPaymentText(
+        event, 1000, 2, 2000, 4, -100123, '456',
+        'Card: 1234-5678-9012-3456'
+      )
+      expect(result).toContain('\u{1F4B3}')
+      expect(result).toContain('Card: 1234-5678-9012-3456')
+    })
+
+    it('should omit payment info line when not provided', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'finalized',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+
+      const result = formatPersonalPaymentText(
+        event, 1000, 2, 2000, 4, -100123, '456'
+      )
+      expect(result).not.toContain('\u{1F4B3}')
+    })
+
     it('should format personal payment DM text', () => {
       const event: Event = {
         id: 'ev_test123',
