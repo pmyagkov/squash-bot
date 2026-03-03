@@ -548,6 +548,7 @@ export class EventBusiness {
 
     const tasks: Promise<void>[] = [
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false, true),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ]
     if (!event.isPrivate) {

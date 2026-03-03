@@ -1046,6 +1046,38 @@ describe('EventBusiness', () => {
       )
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_cancel')
     })
+
+    test('refreshes reminder after cancel', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_cancel_r', status: 'announced', telegramMessageId: '100' })
+      eventRepo.findByMessageId.mockResolvedValue(event)
+      eventRepo.findById.mockResolvedValue(event)
+      participantRepo.getEventParticipants.mockResolvedValue([])
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCallbackHandler(transport, 'event:cancel')
+      await handler({
+        userId: TEST_CONFIG.userId,
+        chatId: TEST_CONFIG.chatId,
+        chatType: 'group' as const,
+        messageId: 100,
+        callbackId: 'cb_cancel_r',
+      })
+
+      expect(notificationRepo.findSentByTypeAndEventId).toHaveBeenCalledWith(
+        'event-not-finalized',
+        'ev_cancel_r'
+      )
+    })
   })
 
   // ── handleRestore ──────────────────────────────────────────────────
