@@ -660,40 +660,40 @@ export class EventBusiness {
 
       const updatedPayment = await this.paymentRepository.markAsPaid(payment.id!)
 
+      // Fetch event once for personal message update and logEvent
+      const paymentEvent = await this.eventRepository.findById(eventId)
+
       // Update personal message
-      if (payment.personalMessageId) {
-        const event = await this.eventRepository.findById(eventId)
-        if (event) {
-          const courtPrice = await this.settingsRepository.getCourtPrice()
-          const participants = await this.participantRepository.getEventParticipants(eventId)
-          const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
-          const chatId = await this.settingsRepository.getMainChatId()
+      if (payment.personalMessageId && paymentEvent) {
+        const courtPrice = await this.settingsRepository.getCourtPrice()
+        const participants = await this.participantRepository.getEventParticipants(eventId)
+        const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+        const chatId = await this.settingsRepository.getMainChatId()
 
-          const baseText = formatPersonalPaymentText(
-            event,
-            payment.amount,
-            event.courts,
-            courtPrice,
-            totalParticipations,
-            chatId!,
-            event.telegramMessageId!
-          )
-          const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
-          const undoKeyboard = new InlineKeyboard().text(
-            '↩️ Undo',
-            `payment:undo-mark-paid:${eventId}`
-          )
+        const baseText = formatPersonalPaymentText(
+          paymentEvent,
+          payment.amount,
+          paymentEvent.courts,
+          courtPrice,
+          totalParticipations,
+          chatId!,
+          paymentEvent.telegramMessageId!
+        )
+        const paidText = formatPaidPersonalPaymentText(baseText, updatedPayment.paidAt!)
+        const undoKeyboard = new InlineKeyboard().text(
+          '↩️ Undo',
+          `payment:undo-mark-paid:${eventId}`
+        )
 
-          try {
-            await this.transport.editMessage(
-              data.userId,
-              parseInt(payment.personalMessageId, 10),
-              paidText,
-              undoKeyboard
-            )
-          } catch {
-            // Best effort — message might be deleted
-          }
+        try {
+          await this.transport.editMessage(
+            data.userId,
+            parseInt(payment.personalMessageId, 10),
+            paidText,
+            undoKeyboard
+          )
+        } catch {
+          // Best effort — message might be deleted
         }
       }
 
@@ -702,7 +702,6 @@ export class EventBusiness {
 
       await this.transport.answerCallback(data.callbackId)
 
-      const paymentEvent = await this.eventRepository.findById(eventId)
       if (paymentEvent) {
         void this.transport.logEvent({
           type: 'payment_received',
@@ -742,39 +741,36 @@ export class EventBusiness {
 
       await this.paymentRepository.markAsUnpaid(payment.id!)
 
+      // Fetch event once for personal message update and logEvent
+      const paymentEvent = await this.eventRepository.findById(eventId)
+
       // Update personal message — revert to unpaid state
-      if (payment.personalMessageId) {
-        const event = await this.eventRepository.findById(eventId)
-        if (event) {
-          const courtPrice = await this.settingsRepository.getCourtPrice()
-          const participants = await this.participantRepository.getEventParticipants(eventId)
-          const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
-          const chatId = await this.settingsRepository.getMainChatId()
+      if (payment.personalMessageId && paymentEvent) {
+        const courtPrice = await this.settingsRepository.getCourtPrice()
+        const participants = await this.participantRepository.getEventParticipants(eventId)
+        const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+        const chatId = await this.settingsRepository.getMainChatId()
 
-          const baseText = formatPersonalPaymentText(
-            event,
-            payment.amount,
-            event.courts,
-            courtPrice,
-            totalParticipations,
-            chatId!,
-            event.telegramMessageId!
-          )
-          const paidKeyboard = new InlineKeyboard().text(
-            '✅ I paid',
-            `payment:mark-paid:${eventId}`
-          )
+        const baseText = formatPersonalPaymentText(
+          paymentEvent,
+          payment.amount,
+          paymentEvent.courts,
+          courtPrice,
+          totalParticipations,
+          chatId!,
+          paymentEvent.telegramMessageId!
+        )
+        const paidKeyboard = new InlineKeyboard().text('✅ I paid', `payment:mark-paid:${eventId}`)
 
-          try {
-            await this.transport.editMessage(
-              data.userId,
-              parseInt(payment.personalMessageId, 10),
-              baseText,
-              paidKeyboard
-            )
-          } catch {
-            // Best effort
-          }
+        try {
+          await this.transport.editMessage(
+            data.userId,
+            parseInt(payment.personalMessageId, 10),
+            baseText,
+            paidKeyboard
+          )
+        } catch {
+          // Best effort
         }
       }
 
@@ -783,7 +779,6 @@ export class EventBusiness {
 
       await this.transport.answerCallback(data.callbackId)
 
-      const paymentEvent = await this.eventRepository.findById(eventId)
       if (paymentEvent) {
         void this.transport.logEvent({
           type: 'payment_cancelled',
@@ -1249,39 +1244,39 @@ export class EventBusiness {
 
       await this.paymentRepository.markAsUnpaid(payment.id!)
 
+      // Fetch event once for personal message update and logEvent
+      const paymentEvent = await this.eventRepository.findById(data.eventId)
+
       // Revert personal DM to unpaid state
-      if (payment.personalMessageId) {
-        const event = await this.eventRepository.findById(data.eventId)
-        if (event) {
-          const courtPrice = await this.settingsRepository.getCourtPrice()
-          const participants = await this.participantRepository.getEventParticipants(data.eventId)
-          const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
-          const chatId = await this.settingsRepository.getMainChatId()
+      if (payment.personalMessageId && paymentEvent) {
+        const courtPrice = await this.settingsRepository.getCourtPrice()
+        const participants = await this.participantRepository.getEventParticipants(data.eventId)
+        const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+        const chatId = await this.settingsRepository.getMainChatId()
 
-          const baseText = formatPersonalPaymentText(
-            event,
-            payment.amount,
-            event.courts,
-            courtPrice,
-            totalParticipations,
-            chatId!,
-            event.telegramMessageId!
-          )
-          const paidKeyboard = new InlineKeyboard().text(
-            '✅ I paid',
-            `payment:mark-paid:${data.eventId}`
-          )
+        const baseText = formatPersonalPaymentText(
+          paymentEvent,
+          payment.amount,
+          paymentEvent.courts,
+          courtPrice,
+          totalParticipations,
+          chatId!,
+          paymentEvent.telegramMessageId!
+        )
+        const paidKeyboard = new InlineKeyboard().text(
+          '✅ I paid',
+          `payment:mark-paid:${data.eventId}`
+        )
 
-          try {
-            await this.transport.editMessage(
-              source.user.id,
-              parseInt(payment.personalMessageId, 10),
-              baseText,
-              paidKeyboard
-            )
-          } catch {
-            // Best effort
-          }
+        try {
+          await this.transport.editMessage(
+            source.user.id,
+            parseInt(payment.personalMessageId, 10),
+            baseText,
+            paidKeyboard
+          )
+        } catch {
+          // Best effort
         }
       }
 
@@ -1293,7 +1288,6 @@ export class EventBusiness {
         await this.transport.sendMessage(source.chat.id, `✅ Payment marked as unpaid`)
       }
 
-      const paymentEvent = await this.eventRepository.findById(data.eventId)
       if (paymentEvent) {
         void this.transport.logEvent({
           type: 'payment_cancelled',
@@ -2111,6 +2105,8 @@ export class EventBusiness {
     )
     if (from) {
       void this.transport.logEvent({ type: 'event_transferred', event, from, to: target })
+    } else {
+      void this.logger.warn(`Cannot find owner participant for event ${event.id} during transfer`)
     }
   }
 

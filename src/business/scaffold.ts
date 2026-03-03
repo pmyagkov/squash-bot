@@ -483,6 +483,10 @@ export class ScaffoldBusiness {
         : undefined
       if (from) {
         void this.transport.logEvent({ type: 'scaffold_transferred', scaffold, from, to: target })
+      } else {
+        void this.logger.warn(
+          `Cannot find owner participant for scaffold ${scaffold.id} during transfer`
+        )
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
