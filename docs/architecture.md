@@ -655,7 +655,6 @@ Bot reads settings from database on each action where they are needed.
 
 ```
 /my history <filter>
-/my debt
 /payment debt
 ```
 
@@ -675,30 +674,11 @@ Bot reads settings from database on each action where they are needed.
 07.01 Tue — 1000 ₽ ✓
 ```
 
-**Example output `/my debt`:**
-```
-💰 Your debt: 1000 ₽
-
-14.01 Tue — 1000 ₽
-```
-
 ### Commands for admin
 
 ```
-/admin debts
 /admin payment debt [@username]
 /admin history @username <filter>
-```
-
-**Example output `/admin debts`:**
-```
-💰 Debtors:
-
-@vasya — 2500 ₽
-@petya — 1000 ₽
-Ivan Ivanov — 1500 ₽
-
-Total: 5000 ₽
 ```
 
 **`/admin history`** — same filter format as `/my history`

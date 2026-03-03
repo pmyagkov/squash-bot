@@ -1009,58 +1009,15 @@ View own participation history.
 
 ---
 
-### my-debt
+### ~~my-debt~~ → superseded by `payment-debt`
 
-View own debt.
-
-**Actor:** Any user
-**Chat:** Any
-
-**Flow:**
-1. User sends `/my debt`
-2. Bot identifies user
-3. Bot fetches unpaid Payment records
-4. Bot calculates total and lists events
-
-**Message (has debt):**
-```
-💰 Your debt: 1000 ₽
-
-14.01 Tue — 1000 ₽
-```
-
-**Message (no debt):** "✅ You have no unpaid debts"
+Replaced by `/payment debt` (see Payments section).
 
 ---
 
-### admin-debts
+### ~~admin-debts~~ → superseded by `admin-payment-debt`
 
-View all debtors.
-
-**Actor:** Admin
-**Chat:** Any
-
-**Flow:**
-1. Admin sends `/admin debts`
-2. Bot fetches all unpaid Payment records
-3. Bot groups by participant, calculates totals
-4. Bot formats and sends summary
-
-**Message:**
-```
-💰 Debtors:
-
-@vasya — 2500 ₽
-@petya — 1000 ₽
-Ivan Ivanov — 1500 ₽
-
-Total: 5000 ₽
-```
-
-**Empty state:** "✅ No outstanding debts"
-
-**Errors:**
-- Not admin → "Only admins can view all debts"
+Replaced by `/admin payment debt` (see Payments section).
 
 ---
 
