@@ -1100,6 +1100,67 @@ To see your history: /my history
 
 ---
 
+## Collector & Owner
+
+### collector-role ✅
+
+Payment collector identity and payment info in DMs.
+
+**Data model:**
+- `Participant.paymentInfo` — free-text payment details (e.g., card number)
+- `Scaffold.collectorId` — participant who collects payments for scaffold-based events
+- `Event.collectorId` — inherited from scaffold, or from `default_collector_id` setting for ad-hoc events
+- `Settings.default_collector_id` — fallback collector for events without scaffold
+
+**Flow:**
+1. Event is created (from scaffold or manually)
+2. `collectorId` is set (from scaffold or `default_collector_id` setting)
+3. On finalize, personal payment DMs include collector's `paymentInfo` line:
+   ```
+   💳 Card: 1234-5678-9012-3456
+   ```
+4. If no collector or no `paymentInfo` — line is omitted
+
+---
+
+### owner-notifications ✅
+
+Real-time DM notifications to event owner about participant/court changes with capacity warnings.
+
+**Actor:** System (triggered by event actions)
+**Chat:** Owner DM → Main chat (fallback)
+
+**Triggers:**
+- Participant joins/leaves event
+- Court added/removed
+- Event announced
+- Event finalized
+
+**Flow:**
+1. Action occurs on event (join, leave, court change, finalize, announce)
+2. `notifyOwner()` is called (fire-and-forget)
+3. If actor is the owner → skip (no self-notification)
+4. Format message with event date, action, participant/court balance
+5. Check capacity: warn if over `maxPerCourt` or under `minPerCourt`
+6. Try sending DM to owner
+7. If DM fails → fallback to main chat
+
+**Message formats:**
+```
+👤 @vasya joined Tue 21 Jan 21:00
+   Participants: 5 · Courts: 2
+
+🏟 Court added for Tue 21 Jan 21:00
+   Participants: 5 · Courts: 3
+   ⚠️ Low attendance
+
+🎾 Your event announced: Tue 21 Jan 21:00
+
+✅ Tue 21 Jan finalized by @petya
+```
+
+---
+
 ## Service commands
 
 ### say
