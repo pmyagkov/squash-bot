@@ -241,8 +241,9 @@ export class TelegramTransport {
     // Redirect group chat commands to private
     if (ctx.chat?.type !== 'private') {
       const botInfo = this.getBotInfo()
+      const link = `tg://resolve?domain=${botInfo.username}&start`
       await ctx.reply(
-        `This command is not supported in group chats. Please <a href="https://t.me/${botInfo.username}">message me directly</a>.`
+        `This command is available only in DM.\n\n<a href="${link}">Open bot chat</a>`
       )
       return
     }
