@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildInlineKeyboard,
+  buildReminderKeyboard,
   formatEventMessage,
   formatAnnouncementText,
   formatPaymentText,
   formatPersonalPaymentText,
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
+  formatNotFinalizedReminder,
   type EventParticipantDisplay,
 } from './event'
 import type { Event } from '~/types'
@@ -188,7 +190,7 @@ describe('event formatters', () => {
 
       const result = formatAnnouncementText(baseEvent, participants)
 
-      expect(result).toContain('Participants (2)')
+      expect(result).toContain('Participants — 2:')
       expect(result).toContain('@john_doe')
       expect(result).toContain('@jane_smith')
     })
@@ -206,7 +208,7 @@ describe('event formatters', () => {
 
       const result = formatAnnouncementText(baseEvent, participants)
 
-      expect(result).toContain('Participants (2)')
+      expect(result).toContain('Participants — 2:')
       expect(result).toContain('@john_doe (×2)')
     })
 
@@ -553,6 +555,124 @@ describe('event formatters', () => {
 
       expect(result).toContain('Your amount: 2000 din')
       expect(result).toContain('✓ Paid on Sun, 21 Jan, 15:30')
+    })
+  })
+
+  describe('formatNotFinalizedReminder', () => {
+    it('formats reminder same as announcement body', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T19:00:00+01:00'),
+        courts: 2,
+        status: 'announced',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+      const participants: EventParticipantDisplay[] = [
+        { participant: { telegramUsername: 'alice', displayName: 'Alice' }, participations: 1 },
+        { participant: { telegramUsername: 'bob', displayName: 'Bob' }, participations: 1 },
+      ]
+      const result = formatNotFinalizedReminder(event, participants)
+      expect(result).toContain('not finalized')
+      expect(result).toContain('Sat, 20 Jan, 19:00')
+      expect(result).toContain('Courts: 2')
+      expect(result).toContain('Participants — 2:')
+      expect(result).toContain('@alice, @bob')
+      expect(result).toContain('"✅ Finalize"')
+    })
+
+    it('uses displayName when no username', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T19:00:00+01:00'),
+        courts: 1,
+        status: 'announced',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+      const participants: EventParticipantDisplay[] = [
+        { participant: { displayName: 'Alice' }, participations: 1 },
+      ]
+      const result = formatNotFinalizedReminder(event, participants)
+      expect(result).toContain('Alice')
+      expect(result).not.toContain('@')
+    })
+
+    it('shows empty participant list when no participants', () => {
+      const event: Event = {
+        id: 'ev_test456',
+        datetime: new Date('2024-01-20T19:00:00+01:00'),
+        courts: 1,
+        status: 'announced',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+      const result = formatNotFinalizedReminder(event, [])
+      expect(result).toContain('Participants:')
+      expect(result).toContain('(nobody yet)')
+    })
+  })
+
+  describe('buildReminderKeyboard', () => {
+    it('includes eventId in all callback data', () => {
+      const kb = buildReminderKeyboard('ev_test123')
+      const buttons = kb.inline_keyboard.flat()
+      const callbackButtons = buttons.filter(
+        (b): b is InlineKeyboardButton.CallbackButton => 'callback_data' in b
+      )
+      for (const btn of callbackButtons) {
+        expect(btn.callback_data).toContain('ev_test123')
+      }
+    })
+
+    it('builds keyboard with participant and court controls and URL', () => {
+      const kb = buildReminderKeyboard('ev_test123', 'https://t.me/c/123/456')
+      const buttons = kb.inline_keyboard
+
+      // Row 1: +/- Participant
+      expect(buttons[0]).toHaveLength(2)
+      expect(buttons[0][0].text).toBe(BTN_ADD_PARTICIPANT)
+      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'edit:event:+participant:ev_test123'
+      )
+      expect(buttons[0][1].text).toBe(BTN_REMOVE_PARTICIPANT)
+      expect((buttons[0][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'edit:event:-participant:ev_test123'
+      )
+
+      // Row 2: +/- Court
+      expect(buttons[1]).toHaveLength(2)
+      expect(buttons[1][0].text).toBe(BTN_ADD_COURT)
+      expect((buttons[1][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:add-court:ev_test123'
+      )
+      expect(buttons[1][1].text).toBe(BTN_REMOVE_COURT)
+      expect((buttons[1][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:delete-court:ev_test123'
+      )
+
+      // Row 3: Finalize
+      expect(buttons[2]).toHaveLength(1)
+      expect(buttons[2][0].text).toBe(BTN_FINALIZE)
+      expect((buttons[2][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:finalize:ev_test123'
+      )
+
+      // Row 4: URL button
+      expect(buttons[3]).toHaveLength(1)
+      expect(buttons[3][0].text).toBe('🔗 Go to announcement')
+      expect((buttons[3][0] as InlineKeyboardButton.UrlButton).url).toBe('https://t.me/c/123/456')
+    })
+
+    it('builds keyboard without URL when not provided', () => {
+      const kb = buildReminderKeyboard('ev_test123')
+      const buttons = kb.inline_keyboard
+
+      // Should have 3 rows (no URL row)
+      expect(buttons).toHaveLength(3)
+      // No URL button anywhere
+      const allButtons = buttons.flat()
+      expect(allButtons.every((b) => !('url' in b))).toBe(true)
     })
   })
 

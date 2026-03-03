@@ -69,5 +69,23 @@ export interface Settings {
   value: string
 }
 
+// Notification types
+export type NotificationType = 'event-not-finalized'
+export type NotificationStatus = 'pending' | 'sent' | 'cancelled'
+
+// Notification
+export interface Notification {
+  id: number
+  type: NotificationType
+  status: NotificationStatus
+  recipientId: string
+  params: Record<string, unknown>
+  scheduledAt: Date
+  sentAt?: Date
+  createdAt: Date
+  messageId?: string
+  chatId?: string
+}
+
 // Log events
 export type { SystemEvent, BusinessEvent, LogEvent } from './logEvent'

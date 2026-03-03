@@ -1,0 +1,279 @@
+{
+  "name": "Squash Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 5 }]
+        }
+      },
+      "id": "schedule-health",
+      "name": "Health Check Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{$vars.BOT_URL}}/health",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "http-health",
+      "name": "GET /health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 0],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "health-check-fail",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": "200",
+              "operator": { "type": "number", "operation": "notEquals" }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "if-health-fail",
+      "name": "Health Failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$vars.ADMIN_CHAT_ID}}",
+        "text": "🔴 Squash Bot health check failed!\n\nStatus: {{ $json.statusCode || 'no response' }}\nTime: {{ $now.toISO() }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-health-alert",
+      "name": "Alert: Health Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, -60],
+      "credentials": {
+        "telegramApi": { "id": "telegram-bot", "name": "Telegram Bot" }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 15 }]
+        }
+      },
+      "id": "schedule-events",
+      "name": "Check Events Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$vars.BOT_URL}}/check-events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{$vars.API_KEY}}" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-check-events",
+      "name": "POST /check-events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "events-error-check",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "if-events-error",
+      "name": "Events Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$vars.ADMIN_CHAT_ID}}",
+        "text": "🔴 check-events failed!\n\nError: {{ $json.error }}\nTime: {{ $now.toISO() }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-events-alert",
+      "name": "Alert: Events Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 240],
+      "credentials": {
+        "telegramApi": { "id": "telegram-bot", "name": "Telegram Bot" }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "set-events-created", "name": "eventsCreated", "value": "={{ $json.eventsCreated }}", "type": "number" },
+            { "id": "set-unfinalized", "name": "unfinalizedNotifications", "value": "={{ $json.unfinalizedNotifications }}", "type": "number" },
+            { "id": "set-processed", "name": "processedNotifications", "value": "={{ $json.processedNotifications }}", "type": "number" }
+          ]
+        }
+      },
+      "id": "set-events-result",
+      "name": "Events Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 360]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 12 * * *" }]
+        }
+      },
+      "id": "schedule-payments",
+      "name": "Check Payments Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$vars.BOT_URL}}/check-payments",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{$vars.API_KEY}}" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-check-payments",
+      "name": "POST /check-payments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 600],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "payments-error-check",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "if-payments-error",
+      "name": "Payments Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$vars.ADMIN_CHAT_ID}}",
+        "text": "🔴 check-payments failed!\n\nError: {{ $json.error }}\nTime: {{ $now.toISO() }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-payments-alert",
+      "name": "Alert: Payments Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [900, 540],
+      "credentials": {
+        "telegramApi": { "id": "telegram-bot", "name": "Telegram Bot" }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "set-reminders", "name": "remindersSent", "value": "={{ $json.remindersSent }}", "type": "number" }
+          ]
+        }
+      },
+      "id": "set-payments-result",
+      "name": "Payments Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 660]
+    }
+  ],
+  "connections": {
+    "Health Check Schedule": {
+      "main": [[{ "node": "GET /health", "type": "main", "index": 0 }]]
+    },
+    "GET /health": {
+      "main": [[{ "node": "Health Failed?", "type": "main", "index": 0 }]]
+    },
+    "Health Failed?": {
+      "main": [
+        [{ "node": "Alert: Health Failed", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Check Events Schedule": {
+      "main": [[{ "node": "POST /check-events", "type": "main", "index": 0 }]]
+    },
+    "POST /check-events": {
+      "main": [[{ "node": "Events Error?", "type": "main", "index": 0 }]]
+    },
+    "Events Error?": {
+      "main": [
+        [{ "node": "Alert: Events Failed", "type": "main", "index": 0 }],
+        [{ "node": "Events Result", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Payments Schedule": {
+      "main": [[{ "node": "POST /check-payments", "type": "main", "index": 0 }]]
+    },
+    "POST /check-payments": {
+      "main": [[{ "node": "Payments Error?", "type": "main", "index": 0 }]]
+    },
+    "Payments Error?": {
+      "main": [
+        [{ "node": "Alert: Payments Failed", "type": "main", "index": 0 }],
+        [{ "node": "Payments Result", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

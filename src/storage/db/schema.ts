@@ -122,6 +122,22 @@ export const settings = pgTable('settings', {
   value: text('value').notNull(),
 })
 
+// Notifications table
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  type: varchar('type', { length: 50 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull(),
+  recipientId: text('recipient_id').notNull(),
+  params: text('params').notNull(), // JSON-serialized
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .default(sql`now()`)
+    .notNull(),
+  messageId: text('message_id'),
+  chatId: text('chat_id'),
+})
+
 // Relations
 export const scaffoldsRelations = relations(scaffolds, ({ many }) => ({
   events: many(events),

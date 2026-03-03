@@ -24,16 +24,21 @@ import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { PaymentRepo } from '~/storage/repo/payment'
+import type { NotificationRepo } from '~/storage/repo/notification'
 import type { Logger } from '~/services/logger'
+import type { Notification } from '~/types'
 import { EventLock } from '~/utils/eventLock'
 import {
   buildInlineKeyboard,
+  buildReminderKeyboard,
   formatAnnouncementText,
   formatEventMessage,
   formatPersonalPaymentText,
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
+  formatNotFinalizedReminder,
 } from '~/services/formatters/event'
+import type { HandlerResult } from '~/services/notification'
 import { eventJoinDef } from '~/commands/event/join'
 import { eventActionDef } from '~/commands/event/eventAction'
 import { eventCreateDef } from '~/commands/event/create'
@@ -160,6 +165,29 @@ export function eventExists(events: Event[], scaffoldId: string, datetime: Date)
 }
 
 /**
+ * Checks whether an event is eligible for a "not finalized" reminder notification.
+ * An event qualifies when it is still in 'announced' status and its start time
+ * is at least `thresholdHours` in the past.
+ */
+export function isEligibleForReminder(event: Event, thresholdHours: number, now: Date): boolean {
+  if (event.status !== 'announced') {
+    return false
+  }
+  const hoursSinceStart = (now.getTime() - event.datetime.getTime()) / (1000 * 60 * 60)
+  return hoursSinceStart >= thresholdHours
+}
+
+/**
+ * Builds a Telegram deep link URL for an announcement message.
+ * Format: https://t.me/c/{channelId}/{messageId}
+ * channelId = chatId without the -100 prefix.
+ */
+export function buildAnnouncementUrl(chatId: string, messageId: string): string {
+  const channelId = chatId.replace(/^-100/, '')
+  return `https://t.me/c/${channelId}/${messageId}`
+}
+
+/**
  * Business logic orchestrator for events
  */
 export class EventBusiness {
@@ -168,6 +196,7 @@ export class EventBusiness {
   private settingsRepository: SettingsRepo
   private participantRepository: ParticipantRepo
   private paymentRepository: PaymentRepo
+  private notificationRepository: NotificationRepo
   private transport: TelegramTransport
   private logger: Logger
   private commandRegistry: CommandRegistry
@@ -181,6 +210,7 @@ export class EventBusiness {
     this.settingsRepository = container.resolve('settingsRepository')
     this.participantRepository = container.resolve('participantRepository')
     this.paymentRepository = container.resolve('paymentRepository')
+    this.notificationRepository = container.resolve('notificationRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
     this.commandRegistry = container.resolve('commandRegistry')
@@ -309,6 +339,22 @@ export class EventBusiness {
     this.transport.ensureBaseCommand('payment')
   }
 
+  /**
+   * Resolve event by message ID — checks announcement first, then notification.
+   */
+  private async resolveEventByMessageId(messageId: number): Promise<Event | undefined> {
+    const event = await this.eventRepository.findByMessageId(String(messageId))
+    if (event) {
+      return event
+    }
+    const notification = await this.notificationRepository.findByMessageId(String(messageId))
+    if (notification) {
+      const eventId = notification.params.eventId as string
+      return this.eventRepository.findById(eventId)
+    }
+    return undefined
+  }
+
   // === Callback Handlers ===
 
   private async handleJoin(data: CallbackTypes['event:join']): Promise<void> {
@@ -331,6 +377,7 @@ export class EventBusiness {
     // Update message and answer callback concurrently (editMessage is slow on test server)
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -359,6 +406,7 @@ export class EventBusiness {
 
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -371,7 +419,7 @@ export class EventBusiness {
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add-court']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -381,7 +429,8 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
     await Promise.all([
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshAnnouncement(event.id),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -390,7 +439,7 @@ export class EventBusiness {
   }
 
   private async handleRemoveCourt(data: CallbackTypes['event:delete-court']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -405,7 +454,8 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
     await Promise.all([
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshAnnouncement(event.id),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -414,7 +464,7 @@ export class EventBusiness {
   }
 
   private async handleFinalize(data: CallbackTypes['event:finalize']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -466,9 +516,10 @@ export class EventBusiness {
         await this.sendFallbackNotification(event, data.chatId, failedParticipants)
       }
 
-      // Update announcement message
+      // Update announcement and reminder messages
       await Promise.all([
-        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, true),
+        this.refreshAnnouncement(event.id),
+        this.refreshReminder(event.id),
         this.transport.answerCallback(data.callbackId),
       ])
 
@@ -497,6 +548,7 @@ export class EventBusiness {
 
     const tasks: Promise<void>[] = [
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false, true),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ]
     if (!event.isPrivate) {
@@ -755,8 +807,9 @@ export class EventBusiness {
     // Add to event
     await this.participantRepository.addToEvent(event.id, participant.id)
 
-    // Update announcement if it exists
+    // Update announcement and reminder if they exist
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     // Reply
     if (source.type === 'callback') {
@@ -795,6 +848,7 @@ export class EventBusiness {
 
     await this.participantRepository.removeFromEvent(event.id, participant.id)
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
@@ -823,6 +877,7 @@ export class EventBusiness {
     const newCourts = event.courts + 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
@@ -859,6 +914,7 @@ export class EventBusiness {
     const newCourts = event.courts - 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     if (source.type === 'callback') {
       await this.transport.answerCallback(source.callbackId)
@@ -936,6 +992,7 @@ export class EventBusiness {
       }
 
       await this.refreshAnnouncement(event.id)
+      await this.refreshReminder(event.id)
 
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId)
@@ -969,6 +1026,7 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
     await this.refreshAnnouncement(event.id)
+    await this.refreshReminder(event.id)
 
     // Re-pin if possible (only for public events)
     if (!event.isPrivate && event.telegramMessageId) {
@@ -1034,6 +1092,7 @@ export class EventBusiness {
       await this.paymentRepository.deleteByEvent(event.id)
       await this.eventRepository.updateEvent(event.id, { status: 'announced' })
       await this.refreshAnnouncement(event.id)
+      await this.refreshReminder(event.id)
 
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId)
@@ -2143,9 +2202,6 @@ export class EventBusiness {
         break
       }
       case '+participant': {
-        if (!event.isPrivate) {
-          return
-        }
         const currentParticipants = await this.participantRepository.getEventParticipants(entityId)
         const currentIds = new Set(currentParticipants.map((p) => p.participantId))
         const addStep: HydratedStep<string> = {
@@ -2173,12 +2229,10 @@ export class EventBusiness {
           }
         }
         await this.refreshAnnouncement(entityId)
+        await this.refreshReminder(entityId)
         return
       }
       case '-participant': {
-        if (!event.isPrivate) {
-          return
-        }
         const participantsForRemove =
           await this.participantRepository.getEventParticipants(entityId)
         if (participantsForRemove.length === 0) {
@@ -2207,6 +2261,7 @@ export class EventBusiness {
           }
         }
         await this.refreshAnnouncement(entityId)
+        await this.refreshReminder(entityId)
         return
       }
       case 'done':
@@ -2229,5 +2284,170 @@ export class EventBusiness {
   private hydrateStep<T>(step: WizardStep<T>): HydratedStep<T> {
     const { createLoader, ...rest } = step
     return { ...rest, load: createLoader?.(this.container) }
+  }
+
+  // === Notification Methods ===
+
+  async checkUnfinalizedEvents(): Promise<number> {
+    const thresholdHours = config.notifications.reminderThresholdHours
+
+    const allEvents = await this.eventRepository.getEvents()
+    const now = new Date()
+
+    const unfinalizedEvents = allEvents.filter((e) => isEligibleForReminder(e, thresholdHours, now))
+
+    let count = 0
+
+    for (const event of unfinalizedEvents) {
+      try {
+        const pending = await this.notificationRepository.findPendingByTypeAndEventId(
+          'event-not-finalized',
+          event.id
+        )
+        if (pending) {
+          continue
+        }
+
+        // Already sent and being kept up-to-date by refreshReminder
+        const sent = await this.notificationRepository.findSentByTypeAndEventId(
+          'event-not-finalized',
+          event.id
+        )
+        if (sent) {
+          continue
+        }
+
+        await this.notificationRepository.create({
+          type: 'event-not-finalized',
+          status: 'pending',
+          recipientId: event.ownerId,
+          params: { eventId: event.id },
+          scheduledAt: now,
+        })
+
+        count++
+      } catch (error) {
+        await this.logger.error(
+          `Failed to create not-finalized notification for ${event.id}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+    }
+
+    return count
+  }
+
+  /**
+   * Refreshes the reminder DM message with current event data.
+   * Best-effort: catches and logs errors, never throws.
+   */
+  async refreshReminder(eventId: string): Promise<void> {
+    try {
+      void this.logger.log(`[refreshReminder] called for ${eventId}`)
+      const notification = await this.notificationRepository.findSentByTypeAndEventId(
+        'event-not-finalized',
+        eventId
+      )
+      if (!notification?.messageId || !notification?.chatId) {
+        void this.logger.log(
+          `[refreshReminder] no sent notification found for ${eventId} (notification=${JSON.stringify(notification)})`
+        )
+        return
+      }
+
+      void this.logger.log(
+        `[refreshReminder] found notification id=${notification.id} messageId=${notification.messageId} chatId=${notification.chatId}`
+      )
+
+      const event = await this.eventRepository.findById(eventId)
+      if (!event) {
+        void this.logger.log(`[refreshReminder] event ${eventId} not found`)
+        return
+      }
+
+      const chatId = parseInt(notification.chatId, 10)
+      const messageId = parseInt(notification.messageId, 10)
+
+      // For finalized/cancelled events, replace reminder with status text (no keyboard)
+      if (event.status === 'finalized' || event.status === 'cancelled') {
+        const statusText =
+          event.status === 'finalized' ? '✅ Event finalized' : '❌ Event cancelled'
+        await this.transport.editMessage(chatId, messageId, statusText, undefined)
+        return
+      }
+
+      // Refresh with current participant data
+      const eventParticipants = await this.participantRepository.getEventParticipants(eventId)
+      const participants = eventParticipants.map((ep) => ({
+        participant: {
+          id: ep.participant.id,
+          telegramUsername: ep.participant.telegramUsername,
+          displayName: ep.participant.displayName,
+        },
+        participations: ep.participations,
+      }))
+      const message = formatNotFinalizedReminder(event, participants)
+
+      const isGroupChat = event.telegramChatId?.startsWith('-')
+      const announceUrl =
+        isGroupChat && event.telegramChatId && event.telegramMessageId
+          ? buildAnnouncementUrl(event.telegramChatId, event.telegramMessageId)
+          : undefined
+
+      const keyboard = buildReminderKeyboard(event.id, announceUrl)
+
+      void this.logger.log(
+        `[refreshReminder] editing message chatId=${chatId} messageId=${messageId}`
+      )
+      await this.transport.editMessage(chatId, messageId, message, keyboard)
+      void this.logger.log(`[refreshReminder] success for ${eventId}`)
+    } catch (error) {
+      await this.logger.error(
+        `[refreshReminder] error for ${eventId}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
+  async notificationHandler(notification: Notification): Promise<HandlerResult> {
+    const eventId = notification.params.eventId as string
+    const event = await this.eventRepository.findById(eventId)
+
+    if (!event) {
+      return { action: 'cancel' }
+    }
+
+    if (notification.type === 'event-not-finalized') {
+      if (event.status !== 'announced') {
+        return { action: 'cancel' }
+      }
+
+      const eventParticipants = await this.participantRepository.getEventParticipants(eventId)
+      const participants = eventParticipants.map((ep) => ({
+        participant: {
+          id: ep.participant.id,
+          telegramUsername: ep.participant.telegramUsername,
+          displayName: ep.participant.displayName,
+        },
+        participations: ep.participations,
+      }))
+      const message = formatNotFinalizedReminder(event, participants)
+
+      const isGroupChat = event.telegramChatId?.startsWith('-')
+      const announceUrl =
+        isGroupChat && event.telegramChatId && event.telegramMessageId
+          ? buildAnnouncementUrl(event.telegramChatId, event.telegramMessageId)
+          : undefined
+
+      const keyboard = buildReminderKeyboard(event.id, announceUrl)
+
+      void this.transport.logEvent({
+        type: 'event-not-finalized-reminder',
+        eventId: event.id,
+        date: dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm'),
+      })
+
+      return { action: 'send', message, keyboard }
+    }
+
+    return { action: 'cancel' }
   }
 }

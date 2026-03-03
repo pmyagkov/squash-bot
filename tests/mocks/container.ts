@@ -2,8 +2,9 @@ import { createContainer, asValue, InjectionMode, type AwilixContainer } from 'a
 import { Bot } from 'grammy'
 import type { MockProxy } from 'vitest-mock-extended'
 import { mockConfig } from './config'
-import { mockEventRepo, mockScaffoldRepo, mockEventParticipantRepo, mockPaymentRepo, mockSettingsRepo, mockParticipantRepo } from './repos'
+import { mockEventRepo, mockScaffoldRepo, mockEventParticipantRepo, mockPaymentRepo, mockSettingsRepo, mockParticipantRepo, mockNotificationRepo } from './repos'
 import { mockEventBusiness, mockScaffoldBusiness, mockUtilityBusiness, mockParticipantBusiness } from './business'
+import { mockNotificationService } from './services'
 import { mockTelegramTransport } from './transport'
 import { mockLogger } from './logger'
 import type { EventRepo } from '~/storage/repo/event'
@@ -12,6 +13,8 @@ import type { EventParticipantRepo } from '~/storage/repo/eventParticipant'
 import type { PaymentRepo } from '~/storage/repo/payment'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { NotificationRepo } from '~/storage/repo/notification'
+import type { NotificationService } from '~/services/notification'
 import type { EventBusiness } from '~/business/event'
 import type { ScaffoldBusiness } from '~/business/scaffold'
 import type { UtilityBusiness } from '~/business/utility'
@@ -41,6 +44,8 @@ export interface MockContainer {
   paymentRepository: MockProxy<InstanceType<typeof PaymentRepo>>
   settingsRepository: MockProxy<InstanceType<typeof SettingsRepo>>
   participantRepository: MockProxy<InstanceType<typeof ParticipantRepo>>
+  notificationRepository: MockProxy<InstanceType<typeof NotificationRepo>>
+  notificationService: MockProxy<InstanceType<typeof NotificationService>>
   commandRegistry: MockProxy<InstanceType<typeof CommandRegistry>>
   wizardService: MockProxy<InstanceType<typeof WizardService>>
   commandService: MockProxy<InstanceType<typeof CommandService>>
@@ -97,6 +102,8 @@ export function createMockContainer(overrides?: Partial<MockContainer>): MockApp
     paymentRepository: asValue(overrides?.paymentRepository ?? mockPaymentRepo()),
     settingsRepository: asValue(overrides?.settingsRepository ?? mockSettingsRepo()),
     participantRepository: asValue(overrides?.participantRepository ?? mockParticipantRepo()),
+    notificationRepository: asValue(overrides?.notificationRepository ?? mockNotificationRepo()),
+    notificationService: asValue(overrides?.notificationService ?? mockNotificationService()),
     commandRegistry: asValue(overrides?.commandRegistry ?? mock<InstanceType<typeof CommandRegistry>>()),
     wizardService: asValue(overrides?.wizardService ?? mock<InstanceType<typeof WizardService>>()),
     commandService: asValue(overrides?.commandService ?? mock<InstanceType<typeof CommandService>>()),

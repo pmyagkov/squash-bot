@@ -42,6 +42,7 @@ export type BusinessEvent =
     }
   | { type: 'scaffold_toggled'; scaffoldId: string; active: boolean }
   | { type: 'scaffold_deleted'; scaffoldId: string }
+  | { type: 'event-not-finalized-reminder'; eventId: string; date: string }
   | { type: 'participant_registered'; participantId: string; displayName: string }
 
 export type LogEvent = SystemEvent | BusinessEvent

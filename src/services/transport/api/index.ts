@@ -34,9 +34,19 @@ export async function createApiServer(
   server.post('/check-events', async () => {
     await logger.log('POST /check-events called')
     try {
+      const notificationService = container.resolve('notificationService')
       const eventsCreated = await eventBusiness.checkAndCreateEventsFromScaffolds()
-      await logger.log(`POST /check-events completed: ${eventsCreated} events created`)
-      return { message: 'Events checked', eventsCreated }
+      const unfinalizedNotifications = await eventBusiness.checkUnfinalizedEvents()
+      const processedNotifications = await notificationService.processQueue()
+      await logger.log(
+        `POST /check-events completed: ${eventsCreated} created, ${unfinalizedNotifications} unfinalized, ${processedNotifications.length} processed`
+      )
+      return {
+        message: 'Events checked',
+        eventsCreated,
+        unfinalizedNotifications,
+        processedNotifications: processedNotifications.length,
+      }
     } catch (error) {
       await logger.error(
         `POST /check-events failed: ${error instanceof Error ? error.message : String(error)}`

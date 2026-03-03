@@ -16,6 +16,8 @@ import { EventParticipantRepo } from '~/storage/repo/eventParticipant'
 import { PaymentRepo } from '~/storage/repo/payment'
 import { SettingsRepo } from '~/storage/repo/settings'
 import { ParticipantRepo } from '~/storage/repo/participant'
+import { NotificationRepo } from '~/storage/repo/notification'
+import { NotificationService } from '~/services/notification'
 import { CommandRegistry } from '~/services/command/commandRegistry'
 import { WizardService } from '~/services/wizard/wizardService'
 import { CommandService } from '~/services/command/commandService'
@@ -57,6 +59,8 @@ export function createTestContainer(bot: Bot): TestContainer {
     paymentRepository: asClass(PaymentRepo).singleton(),
     settingsRepository: asClass(SettingsRepo).singleton(),
     participantRepository: asClass(ParticipantRepo).singleton(),
+    notificationRepository: asClass(NotificationRepo).singleton(),
+    notificationService: asClass(NotificationService).singleton(),
     commandRegistry: asClass(CommandRegistry).singleton(),
     wizardService: asClass(WizardService).singleton(),
     commandService: asClass(CommandService).singleton(),

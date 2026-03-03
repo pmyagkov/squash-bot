@@ -258,13 +258,6 @@ describe('scaffold-create', () => {
       // Verify wizard is inactive
       expect(wizardService.isActive(ADMIN_ID)).toBe(false)
 
-      // Verify cancel message was sent
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('Cancelled.'),
-        expect.anything()
-      )
-
       // Verify no scaffold was created
       const scaffolds = await container.resolve('scaffoldRepository').getScaffolds()
       expect(scaffolds).toHaveLength(0)

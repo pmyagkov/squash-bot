@@ -192,5 +192,16 @@ describe('formatLogEvent', () => {
       const event: BusinessEvent = { type: 'scaffold_deleted', scaffoldId: 'sc_123' }
       expect(formatLogEvent(event)).toBe('🗑 Scaffold deleted: <code>sc_123</code>')
     })
+
+    it('should format event-not-finalized-reminder', () => {
+      const event: BusinessEvent = {
+        type: 'event-not-finalized-reminder',
+        eventId: 'ev_123',
+        date: 'Sat 20 Jan 19:00',
+      }
+      expect(formatLogEvent(event)).toBe(
+        '⏰ Event not-finalized reminder: <code>ev_123</code> (Sat 20 Jan 19:00)'
+      )
+    })
   })
 })
