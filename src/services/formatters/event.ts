@@ -263,9 +263,12 @@ export function buildReminderKeyboard(eventId: string, announceUrl?: string): In
 }
 
 type OwnerNotificationType =
-  | 'joined' | 'left'
-  | 'court-added' | 'court-removed'
-  | 'announced' | 'finalized'
+  | 'joined'
+  | 'left'
+  | 'court-added'
+  | 'court-removed'
+  | 'announced'
+  | 'finalized'
 
 interface CapacityLimits {
   maxPerCourt?: number
@@ -282,7 +285,7 @@ export function formatOwnerNotification(
   totalParticipations: number,
   courts: number,
   announceUrl?: string,
-  capacityLimits?: CapacityLimits,
+  capacityLimits?: CapacityLimits
 ): string {
   let text: string
 
@@ -317,7 +320,10 @@ export function formatOwnerNotification(
   if (capacityLimits) {
     if (capacityLimits.maxPerCourt && totalParticipations > courts * capacityLimits.maxPerCourt) {
       text += '\n   ⚠️ Over capacity'
-    } else if (capacityLimits.minPerCourt && totalParticipations < courts * capacityLimits.minPerCourt) {
+    } else if (
+      capacityLimits.minPerCourt &&
+      totalParticipations < courts * capacityLimits.minPerCourt
+    ) {
       text += '\n   ⚠️ Low attendance'
     }
   }

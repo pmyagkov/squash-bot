@@ -1987,9 +1987,10 @@ export class EventBusiness {
     })
 
     // Notify owner (fire-and-forget)
-    const announceUrl = updatedEvent.telegramChatId && updatedEvent.telegramMessageId
-      ? buildAnnouncementUrl(updatedEvent.telegramChatId, updatedEvent.telegramMessageId)
-      : undefined
+    const announceUrl =
+      updatedEvent.telegramChatId && updatedEvent.telegramMessageId
+        ? buildAnnouncementUrl(updatedEvent.telegramChatId, updatedEvent.telegramMessageId)
+        : undefined
     void this.notifyOwner(updatedEvent, 'announced', undefined, { announceUrl })
 
     return updatedEvent

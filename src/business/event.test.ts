@@ -1165,12 +1165,10 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      await business.notifyOwner(
-        buildEvent({ id: 'ev_1', ownerId: '111' }),
-        'joined',
-        '@vasya',
-        { totalParticipations: 5, courts: 2 }
-      )
+      await business.notifyOwner(buildEvent({ id: 'ev_1', ownerId: '111' }), 'joined', '@vasya', {
+        totalParticipations: 5,
+        courts: 2,
+      })
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         111,
@@ -1183,12 +1181,11 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      await business.notifyOwner(
-        buildEvent({ id: 'ev_1', ownerId: '111' }),
-        'joined',
-        '@vasya',
-        { totalParticipations: 5, courts: 2, actorUserId: 111 }
-      )
+      await business.notifyOwner(buildEvent({ id: 'ev_1', ownerId: '111' }), 'joined', '@vasya', {
+        totalParticipations: 5,
+        courts: 2,
+        actorUserId: 111,
+      })
 
       expect(transport.sendMessage).not.toHaveBeenCalled()
     })
@@ -1200,19 +1197,15 @@ describe('EventBusiness', () => {
       settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
       settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
 
-      transport.sendMessage
-        .mockRejectedValueOnce(new Error('Forbidden'))
-        .mockResolvedValueOnce(1)
+      transport.sendMessage.mockRejectedValueOnce(new Error('Forbidden')).mockResolvedValueOnce(1)
 
       const business = new EventBusiness(container)
       business.init()
 
-      await business.notifyOwner(
-        buildEvent({ id: 'ev_1', ownerId: '111' }),
-        'joined',
-        '@vasya',
-        { totalParticipations: 5, courts: 2 }
-      )
+      await business.notifyOwner(buildEvent({ id: 'ev_1', ownerId: '111' }), 'joined', '@vasya', {
+        totalParticipations: 5,
+        courts: 2,
+      })
 
       expect(transport.sendMessage).toHaveBeenCalledTimes(2)
       expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String))

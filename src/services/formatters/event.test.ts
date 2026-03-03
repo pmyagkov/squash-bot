@@ -537,7 +537,13 @@ describe('event formatters', () => {
       }
 
       const result = formatPersonalPaymentText(
-        event, 1000, 2, 2000, 4, -100123, '456',
+        event,
+        1000,
+        2,
+        2000,
+        4,
+        -100123,
+        '456',
         'Card: 1234-5678-9012-3456'
       )
       expect(result).toContain('\u{1F4B3}')
@@ -554,9 +560,7 @@ describe('event formatters', () => {
         isPrivate: false,
       }
 
-      const result = formatPersonalPaymentText(
-        event, 1000, 2, 2000, 4, -100123, '456'
-      )
+      const result = formatPersonalPaymentText(event, 1000, 2, 2000, 4, -100123, '456')
       expect(result).not.toContain('\u{1F4B3}')
     })
 
@@ -712,7 +716,14 @@ describe('event formatters', () => {
     })
 
     it('should format event announced', () => {
-      const result = formatOwnerNotification('announced', undefined, 'Tue 21 Jan 21:00', 0, 2, 'https://t.me/c/123/456')
+      const result = formatOwnerNotification(
+        'announced',
+        undefined,
+        'Tue 21 Jan 21:00',
+        0,
+        2,
+        'https://t.me/c/123/456'
+      )
       expect(result).toContain('\u{1F3BE} Your event announced: Tue 21 Jan 21:00')
     })
 
@@ -722,17 +733,24 @@ describe('event formatters', () => {
     })
 
     it('should append over capacity warning', () => {
-      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 10, 2, undefined, { maxPerCourt: 4 })
+      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 10, 2, undefined, {
+        maxPerCourt: 4,
+      })
       expect(result).toContain('\u26A0\uFE0F Over capacity')
     })
 
     it('should append low attendance warning', () => {
-      const result = formatOwnerNotification('left', '@vasya', 'Tue 21 Jan', 1, 2, undefined, { minPerCourt: 2 })
+      const result = formatOwnerNotification('left', '@vasya', 'Tue 21 Jan', 1, 2, undefined, {
+        minPerCourt: 2,
+      })
       expect(result).toContain('\u26A0\uFE0F Low attendance')
     })
 
     it('should not append warning when balance is ok', () => {
-      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 4, 2, undefined, { maxPerCourt: 4, minPerCourt: 2 })
+      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 4, 2, undefined, {
+        maxPerCourt: 4,
+        minPerCourt: 2,
+      })
       expect(result).not.toContain('\u26A0\uFE0F')
     })
   })
