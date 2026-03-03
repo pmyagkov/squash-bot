@@ -87,6 +87,9 @@ export class NotificationService {
         const result = await handler(notification)
 
         if (result.action === 'send') {
+          // Delete old sent notification message if exists (replace, not duplicate)
+          await this.cleanupOldNotification(notification)
+
           const msgId = await this.transport.sendMessage(
             Number(notification.recipientId),
             result.message,
@@ -118,5 +121,32 @@ export class NotificationService {
     }
 
     return processed
+  }
+
+  /**
+   * If a sent notification of the same type+eventId already exists,
+   * delete its Telegram message and mark it cancelled.
+   * Best-effort: errors are logged, never thrown.
+   */
+  private async cleanupOldNotification(notification: Notification): Promise<void> {
+    const eventId = notification.params.eventId as string | undefined
+    if (!eventId) {
+      return
+    }
+
+    const old = await this.notificationRepository.findSentByTypeAndEventId(
+      notification.type,
+      eventId
+    )
+    if (!old?.messageId || !old?.chatId) {
+      return
+    }
+
+    try {
+      await this.transport.deleteMessage(Number(old.chatId), Number(old.messageId))
+    } catch {
+      // Message may already be deleted — safe to ignore
+    }
+    await this.notificationRepository.updateStatus(old.id, 'cancelled')
   }
 }
