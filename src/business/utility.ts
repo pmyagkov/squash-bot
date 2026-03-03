@@ -3,10 +3,24 @@ import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { PaymentRepo } from '~/storage/repo/payment'
+import type { EventRepo } from '~/storage/repo/event'
 import type { AppContainer } from '../container'
 import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
 import { sayDef, type SayData } from '~/commands/utility/say'
-import { formatFallbackNotificationText } from '~/services/formatters/event'
+import {
+  formatFallbackNotificationText,
+  formatPersonalPaymentText,
+} from '~/services/formatters/event'
+import { InlineKeyboard } from 'grammy'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+import { config } from '~/config'
+import { formatDate } from '~/ui/constants'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 /**
  * Business logic for utility commands
@@ -16,12 +30,16 @@ export class UtilityBusiness {
   private commandRegistry: CommandRegistry
   private settingsRepository: SettingsRepo
   private participantRepository: ParticipantRepo
+  private paymentRepository: PaymentRepo
+  private eventRepository: EventRepo
 
   constructor(container: AppContainer) {
     this.transport = container.resolve('transport')
     this.commandRegistry = container.resolve('commandRegistry')
     this.settingsRepository = container.resolve('settingsRepository')
     this.participantRepository = container.resolve('participantRepository')
+    this.paymentRepository = container.resolve('paymentRepository')
+    this.eventRepository = container.resolve('eventRepository')
   }
 
   /**
@@ -58,6 +76,81 @@ This bot helps organize squash events with automated scheduling and payment trac
 Use /help to see available commands.`
 
     await this.transport.sendMessage(source.chat.id, welcomeMessage)
+
+    // Check for pending payments and unfinalized events
+    const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+    if (!participant) {
+      return
+    }
+
+    // 1. Resend unpaid payment DMs
+    const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
+
+    for (const payment of unpaidPayments) {
+      try {
+        const event = await this.eventRepository.findById(payment.eventId)
+        if (!event?.telegramMessageId) {
+          continue
+        }
+
+        const courtPrice = await this.settingsRepository.getCourtPrice()
+        const eventParticipants = await this.participantRepository.getEventParticipants(event.id)
+        const totalParticipations = eventParticipants.reduce(
+          (sum, ep) => sum + ep.participations,
+          0
+        )
+        const chatId = event.telegramChatId ? parseInt(event.telegramChatId, 10) : 0
+
+        // Resolve collector payment info
+        let collectorPaymentInfo: string | undefined
+        const collectorId =
+          event.collectorId ?? (await this.settingsRepository.getDefaultCollectorId())
+        if (collectorId) {
+          const collector = await this.participantRepository.findById(collectorId)
+          collectorPaymentInfo = collector?.paymentInfo
+        }
+
+        const messageText = formatPersonalPaymentText(
+          event,
+          payment.amount,
+          event.courts,
+          courtPrice,
+          totalParticipations,
+          chatId,
+          event.telegramMessageId,
+          collectorPaymentInfo
+        )
+        const keyboard = new InlineKeyboard().text('✅ I paid', `payment:mark-paid:${event.id}`)
+
+        await this.transport.sendMessage(source.chat.id, messageText, keyboard)
+      } catch {
+        // Best-effort: skip failed payments silently
+      }
+    }
+
+    // 2. Remind about unfinalized events owned by this user
+    const allEvents = await this.eventRepository.getEvents()
+    const now = new Date()
+    const unfinalizedOwned = allEvents.filter(
+      (e) => e.ownerId === String(source.user.id) && e.status === 'announced' && e.datetime < now
+    )
+
+    for (const event of unfinalizedOwned) {
+      try {
+        const eventDate = dayjs.tz(event.datetime, config.timezone)
+        let text = `⏰ Your event Squash ${formatDate(eventDate)} is not yet finalized`
+
+        if (event.telegramChatId && event.telegramMessageId) {
+          const chatIdStr = event.telegramChatId.replace(/^-100/, '')
+          const url = `https://t.me/c/${chatIdStr}/${event.telegramMessageId}`
+          text += `\n<a href="${url}">Go to announcement</a>`
+        }
+
+        await this.transport.sendMessage(source.chat.id, text)
+      } catch {
+        // Best-effort
+      }
+    }
   }
 
   private async handleHelp(source: SourceContext): Promise<void> {
