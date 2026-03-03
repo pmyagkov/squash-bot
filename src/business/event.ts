@@ -371,6 +371,15 @@ export class EventBusiness {
       eventId: event.id,
       userName: participant.displayName,
     })
+
+    // Notify owner (fire-and-forget)
+    const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const joinTotal = joinParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'joined', participant.displayName, {
+      totalParticipations: joinTotal,
+      courts: event.courts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
@@ -399,6 +408,15 @@ export class EventBusiness {
       eventId: event.id,
       userName: participant.displayName,
     })
+
+    // Notify owner (fire-and-forget)
+    const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const leaveTotal = leaveParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'left', participant.displayName, {
+      totalParticipations: leaveTotal,
+      courts: event.courts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add-court']): Promise<void> {
@@ -418,6 +436,15 @@ export class EventBusiness {
 
     void this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
     void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
+
+    // Notify owner (fire-and-forget)
+    const addCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const addCourtTotal = addCourtParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'court-added', undefined, {
+      totalParticipations: addCourtTotal,
+      courts: newCourts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleRemoveCourt(data: CallbackTypes['event:delete-court']): Promise<void> {
@@ -442,6 +469,15 @@ export class EventBusiness {
 
     void this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
     void this.transport.logEvent({ type: 'court_removed', eventId: event.id, courts: newCourts })
+
+    // Notify owner (fire-and-forget)
+    const removeCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const removeCourtTotal = removeCourtParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'court-removed', undefined, {
+      totalParticipations: removeCourtTotal,
+      courts: newCourts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleFinalize(data: CallbackTypes['event:finalize']): Promise<void> {
@@ -512,6 +548,10 @@ export class EventBusiness {
         date: finalizedDate,
         participantCount: participants.length,
       })
+
+      // Notify owner (fire-and-forget)
+      const actor = await this.participantRepository.findByTelegramId(String(data.userId))
+      void this.notifyOwner(event, 'finalized', actor?.displayName ?? 'Unknown')
     } finally {
       this.eventLock.release(event.id)
     }
@@ -1945,6 +1985,12 @@ export class EventBusiness {
       isPrivate: event.isPrivate,
       ownerLabel,
     })
+
+    // Notify owner (fire-and-forget)
+    const announceUrl = updatedEvent.telegramChatId && updatedEvent.telegramMessageId
+      ? buildAnnouncementUrl(updatedEvent.telegramChatId, updatedEvent.telegramMessageId)
+      : undefined
+    void this.notifyOwner(updatedEvent, 'announced', undefined, { announceUrl })
 
     return updatedEvent
   }
