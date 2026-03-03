@@ -45,3 +45,5 @@ playwright-report/
 .claude/settings.local.json.worktrees/
 
 .worktrees/
+
+.playwright-mcp/
