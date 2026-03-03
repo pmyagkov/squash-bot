@@ -22,8 +22,7 @@ describe('ParticipantBusiness', () => {
     expect(participantRepo.findOrCreateParticipant).toHaveBeenCalledWith('123', 'john', 'John Doe')
     expect(transport.logEvent).toHaveBeenCalledWith({
       type: 'participant_registered',
-      participantId: 'pt_abc123',
-      displayName: 'John Doe',
+      participant,
     })
     expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('John Doe'))
   })

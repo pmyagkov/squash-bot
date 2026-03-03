@@ -1,9 +1,28 @@
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 import type { LogEvent } from '~/types/logEvent'
+import type { Participant } from '~/types'
 import { code } from '~/helpers/format'
-import { formatCourts, formatActiveStatus, formatEventStatus, formatPrivacy } from '~/ui/constants'
+import { config } from '~/config'
+import {
+  formatDate,
+  formatCourts,
+  formatActiveStatus,
+  formatEventStatus,
+  formatPrivacy,
+} from '~/ui/constants'
+import { formatParticipantLabel } from '~/services/formatters/participant'
 
-function ownerSuffix(ownerLabel?: string): string {
-  return ownerLabel ? ` | 👑 ${code(ownerLabel)}` : ''
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+function ownerSuffix(owner?: Participant): string {
+  return owner ? ` | 👑 ${code(formatParticipantLabel(owner))}` : ''
+}
+
+function eventDate(datetime: Date): string {
+  return formatDate(dayjs.tz(datetime, config.timezone))
 }
 
 export function formatLogEvent(event: LogEvent): string {
@@ -15,36 +34,50 @@ export function formatLogEvent(event: LogEvent): string {
     case 'unhandled_error':
       return `❌ Unhandled error: ${event.error}`
     case 'event_created':
-      return `📅 Event created\n\n${event.date}${ownerSuffix(event.ownerLabel)}\n${formatCourts(event.courts)} | ${formatEventStatus(event.status)} | ${formatPrivacy(event.isPrivate)} | ${code(event.eventId)}`
+      return `📅 Event created\n\n${eventDate(event.event.datetime)}${ownerSuffix(event.owner)}\n${formatCourts(event.event.courts)} | ${formatEventStatus(event.event.status)} | ${formatPrivacy(event.event.isPrivate)} | ${code(event.event.id)}`
     case 'event_announced':
-      return `📢 Event announced\n\n${event.date}${ownerSuffix(event.ownerLabel)}\n${formatCourts(event.courts)} | ${formatPrivacy(event.isPrivate)} | ${code(event.eventId)}`
+      return `📢 Event announced\n\n${eventDate(event.event.datetime)}${ownerSuffix(event.owner)}\n${formatCourts(event.event.courts)} | ${formatPrivacy(event.event.isPrivate)} | ${code(event.event.id)}`
     case 'event_finalized':
-      return `✅ Event finalized: ${event.date}, ${event.participantCount} players`
+      return `✅ Event finalized: ${eventDate(event.event.datetime)}, ${event.participants.length} players`
     case 'event_cancelled':
-      return `❌ Event cancelled: ${event.date}`
+      return `❌ Event cancelled: ${eventDate(event.event.datetime)}`
     case 'event_restored':
-      return `🔄 Event restored: ${event.date}`
+      return `🔄 Event restored: ${eventDate(event.event.datetime)}`
+    case 'event_unfinalized':
+      return `↩️ Event unfinalized: ${eventDate(event.event.datetime)}`
+    case 'event_deleted':
+      return `🗑 Event deleted: ${code(event.event.id)}`
+    case 'event_undeleted':
+      return `♻️ Event undeleted: ${code(event.event.id)}`
+    case 'event_transferred':
+      return `🔄 Event ${code(event.event.id)} transferred: ${formatParticipantLabel(event.from)} → ${formatParticipantLabel(event.to)}`
     case 'participant_joined':
-      return `👋 ${event.userName} joined ${code(event.eventId)}`
+      return `👋 ${formatParticipantLabel(event.participant)} joined ${code(event.event.id)}`
     case 'participant_left':
-      return `👋 ${event.userName} left ${code(event.eventId)}`
+      return `👋 ${formatParticipantLabel(event.participant)} left ${code(event.event.id)}`
+    case 'participant_registered':
+      return `👤 New participant: ${event.participant.displayName} (${code(event.participant.id)})`
     case 'court_added':
-      return `➕ Court added: ${code(event.eventId)} (now ${event.courts})`
+      return `➕ Court added: ${code(event.event.id)} (now ${event.event.courts})`
     case 'court_removed':
-      return `➖ Court removed: ${code(event.eventId)} (now ${event.courts})`
+      return `➖ Court removed: ${code(event.event.id)} (now ${event.event.courts})`
     case 'payment_received':
-      return `💰 Payment received: ${event.amount} din from ${event.userName}`
+      return `💰 Payment received: ${event.amount} din from ${formatParticipantLabel(event.participant)}`
+    case 'payment_cancelled':
+      return `💸 Payment cancelled: ${formatParticipantLabel(event.participant)} in ${code(event.event.id)}`
     case 'payment_check_completed':
       return `🔍 Payment check completed: ${event.eventsChecked} events checked`
     case 'scaffold_created':
-      return `📋 Scaffold created\n\n${event.day}, ${event.time}${ownerSuffix(event.ownerLabel)}\n${formatCourts(event.courts)} | ${formatActiveStatus(event.isActive)} | ${formatPrivacy(event.isPrivate)} | ${code(event.scaffoldId)}`
+      return `📋 Scaffold created\n\n${event.scaffold.dayOfWeek}, ${event.scaffold.time}${ownerSuffix(event.owner)}\n${formatCourts(event.scaffold.defaultCourts)} | ${formatActiveStatus(event.scaffold.isActive)} | ${formatPrivacy(event.scaffold.isPrivate)} | ${code(event.scaffold.id)}`
     case 'scaffold_toggled':
-      return `🔀 Scaffold ${code(event.scaffoldId)}: ${event.active ? 'activated' : 'deactivated'}`
+      return `🔀 Scaffold ${code(event.scaffold.id)}: ${event.scaffold.isActive ? 'activated' : 'deactivated'}`
     case 'scaffold_deleted':
-      return `🗑 Scaffold deleted: ${code(event.scaffoldId)}`
+      return `🗑 Scaffold deleted: ${code(event.scaffold.id)}`
+    case 'scaffold_restored':
+      return `♻️ Scaffold restored: ${code(event.scaffold.id)}`
+    case 'scaffold_transferred':
+      return `🔄 Scaffold ${code(event.scaffold.id)} transferred: ${formatParticipantLabel(event.from)} → ${formatParticipantLabel(event.to)}`
     case 'event-not-finalized-reminder':
-      return `⏰ Event not-finalized reminder: ${code(event.eventId)} (${event.date})`
-    case 'participant_registered':
-      return `👤 New participant: ${event.displayName} (${code(event.participantId)})`
+      return `⏰ Event not-finalized reminder: ${code(event.event.id)} (${eventDate(event.event.datetime)})`
   }
 }
