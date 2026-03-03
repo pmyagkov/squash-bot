@@ -328,6 +328,38 @@ export function formatOwnerNotification(
 }
 
 /**
+ * Debt entry for the debt summary formatter
+ */
+export interface DebtEntry {
+  eventDateStr: string
+  amount: number
+  collectorPaymentInfo?: string
+}
+
+/**
+ * Formats a summary of unpaid debts for a participant
+ */
+export function formatDebtSummary(debts: DebtEntry[]): string {
+  if (debts.length === 0) {
+    return '\u2705 No unpaid debts!'
+  }
+
+  let text = '\u{1F4B0} Your unpaid debts:\n'
+  let total = 0
+
+  for (const debt of debts) {
+    text += `\nSquash ${debt.eventDateStr} \u2014 ${debt.amount} din`
+    if (debt.collectorPaymentInfo) {
+      text += `\n\u{1F4B3} ${debt.collectorPaymentInfo}`
+    }
+    total += debt.amount
+  }
+
+  text += `\n\nTotal: ${total} din`
+  return text
+}
+
+/**
  * Formats fallback notification for participants who can't receive DMs
  */
 export function formatFallbackNotificationText(

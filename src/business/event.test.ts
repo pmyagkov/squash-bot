@@ -1774,4 +1774,67 @@ describe('EventBusiness', () => {
       expect(count).toBe(0)
     })
   })
+
+  // ── handlePaymentDebt ─────────────────────────────────────────────────
+
+  describe('handlePaymentDebt', () => {
+    test('shows unpaid debts for current user', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+
+      const participant = buildParticipant({ id: 'pt_me', telegramId: '555' })
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
+
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', amount: 1000 }),
+      ])
+
+      const event = buildEvent({
+        id: 'ev_1',
+        datetime: new Date('2024-01-21T21:00:00Z'),
+        collectorId: 'pt_collector',
+      })
+      eventRepo.findById.mockResolvedValue(event)
+
+      const collector = buildParticipant({
+        id: 'pt_collector',
+        paymentInfo: 'Card: 1234',
+      })
+      participantRepo.findById.mockResolvedValue(collector)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSource({ user: { id: 555, firstName: 'Test' } }))
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('\u{1F4B0} Your unpaid debts:')
+      )
+    })
+
+    test('shows no-debts message when all paid', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+
+      const participant = buildParticipant({ id: 'pt_me', telegramId: '555' })
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([])
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSource({ user: { id: 555, firstName: 'Test' } }))
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('\u2705 No unpaid debts!')
+      )
+    })
+  })
 })

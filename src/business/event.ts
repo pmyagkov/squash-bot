@@ -38,7 +38,9 @@ import {
   formatFallbackNotificationText,
   formatNotFinalizedReminder,
   formatOwnerNotification,
+  formatDebtSummary,
 } from '~/services/formatters/event'
+import type { DebtEntry } from '~/services/formatters/event'
 import type { HandlerResult } from '~/services/notification'
 import { eventJoinDef } from '~/commands/event/join'
 import { eventActionDef } from '~/commands/event/eventAction'
@@ -54,6 +56,7 @@ import {
   eventMenuDef,
 } from '~/commands/event/defs'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
+import { paymentDebtDef } from '~/commands/payment/defs'
 import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
 import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
 
@@ -329,6 +332,10 @@ export class EventBusiness {
 
     this.commandRegistry.register('event:update', eventActionDef, async (data, source) => {
       await this.handleEventEditMenu(data, source)
+    })
+
+    this.commandRegistry.register('payment:debt', paymentDebtDef, async (_data, source) => {
+      await this.handlePaymentDebt(source)
     })
 
     this.transport.onEdit('event', (action, entityId, ctx) =>
@@ -1537,6 +1544,44 @@ export class EventBusiness {
     )
   }
 
+  private async handlePaymentDebt(source: SourceContext): Promise<void> {
+    const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+    if (!participant) {
+      await this.transport.sendMessage(source.chat.id, '✅ No unpaid debts!')
+      return
+    }
+
+    const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
+    if (unpaidPayments.length === 0) {
+      await this.transport.sendMessage(source.chat.id, '✅ No unpaid debts!')
+      return
+    }
+
+    const debts: DebtEntry[] = []
+    for (const payment of unpaidPayments) {
+      const event = await this.eventRepository.findById(payment.eventId)
+      if (!event) {
+        continue
+      }
+
+      const eventDate = dayjs.tz(event.datetime, config.timezone)
+      const eventDateStr = formatDate(eventDate)
+
+      let collectorPaymentInfo: string | undefined
+      const collectorId =
+        event.collectorId ?? (await this.settingsRepository.getDefaultCollectorId())
+      if (collectorId) {
+        const collector = await this.participantRepository.findById(collectorId)
+        collectorPaymentInfo = collector?.paymentInfo
+      }
+
+      debts.push({ eventDateStr, amount: payment.amount, collectorPaymentInfo })
+    }
+
+    const message = formatDebtSummary(debts)
+    await this.transport.sendMessage(source.chat.id, message)
+  }
+
   // === Command Handlers ===
 
   private async handleListFromDef(source: SourceContext): Promise<void> {
@@ -2135,7 +2180,9 @@ export class EventBusiness {
     const allEvents = await this.eventRepository.getEvents()
     const createdEvents = allEvents.filter((e) => e.status === 'created')
 
-    if (createdEvents.length === 0) return 0
+    if (createdEvents.length === 0) {
+      return 0
+    }
 
     const timezone = await this.settingsRepository.getTimezone()
     const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()

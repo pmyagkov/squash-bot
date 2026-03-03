@@ -10,7 +10,9 @@ import {
   formatFallbackNotificationText,
   formatNotFinalizedReminder,
   formatOwnerNotification,
+  formatDebtSummary,
   type EventParticipantDisplay,
+  type DebtEntry,
 } from './event'
 import type { Event } from '~/types'
 import type { InlineKeyboardButton } from 'grammy/types'
@@ -788,6 +790,39 @@ describe('event formatters', () => {
         minPerCourt: 2,
       })
       expect(result).not.toContain('\u26A0\uFE0F')
+    })
+  })
+
+  describe('formatDebtSummary', () => {
+    it('should format debts with payment info', () => {
+      const debts: DebtEntry[] = [
+        { eventDateStr: 'Tue, 21 Jan, 21:00', amount: 1000, collectorPaymentInfo: 'Card: 1234' },
+        { eventDateStr: 'Thu, 23 Jan, 19:00', amount: 1500 },
+      ]
+
+      const result = formatDebtSummary(debts)
+
+      expect(result).toContain('Your unpaid debts:')
+      expect(result).toContain('Squash Tue, 21 Jan, 21:00 \u2014 1000 din')
+      expect(result).toContain('\u{1F4B3} Card: 1234')
+      expect(result).toContain('Squash Thu, 23 Jan, 19:00 \u2014 1500 din')
+      expect(result).toContain('Total: 2500 din')
+    })
+
+    it('should omit payment info when not available', () => {
+      const debts: DebtEntry[] = [{ eventDateStr: 'Tue, 21 Jan, 21:00', amount: 1000 }]
+
+      const result = formatDebtSummary(debts)
+
+      expect(result).toContain('Squash Tue, 21 Jan, 21:00 \u2014 1000 din')
+      expect(result).not.toContain('\u{1F4B3}')
+      expect(result).toContain('Total: 1000 din')
+    })
+
+    it('should return no-debts message when empty array', () => {
+      const result = formatDebtSummary([])
+
+      expect(result).toContain('\u2705 No unpaid debts!')
     })
   })
 })
