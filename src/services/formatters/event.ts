@@ -262,6 +262,69 @@ export function buildReminderKeyboard(eventId: string, announceUrl?: string): In
   return kb
 }
 
+type OwnerNotificationType =
+  | 'joined' | 'left'
+  | 'court-added' | 'court-removed'
+  | 'announced' | 'finalized'
+
+interface CapacityLimits {
+  maxPerCourt?: number
+  minPerCourt?: number
+}
+
+/**
+ * Formats notification message for event owner about a change
+ */
+export function formatOwnerNotification(
+  type: OwnerNotificationType,
+  actorName: string | undefined,
+  eventDateStr: string,
+  totalParticipations: number,
+  courts: number,
+  announceUrl?: string,
+  capacityLimits?: CapacityLimits,
+): string {
+  let text: string
+
+  switch (type) {
+    case 'joined':
+      text = `👤 ${actorName} joined ${eventDateStr}`
+      break
+    case 'left':
+      text = `👤 ${actorName} left ${eventDateStr}`
+      break
+    case 'court-added':
+      text = `🏟 Court added for ${eventDateStr}`
+      break
+    case 'court-removed':
+      text = `🏟 Court removed for ${eventDateStr}`
+      break
+    case 'announced':
+      text = `🎾 Your event announced: ${eventDateStr}`
+      if (announceUrl) {
+        text += `\n<a href="${announceUrl}">Go to announcement</a>`
+      }
+      return text
+    case 'finalized':
+      text = `✅ ${eventDateStr} finalized by ${actorName}`
+      return text
+  }
+
+  // Balance line for join/leave/court changes
+  text += `\n   Participants: ${totalParticipations} · Courts: ${courts}`
+
+  // Capacity warning
+  if (capacityLimits) {
+    if (capacityLimits.maxPerCourt && totalParticipations > courts * capacityLimits.maxPerCourt) {
+      text += '\n   ⚠️ Over capacity'
+    } else if (capacityLimits.minPerCourt && totalParticipations < courts * capacityLimits.minPerCourt) {
+      text += '\n   ⚠️ Low attendance'
+    }
+  }
+
+  return text
+}
+
 /**
  * Formats fallback notification for participants who can't receive DMs
  */

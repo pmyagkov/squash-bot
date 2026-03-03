@@ -9,6 +9,7 @@ import {
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
   formatNotFinalizedReminder,
+  formatOwnerNotification,
   type EventParticipantDisplay,
 } from './event'
 import type { Event } from '~/types'
@@ -682,6 +683,57 @@ describe('event formatters', () => {
       expect(result).toContain('@alice, @bob')
       expect(result).toContain('tg://resolve?domain=test_bot&start')
       expect(result).toContain('/start')
+    })
+  })
+
+  describe('formatOwnerNotification', () => {
+    it('should format participant joined with balance', () => {
+      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 5, 2)
+      expect(result).toContain('\u{1F464} @vasya joined Tue 21 Jan')
+      expect(result).toContain('Participants: 5 \u00B7 Courts: 2')
+    })
+
+    it('should format participant left with balance', () => {
+      const result = formatOwnerNotification('left', '@vasya', 'Tue 21 Jan', 4, 2)
+      expect(result).toContain('\u{1F464} @vasya left Tue 21 Jan')
+      expect(result).toContain('Participants: 4 \u00B7 Courts: 2')
+    })
+
+    it('should format court added with balance', () => {
+      const result = formatOwnerNotification('court-added', undefined, 'Tue 21 Jan', 5, 3)
+      expect(result).toContain('\u{1F3DF} Court added for Tue 21 Jan')
+      expect(result).toContain('Participants: 5 \u00B7 Courts: 3')
+    })
+
+    it('should format court removed with balance', () => {
+      const result = formatOwnerNotification('court-removed', undefined, 'Tue 21 Jan', 5, 1)
+      expect(result).toContain('\u{1F3DF} Court removed for Tue 21 Jan')
+      expect(result).toContain('Participants: 5 \u00B7 Courts: 1')
+    })
+
+    it('should format event announced', () => {
+      const result = formatOwnerNotification('announced', undefined, 'Tue 21 Jan 21:00', 0, 2, 'https://t.me/c/123/456')
+      expect(result).toContain('\u{1F3BE} Your event announced: Tue 21 Jan 21:00')
+    })
+
+    it('should format event finalized', () => {
+      const result = formatOwnerNotification('finalized', '@petya', 'Tue 21 Jan', 5, 2)
+      expect(result).toContain('\u2705 Tue 21 Jan finalized by @petya')
+    })
+
+    it('should append over capacity warning', () => {
+      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 10, 2, undefined, { maxPerCourt: 4 })
+      expect(result).toContain('\u26A0\uFE0F Over capacity')
+    })
+
+    it('should append low attendance warning', () => {
+      const result = formatOwnerNotification('left', '@vasya', 'Tue 21 Jan', 1, 2, undefined, { minPerCourt: 2 })
+      expect(result).toContain('\u26A0\uFE0F Low attendance')
+    })
+
+    it('should not append warning when balance is ok', () => {
+      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 4, 2, undefined, { maxPerCourt: 4, minPerCourt: 2 })
+      expect(result).not.toContain('\u26A0\uFE0F')
     })
   })
 })
