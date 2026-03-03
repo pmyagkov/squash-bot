@@ -39,9 +39,9 @@ async function main() {
     const commonCommands = [
       { command: 'start', description: 'Start the bot' },
       { command: 'help', description: 'Show available commands' },
-      { command: 'myid', description: 'Show your user info' },
       { command: 'event', description: 'Manage events' },
       { command: 'scaffold', description: 'Manage schedules' },
+      { command: 'payment', description: 'Payment commands' },
     ]
 
     await bot.api.setMyCommands(commonCommands, {

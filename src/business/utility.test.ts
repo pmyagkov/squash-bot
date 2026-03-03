@@ -53,7 +53,7 @@ describe('UtilityBusiness', () => {
 
   // ── handleHelp ─────────────────────────────────────────────────────
 
-  test('handleHelp → sends command list', async ({ container }) => {
+  test('handleHelp → sends command list with concept explanations', async ({ container }) => {
     const transport = container.resolve('transport')
 
     const business = new UtilityBusiness(container)
@@ -64,12 +64,13 @@ describe('UtilityBusiness', () => {
 
     expect(transport.sendMessage).toHaveBeenCalledWith(
       TEST_CONFIG.chatId,
-      expect.stringContaining('Available commands')
+      expect.stringContaining('Squash Bot')
     )
     const message = transport.sendMessage.mock.calls[0][1]
-    expect(message).toContain('/start')
-    expect(message).toContain('/help')
-    expect(message).toContain('/myid')
+    expect(message).toContain('/event')
+    expect(message).toContain('/scaffold')
+    expect(message).not.toContain('/myid')
+    expect(message).not.toContain('/getchatid')
   })
 
   // ── handleMyId ─────────────────────────────────────────────────────
@@ -204,14 +205,16 @@ describe('UtilityBusiness', () => {
     expect(startMessage).toContain('Squash Bot')
     expect(startMessage).toContain('/help')
 
-    // Help message includes all command groups
+    // Help message includes concept explanations and commands
     transport.sendMessage.mockClear()
     const helpHandler = getHandler(container, 'help')
     await helpHandler({}, makeSource())
 
     const helpMessage = transport.sendMessage.mock.calls[0][1]
+    expect(helpMessage).toContain('Scaffold')
+    expect(helpMessage).toContain('Event')
     expect(helpMessage).toContain('/event')
     expect(helpMessage).toContain('/scaffold')
-    expect(helpMessage).toContain('/getchatid')
+    expect(helpMessage).toContain('/payment debt')
   })
 })

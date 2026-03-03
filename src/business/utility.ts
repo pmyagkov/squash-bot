@@ -46,8 +46,6 @@ export class UtilityBusiness {
 
     this.transport.ensureBaseCommand('start')
     this.transport.ensureBaseCommand('help')
-    this.transport.ensureBaseCommand('myid')
-    this.transport.ensureBaseCommand('getchatid')
   }
 
   // === Command Handlers ===
@@ -63,20 +61,16 @@ Use /help to see available commands.`
   }
 
   private async handleHelp(source: SourceContext): Promise<void> {
-    const helpMessage = `Available commands:
+    const helpMessage = `<b>Squash Bot</b> organizes group squash sessions.
 
-/start - Welcome message
-/help - Show this help
-/myid - Show your user info
-/getchatid - Show current chat ID
+<b>Scaffold</b> — a recurring schedule template (e.g., "every Tuesday at 21:00, 2 courts"). The bot auto-creates events from scaffolds.
 
-/event list - List active events
-/event create <day> <time> <courts> - Create event
+<b>Event</b> — a specific session with date, participants, and payments. Created automatically from a scaffold or manually.
 
-/scaffold create <day> <time> <courts> - Create scaffold (admin)
-/scaffold list - List scaffolds (admin)
-/scaffold update <id> - Toggle scaffold (admin)
-/scaffold delete <id> - Delete scaffold (admin)`
+<b>Commands:</b>
+/event - Manage events
+/scaffold - Manage schedules
+/payment debt - Check your unpaid debts`
 
     await this.transport.sendMessage(source.chat.id, helpMessage)
   }
