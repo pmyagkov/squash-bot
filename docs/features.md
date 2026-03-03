@@ -238,6 +238,22 @@ Auto-create event from scaffold on schedule.
 
 **Edge case:** Uses `shouldTrigger` with time offset notation to determine creation time
 
+#### Auto-announce created events (API) ✅
+
+Auto-announce manually created events when their announcement deadline passes.
+
+**Actor:** System (n8n)
+**Trigger:** POST /check-events (every 15 min)
+
+**Flow:**
+1. n8n calls POST /check-events
+2. After scaffold event creation, bot fetches all events with status `created`
+3. For each created event, checks if announcement deadline has passed (using `shouldTrigger`)
+4. If past deadline → announces event (see event-announce)
+5. Errors per-event are logged but don't block other events
+
+**Purpose:** Allows users to create events in advance (e.g., `/event create next-sat 19:00 2`) and have them auto-announced at the appropriate time, without manually running `/event announce`.
+
 ---
 
 ### event-announce ✅
@@ -723,6 +739,81 @@ Please start a chat with me: [Bot Name]
 
 ---
 
+### payment-debt ✅
+
+Check own unpaid debts with collector payment info.
+
+**Actor:** Any user
+**Chat:** Private
+
+**Flow:**
+1. User sends `/payment debt`
+2. Bot looks up participant by telegram ID
+3. Bot fetches all unpaid payments for this participant
+4. Bot formats debt summary with event dates, amounts, and collector payment info
+5. Bot sends formatted message
+
+**Message (has debts):**
+```
+💰 Your unpaid debts:
+
+📅 Tue, 21 Jan, 21:00
+   Amount: 1000 din
+   💳 Card: 1234-5678-9012-3456
+
+📅 Sat, 18 Jan, 19:00
+   Amount: 1500 din
+
+Total: 2500 din
+```
+
+**Message (no debts):** `✅ You have no unpaid debts`
+
+**Errors:**
+- Participant not found → `You are not registered yet. Send /start first.`
+
+---
+
+### admin-payment-debt ✅
+
+View all outstanding debts (admin only).
+
+**Actor:** Admin
+**Chat:** Private
+
+**Flow (all debts):**
+1. Admin sends `/admin payment debt`
+2. Bot fetches all unpaid payments
+3. Bot groups by event, resolves participant names
+4. Bot formats summary with per-event breakdown and totals
+
+**Flow (per-user debts):**
+1. Admin sends `/admin payment debt @username`
+2. Bot finds participant by username
+3. Bot fetches unpaid payments for that participant
+4. Bot formats debt summary (same as `payment-debt` but for the target user)
+
+**Message (all debts):**
+```
+💰 Outstanding debts:
+
+📅 Tue, 21 Jan, 21:00
+   @vasya — 1000 din
+   @petya — 1500 din
+
+📅 Sat, 18 Jan, 19:00
+   @vasya — 2000 din
+
+Total: 3 unpaid payments
+```
+
+**Message (no debts):** `✅ No outstanding debts`
+
+**Errors:**
+- User not found → `Participant @username not found`
+
+---
+
 ## Admin
 
 ### admin ✅
@@ -1057,9 +1148,9 @@ Read settings from Notion.
 
 ## User Onboarding
 
-### start-onboarding
+### start-onboarding ✅
 
-Initialize conversation with bot to enable personal messages.
+Initialize conversation with bot and show pending business.
 
 **Actor:** Any user
 **Chat:** Private (DM with bot)
@@ -1069,33 +1160,35 @@ Initialize conversation with bot to enable personal messages.
 - User manually sends /start to bot
 - First-time interaction with bot
 
-**Related:** `fallback-notification`, `event-payment-notifications`
+**Related:** `fallback-notification`, `event-payment-notifications`, `payment-debt`
 
 **Flow:**
 1. User sends `/start` command to bot (in private chat)
 2. Bot registers user as participant (findOrCreateParticipant with telegram ID, username, display name)
 3. Bot sends welcome message
-4. Conversation initialized → bot can now send personal notifications to this user
-5. Future payment notifications will be delivered successfully
+4. Bot looks up participant and resends any unpaid payment DMs with "I paid" button
+5. Bot checks for unfinalized events owned by user and sends reminders with links
+6. Conversation initialized → bot can now send personal notifications to this user
 
 **Welcome message:**
 ```
-👋 Welcome to Squash Payment Bot!
+Welcome to Squash Bot! 🎾
 
-I can help you feel more comfortable in a question of managing squash sessions.
+This bot helps organize squash events with automated scheduling and payment tracking.
 
-Currently unfinished businesses:
-* Unfinalized sessions (one, two, three, etc.)    // `one`, etc. should be links to announcement messages of corresponding events.
-* Unpaid sessions: cumulitively 10000 din. Type /my debt for details.
-
-To see your history: /my history
+Use /help to see available commands.
 ```
+
+**Pending payments:** For each unpaid payment, bot resends the full personal payment DM (same format as `event-payment-notifications`) with the "✅ I paid" button.
+
+**Unfinalized events:** For each announced event past its datetime that the user owns, bot sends a reminder with a link to the announcement.
 
 **Purpose:**
 - Telegram bots can't initiate conversations with users
 - User must send first message to bot
 - After /start, bot can send personal payment notifications
 - Critical for payment-personal-notifications delivery
+- Reminds users of outstanding debts and unfinalized events on every /start
 
 **Link to this feature:** Used in fallback-notification as deep link `https://t.me/{bot_username}?start`
 

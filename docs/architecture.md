@@ -656,6 +656,7 @@ Bot reads settings from database on each action where they are needed.
 ```
 /my history <filter>
 /my debt
+/payment debt
 ```
 
 **Filter formats for history:**
@@ -685,6 +686,7 @@ Bot reads settings from database on each action where they are needed.
 
 ```
 /admin debts
+/admin payment debt [@username]
 /admin history @username <filter>
 ```
 
@@ -1080,7 +1082,7 @@ Bot selects table set by chat_id:
 | Endpoint | Method | Description | Called from |
 |----------|--------|-------------|-------------|
 | /health | GET | Healthcheck | n8n (every 5 min) |
-| /check-events | POST | Check if events need to be created/announced | n8n (every 15 min) |
+| /check-events | POST | Create scaffold events, auto-announce created events, check unfinalized | n8n (every 15 min) |
 | /check-payments | POST | Check debtors, send reminders | n8n (once a day) |
 
 ---
