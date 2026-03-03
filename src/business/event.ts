@@ -339,6 +339,22 @@ export class EventBusiness {
     this.transport.ensureBaseCommand('payment')
   }
 
+  /**
+   * Resolve event by message ID — checks announcement first, then notification.
+   */
+  private async resolveEventByMessageId(messageId: number): Promise<Event | undefined> {
+    const event = await this.eventRepository.findByMessageId(String(messageId))
+    if (event) {
+      return event
+    }
+    const notification = await this.notificationRepository.findByMessageId(String(messageId))
+    if (notification) {
+      const eventId = notification.params.eventId as string
+      return this.eventRepository.findById(eventId)
+    }
+    return undefined
+  }
+
   // === Callback Handlers ===
 
   private async handleJoin(data: CallbackTypes['event:join']): Promise<void> {
@@ -361,6 +377,7 @@ export class EventBusiness {
     // Update message and answer callback concurrently (editMessage is slow on test server)
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -389,6 +406,7 @@ export class EventBusiness {
 
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -401,7 +419,7 @@ export class EventBusiness {
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add-court']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -411,7 +429,8 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
     await Promise.all([
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshAnnouncement(event.id),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -420,7 +439,7 @@ export class EventBusiness {
   }
 
   private async handleRemoveCourt(data: CallbackTypes['event:delete-court']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -435,7 +454,8 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
     await Promise.all([
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshAnnouncement(event.id),
+      this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ])
 
@@ -444,7 +464,7 @@ export class EventBusiness {
   }
 
   private async handleFinalize(data: CallbackTypes['event:finalize']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -496,9 +516,10 @@ export class EventBusiness {
         await this.sendFallbackNotification(event, data.chatId, failedParticipants)
       }
 
-      // Update announcement message
+      // Update announcement and reminder messages
       await Promise.all([
-        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, true),
+        this.refreshAnnouncement(event.id),
+        this.refreshReminder(event.id),
         this.transport.answerCallback(data.callbackId),
       ])
 
@@ -2344,8 +2365,9 @@ export class EventBusiness {
       }))
       const message = formatNotFinalizedReminder(event, participants)
 
+      const isGroupChat = event.telegramChatId?.startsWith('-')
       const announceUrl =
-        event.telegramChatId && event.telegramMessageId
+        isGroupChat && event.telegramChatId && event.telegramMessageId
           ? buildAnnouncementUrl(event.telegramChatId, event.telegramMessageId)
           : undefined
 
@@ -2380,8 +2402,9 @@ export class EventBusiness {
       }))
       const message = formatNotFinalizedReminder(event, participants)
 
+      const isGroupChat = event.telegramChatId?.startsWith('-')
       const announceUrl =
-        event.telegramChatId && event.telegramMessageId
+        isGroupChat && event.telegramChatId && event.telegramMessageId
           ? buildAnnouncementUrl(event.telegramChatId, event.telegramMessageId)
           : undefined
 
