@@ -1135,7 +1135,6 @@ Interactive parameter collection for commands. When a command is called without 
 **Cancel:**
 - User clicks [Cancel] button on any step → wizard cancelled, handler not called
 - User sends `/cancel` during wizard → wizard cancelled
-- Bot replies: "Cancelled."
 
 **Validation:**
 - Invalid input → bot shows error and re-prompts same step
