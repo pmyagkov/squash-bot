@@ -518,6 +518,44 @@ describe('EventBusiness', () => {
         expect.anything()
       )
     })
+
+    test('refreshes reminder after join', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_join_r', status: 'announced', telegramMessageId: '100' })
+      eventRepo.findByMessageId.mockResolvedValue(event)
+      eventRepo.findById.mockResolvedValue(event)
+
+      const participant = buildParticipant({ id: 'p_r', telegramId: '555' })
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
+      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.getEventParticipants.mockResolvedValue([])
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCallbackHandler(transport, 'event:join')
+      await handler({
+        userId: 555,
+        chatId: TEST_CONFIG.chatId,
+        chatType: 'group' as const,
+        messageId: 100,
+        callbackId: 'cb_join_r',
+        firstName: 'Alice',
+        username: 'alice',
+      })
+
+      expect(notificationRepo.findSentByTypeAndEventId).toHaveBeenCalledWith(
+        'event-not-finalized',
+        'ev_join_r'
+      )
+    })
   })
 
   // ── handleLeave ────────────────────────────────────────────────────
@@ -612,6 +650,44 @@ describe('EventBusiness', () => {
       })
 
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_leave3', 'You are not registered')
+    })
+
+    test('refreshes reminder after leave', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_leave_r', status: 'announced', telegramMessageId: '100' })
+      eventRepo.findByMessageId.mockResolvedValue(event)
+      eventRepo.findById.mockResolvedValue(event)
+
+      const participant = buildParticipant({ id: 'p_lr', telegramId: String(TEST_CONFIG.userId) })
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
+      participantRepo.removeFromEvent.mockResolvedValue(undefined)
+      participantRepo.getEventParticipants.mockResolvedValue([])
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '300', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCallbackHandler(transport, 'event:leave')
+      await handler({
+        userId: TEST_CONFIG.userId,
+        chatId: TEST_CONFIG.chatId,
+        chatType: 'group' as const,
+        messageId: 100,
+        callbackId: 'cb_leave_r',
+        firstName: 'Test',
+        username: 'test',
+      })
+
+      expect(notificationRepo.findSentByTypeAndEventId).toHaveBeenCalledWith(
+        'event-not-finalized',
+        'ev_leave_r'
+      )
     })
   })
 
@@ -969,6 +1045,38 @@ describe('EventBusiness', () => {
         expect.anything()
       )
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_cancel')
+    })
+
+    test('refreshes reminder after cancel', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const notificationRepo = container.resolve('notificationRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_cancel_r', status: 'announced', telegramMessageId: '100' })
+      eventRepo.findByMessageId.mockResolvedValue(event)
+      eventRepo.findById.mockResolvedValue(event)
+      participantRepo.getEventParticipants.mockResolvedValue([])
+      notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
+        buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCallbackHandler(transport, 'event:cancel')
+      await handler({
+        userId: TEST_CONFIG.userId,
+        chatId: TEST_CONFIG.chatId,
+        chatType: 'group' as const,
+        messageId: 100,
+        callbackId: 'cb_cancel_r',
+      })
+
+      expect(notificationRepo.findSentByTypeAndEventId).toHaveBeenCalledWith(
+        'event-not-finalized',
+        'ev_cancel_r'
+      )
     })
   })
 
@@ -1328,8 +1436,8 @@ describe('EventBusiness', () => {
 
       expect(result.action).toBe('send')
       if (result.action === 'send') {
-        expect(result.message).toContain('Alice')
-        expect(result.message).toContain('has not been finalized')
+        expect(result.message).toContain('@testuser')
+        expect(result.message).toContain('not finalized')
         expect(result.keyboard).toBeDefined()
       }
     })
@@ -1441,7 +1549,7 @@ describe('EventBusiness', () => {
       expect(transport.editMessage).toHaveBeenCalledWith(
         999,
         200,
-        expect.stringContaining('Alice'),
+        expect.stringContaining('@testuser'),
         expect.anything()
       )
     })

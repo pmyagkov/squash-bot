@@ -88,11 +88,21 @@ export class NotificationRepo {
       .select()
       .from(notifications)
       .where(and(eq(notifications.type, type), eq(notifications.status, 'sent')))
-    const match = results.find((r) => {
+      .orderBy(notifications.id)
+    const matches = results.filter((r) => {
       const params = JSON.parse(r.params) as Record<string, unknown>
       return params.eventId === eventId
     })
-    return match ? this.toDomain(match) : undefined
+    // Return the latest (last) match
+    return matches.length > 0 ? this.toDomain(matches[matches.length - 1]) : undefined
+  }
+
+  async findByMessageId(messageId: string): Promise<Notification | undefined> {
+    const results = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.messageId, messageId))
+    return results.length > 0 ? this.toDomain(results[0]) : undefined
   }
 
   private toDomain(row: typeof notifications.$inferSelect): Notification {

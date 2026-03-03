@@ -669,11 +669,6 @@ describe('event-create', () => {
         await commandDone
 
         expect(container.resolve('wizardService').isActive(ADMIN_ID)).toBe(false)
-        expect(api.sendMessage).toHaveBeenCalledWith(
-          TEST_CHAT_ID,
-          expect.stringContaining('Cancelled.'),
-          expect.anything()
-        )
 
         const events = await container.resolve('eventRepository').getEvents()
         expect(events).toHaveLength(0)
@@ -1177,11 +1172,11 @@ describe('event-create', () => {
       )
       await tick()
 
-      // Should only see "Cancelled." message, no subcommand output
-      const cancelCall = api.sendMessage.mock.calls.find(
-        ([, text]) => typeof text === 'string' && text.includes('Cancelled')
+      // No subcommand output should have been sent after cancel
+      const subcommandCall = api.sendMessage.mock.calls.find(
+        ([, text]) => typeof text === 'string' && !text.includes('Choose an action')
       )
-      expect(cancelCall).toBeDefined()
+      expect(subcommandCall).toBeUndefined()
     })
   })
 })

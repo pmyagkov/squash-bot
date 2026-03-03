@@ -91,6 +91,35 @@ Participants:
 }
 
 /**
+ * Formats participant section shared by announcement and reminder.
+ */
+function formatParticipantSection(
+  participants: EventParticipantDisplay[],
+  paidParticipantIds: Set<string> = new Set()
+): string {
+  if (participants.length === 0) {
+    return 'Participants:\n(nobody yet)'
+  }
+
+  const totalCount = participants.reduce((sum, ep) => sum + ep.participations, 0)
+  let text = `Participants — ${totalCount}:\n`
+
+  const names = participants
+    .map((ep) => {
+      const username = ep.participant.telegramUsername
+        ? `@${ep.participant.telegramUsername}`
+        : ep.participant.displayName
+      const multiplier = ep.participations > 1 ? ` (×${ep.participations})` : ''
+      const paidMark = ep.participant.id && paidParticipantIds.has(ep.participant.id) ? ' ✓' : ''
+      return `${username}${multiplier}${paidMark}`
+    })
+    .join(', ')
+
+  text += names
+  return text
+}
+
+/**
  * Formats announcement message with participants and status
  */
 export function formatAnnouncementText(
@@ -104,27 +133,7 @@ export function formatAnnouncementText(
   const icon = event.isPrivate ? '🔒' : '🎾'
 
   let messageText = `${icon} Squash: ${formatDate(eventDate)}\n${formatCourts(event.courts)}\n\n`
-
-  // Add participants
-  if (participants.length === 0) {
-    messageText += 'Participants:\n(nobody yet)'
-  } else {
-    const totalCount = participants.reduce((sum, ep) => sum + ep.participations, 0)
-    messageText += `Participants (${totalCount}):\n`
-
-    const participantNames = participants
-      .map((ep) => {
-        const username = ep.participant.telegramUsername
-          ? `@${ep.participant.telegramUsername}`
-          : ep.participant.displayName
-        const multiplier = ep.participations > 1 ? ` (×${ep.participations})` : ''
-        const paidMark = ep.participant.id && paidParticipantIds.has(ep.participant.id) ? ' ✓' : ''
-        return `${username}${multiplier}${paidMark}`
-      })
-      .join(', ')
-
-    messageText += participantNames
-  }
+  messageText += formatParticipantSection(participants, paidParticipantIds)
 
   // Add status indicators
   if (finalized) {
@@ -213,31 +222,18 @@ export function formatPaidPersonalPaymentText(baseText: string, paidDate: Date):
 }
 
 /**
- * Formats fallback notification for participants who can't receive DMs
- */
-/**
- * Formats not-finalized event reminder for admin
+ * Formats not-finalized event reminder for admin.
+ * Uses the same participant formatting as announcements.
  */
 export function formatNotFinalizedReminder(
   event: Event,
-  participants: { displayName: string; participantId: string; participations: number }[]
+  participants: EventParticipantDisplay[]
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
-  const dateStr = eventDate.format('D MMMM')
-  const timeStr = eventDate.format('HH:mm')
 
-  let text = `⏰ Event on ${dateStr} ${timeStr} has not been finalized:\n\n`
-
-  if (participants.length === 0) {
-    text += 'Participants:\n(nobody yet)'
-  } else {
-    const totalCount = participants.reduce((sum, p) => sum + p.participations, 0)
-    text += `Participants (${totalCount}):\n`
-    text += participants.map((p, i) => `${i + 1}. ${p.displayName}`).join('\n')
-  }
-
-  text += `\n\n${formatCourts(event.courts)}`
-  text += '\n\nHit Finalize if details are right, otherwise — change the details.'
+  let text = `⏰ ${formatDate(eventDate)} — not finalized\n${formatCourts(event.courts)}\n\n`
+  text += formatParticipantSection(participants)
+  text += '\n\nHit "✅ Finalize" if details are right, otherwise — change the details.'
 
   return text
 }
@@ -250,10 +246,10 @@ export function buildReminderKeyboard(eventId: string, announceUrl?: string): In
     .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
     .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
     .row()
-    .text(BTN_ADD_COURT, 'event:add-court')
-    .text(BTN_REMOVE_COURT, 'event:delete-court')
+    .text(BTN_ADD_COURT, `event:add-court:${eventId}`)
+    .text(BTN_REMOVE_COURT, `event:delete-court:${eventId}`)
     .row()
-    .text(BTN_FINALIZE, 'event:finalize')
+    .text(BTN_FINALIZE, `event:finalize:${eventId}`)
 
   if (announceUrl) {
     kb.row().url('🔗 Go to announcement', announceUrl)

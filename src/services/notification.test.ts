@@ -165,6 +165,115 @@ describe('NotificationService', () => {
       expect(result).toHaveLength(1)
     })
 
+    it('deletes old reminder message before sending new one', async () => {
+      const notification = buildNotification({
+        id: 2,
+        recipientId: '123456',
+        params: { eventId: 'ev_abc' },
+      })
+      const oldSent = buildNotification({
+        id: 1,
+        status: 'sent',
+        messageId: '50',
+        chatId: '123456',
+        params: { eventId: 'ev_abc' },
+      })
+
+      container.resolve('notificationRepository').findDue.mockResolvedValue([notification])
+      container
+        .resolve('notificationRepository')
+        .findSentByTypeAndEventId.mockResolvedValue(oldSent)
+      container
+        .resolve('notificationRepository')
+        .updateStatus.mockResolvedValue(buildNotification({ status: 'sent' }))
+      container
+        .resolve('notificationRepository')
+        .updateMessageRef.mockResolvedValue(buildNotification())
+      container.resolve('transport').sendMessage.mockResolvedValue(99)
+      container.resolve('transport').deleteMessage.mockResolvedValue(undefined)
+      eventBusiness.notificationHandler.mockResolvedValue({
+        action: 'send',
+        message: 'New reminder',
+      })
+
+      await service.processQueue()
+
+      // Old message deleted
+      expect(container.resolve('transport').deleteMessage).toHaveBeenCalledWith(123456, 50)
+      // Old notification marked cancelled
+      expect(container.resolve('notificationRepository').updateStatus).toHaveBeenCalledWith(
+        1,
+        'cancelled'
+      )
+      // New message sent
+      expect(container.resolve('transport').sendMessage).toHaveBeenCalledWith(
+        123456,
+        'New reminder',
+        undefined
+      )
+    })
+
+    it('still sends new notification if old message deletion fails', async () => {
+      const notification = buildNotification({
+        id: 2,
+        recipientId: '789',
+        params: { eventId: 'ev_def' },
+      })
+      const oldSent = buildNotification({
+        id: 1,
+        status: 'sent',
+        messageId: '50',
+        chatId: '789',
+        params: { eventId: 'ev_def' },
+      })
+
+      container.resolve('notificationRepository').findDue.mockResolvedValue([notification])
+      container
+        .resolve('notificationRepository')
+        .findSentByTypeAndEventId.mockResolvedValue(oldSent)
+      container
+        .resolve('notificationRepository')
+        .updateStatus.mockResolvedValue(buildNotification({ status: 'sent' }))
+      container
+        .resolve('notificationRepository')
+        .updateMessageRef.mockResolvedValue(buildNotification())
+      container.resolve('transport').deleteMessage.mockRejectedValue(new Error('Already deleted'))
+      container.resolve('transport').sendMessage.mockResolvedValue(100)
+      eventBusiness.notificationHandler.mockResolvedValue({
+        action: 'send',
+        message: 'New reminder',
+      })
+
+      await service.processQueue()
+
+      // Deletion failed but sending still proceeded
+      expect(container.resolve('transport').sendMessage).toHaveBeenCalled()
+    })
+
+    it('skips cleanup when no old sent notification exists', async () => {
+      const notification = buildNotification({ recipientId: '123456' })
+      container.resolve('notificationRepository').findDue.mockResolvedValue([notification])
+      container
+        .resolve('notificationRepository')
+        .findSentByTypeAndEventId.mockResolvedValue(undefined)
+      container
+        .resolve('notificationRepository')
+        .updateStatus.mockResolvedValue(buildNotification({ status: 'sent' }))
+      container
+        .resolve('notificationRepository')
+        .updateMessageRef.mockResolvedValue(buildNotification())
+      container.resolve('transport').sendMessage.mockResolvedValue(42)
+      eventBusiness.notificationHandler.mockResolvedValue({
+        action: 'send',
+        message: 'First reminder',
+      })
+
+      await service.processQueue()
+
+      expect(container.resolve('transport').deleteMessage).not.toHaveBeenCalled()
+      expect(container.resolve('transport').sendMessage).toHaveBeenCalled()
+    })
+
     it('cancels notification when handler returns cancel action', async () => {
       const notification = buildNotification()
       container.resolve('notificationRepository').findDue.mockResolvedValue([notification])

@@ -88,7 +88,7 @@ describe('event-participants', () => {
       )
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants (1):')
+      expect(lastEdit?.[2]).toContain('Participants — 1:')
       expect(lastEdit?.[2]).toContain('@testuser')
     })
 
@@ -120,7 +120,7 @@ describe('event-participants', () => {
       expect(editCalls.length).toBeGreaterThanOrEqual(2) // Two joins = two edits
 
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants (2):')
+      expect(lastEdit?.[2]).toContain('Participants — 2:')
       expect(lastEdit?.[2]).toContain('@testuser (×2)')
     })
 
@@ -161,7 +161,7 @@ describe('event-participants', () => {
         ([, msgId]) => msgId === messageId
       )
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants (2):')
+      expect(lastEdit?.[2]).toContain('Participants — 2:')
       expect(lastEdit?.[2]).toContain('@alice')
       expect(lastEdit?.[2]).toContain('@bob')
     })
@@ -253,7 +253,7 @@ describe('event-participants', () => {
         ([, msgId]) => msgId === messageId
       )
       let afterFirstLeave = editCalls[editCalls.length - 1]
-      expect(afterFirstLeave?.[2]).toContain('Participants (1):')
+      expect(afterFirstLeave?.[2]).toContain('Participants — 1:')
       expect(afterFirstLeave?.[2]).toContain('@testuser')
       expect(afterFirstLeave?.[2]).not.toContain('×')
 

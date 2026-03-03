@@ -228,7 +228,7 @@ describe('CommandService', () => {
     expect(targetHandler).toHaveBeenCalled()
   })
 
-  it('catches WizardCancelledError and replies Cancelled.', async () => {
+  it('catches WizardCancelledError and returns silently', async () => {
     const handler = vi.fn()
     const step = { param: 'eventId', type: 'text' as const, prompt: 'Choose:' }
     const registered: RegisteredCommand<{ eventId: string }> = {
@@ -244,6 +244,5 @@ describe('CommandService', () => {
     await service.run({ registered: registered as RegisteredCommand, args: [], ctx })
 
     expect(handler).not.toHaveBeenCalled()
-    expect(reply).toHaveBeenCalledWith('Cancelled.')
   })
 })
