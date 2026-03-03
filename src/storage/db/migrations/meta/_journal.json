@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1772541888523,
-      "tag": "0000_small_runaways",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1772027362178,
-      "tag": "0003_mushy_tiger_shark",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1772700000000,
-      "tag": "0004_add_collector_and_payment_info",
+      "when": 1772554654311,
+      "tag": "0000_moaning_morph",
       "breakpoints": true
     }
   ]

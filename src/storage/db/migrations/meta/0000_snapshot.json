@@ -1,5 +1,5 @@
 {
-  "id": "5b5223c0-379e-40bd-9494-295ac290509e",
+  "id": "f72d0948-eca8-4c2a-8d92-7c2885d58170",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -136,6 +136,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "collector_id": {
+          "name": "collector_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "is_private": {
           "name": "is_private",
           "type": "integer",
@@ -164,6 +170,19 @@
           "tableTo": "scaffolds",
           "columnsFrom": [
             "scaffold_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "events_collector_id_participants_id_fk": {
+          "name": "events_collector_id_participants_id_fk",
+          "tableFrom": "events",
+          "tableTo": "participants",
+          "columnsFrom": [
+            "collector_id"
           ],
           "columnsTo": [
             "id"
@@ -279,6 +298,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "payment_info": {
+          "name": "payment_info",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -500,6 +525,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "collector_id": {
+          "name": "collector_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "is_private": {
           "name": "is_private",
           "type": "integer",
@@ -515,7 +546,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "scaffolds_collector_id_participants_id_fk": {
+          "name": "scaffolds_collector_id_participants_id_fk",
+          "tableFrom": "scaffolds",
+          "tableTo": "participants",
+          "columnsFrom": [
+            "collector_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
