@@ -11,6 +11,7 @@ import {
   formatNotFinalizedReminder,
   formatOwnerNotification,
   formatDebtSummary,
+  formatAdminDebtSummary,
   type EventParticipantDisplay,
   type DebtEntry,
 } from './event'
@@ -823,6 +824,31 @@ describe('event formatters', () => {
       const result = formatDebtSummary([])
 
       expect(result).toContain('\u2705 No unpaid debts!')
+    })
+  })
+
+  describe('formatAdminDebtSummary', () => {
+    it('should format all debts grouped by event', () => {
+      const groups = [
+        {
+          eventDateStr: 'Tue 21 Jan 21:00',
+          debts: [
+            { participantName: '@vasya', amount: 1000 },
+            { participantName: '@petya', amount: 1000 },
+          ],
+        },
+      ]
+      const result = formatAdminDebtSummary(groups)
+      expect(result).toContain('\u{1F4B0} Outstanding debts:')
+      expect(result).toContain('Squash Tue 21 Jan 21:00:')
+      expect(result).toContain('@vasya \u2014 1000 din')
+      expect(result).toContain('@petya \u2014 1000 din')
+      expect(result).toContain('Total: 2000 din (2 unpaid)')
+    })
+
+    it('should return no-debts message when empty', () => {
+      const result = formatAdminDebtSummary([])
+      expect(result).toContain('\u2705 All payments received!')
     })
   })
 })

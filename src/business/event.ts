@@ -39,8 +39,9 @@ import {
   formatNotFinalizedReminder,
   formatOwnerNotification,
   formatDebtSummary,
+  formatAdminDebtSummary,
 } from '~/services/formatters/event'
-import type { DebtEntry } from '~/services/formatters/event'
+import type { DebtEntry, AdminDebtGroup } from '~/services/formatters/event'
 import type { HandlerResult } from '~/services/notification'
 import { eventJoinDef } from '~/commands/event/join'
 import { eventActionDef } from '~/commands/event/eventAction'
@@ -56,7 +57,11 @@ import {
   eventMenuDef,
 } from '~/commands/event/defs'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
-import { paymentDebtDef } from '~/commands/payment/defs'
+import {
+  paymentDebtDef,
+  adminPaymentDebtDef,
+  type AdminPaymentDebtData,
+} from '~/commands/payment/defs'
 import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
 import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
 
@@ -337,6 +342,14 @@ export class EventBusiness {
     this.commandRegistry.register('payment:debt', paymentDebtDef, async (_data, source) => {
       await this.handlePaymentDebt(source)
     })
+
+    this.commandRegistry.register(
+      'admin:payment:debt',
+      adminPaymentDebtDef,
+      async (data, source) => {
+        await this.handleAdminPaymentDebt(data as AdminPaymentDebtData, source)
+      }
+    )
 
     this.transport.onEdit('event', (action, entityId, ctx) =>
       this.handleEventEditAction(action, entityId, ctx)
@@ -1579,6 +1592,90 @@ export class EventBusiness {
     }
 
     const message = formatDebtSummary(debts)
+    await this.transport.sendMessage(source.chat.id, message)
+  }
+
+  private async handleAdminPaymentDebt(
+    data: AdminPaymentDebtData,
+    source: SourceContext
+  ): Promise<void> {
+    if (data.targetUsername) {
+      // Per-user mode
+      const participant = await this.participantRepository.findByUsername(data.targetUsername)
+      if (!participant) {
+        await this.transport.sendMessage(source.chat.id, `User @${data.targetUsername} not found`)
+        return
+      }
+
+      const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
+      const debts: DebtEntry[] = []
+      for (const payment of unpaidPayments) {
+        const event = await this.eventRepository.findById(payment.eventId)
+        if (!event) {
+          continue
+        }
+        const eventDate = dayjs.tz(event.datetime, config.timezone)
+        debts.push({ eventDateStr: formatDate(eventDate), amount: payment.amount })
+      }
+
+      if (debts.length === 0) {
+        await this.transport.sendMessage(
+          source.chat.id,
+          `\u2705 @${data.targetUsername} has no debts!`
+        )
+        return
+      }
+
+      let text = `\u{1F4B0} Debts for @${data.targetUsername}:\n`
+      let total = 0
+      for (const debt of debts) {
+        text += `\nSquash ${debt.eventDateStr} \u2014 ${debt.amount} din`
+        total += debt.amount
+      }
+      text += `\n\nTotal: ${total} din`
+      await this.transport.sendMessage(source.chat.id, text)
+      return
+    }
+
+    // All debts mode
+    const unpaidPayments = await this.paymentRepository.getUnpaidPayments()
+    if (unpaidPayments.length === 0) {
+      await this.transport.sendMessage(source.chat.id, '\u2705 All payments received!')
+      return
+    }
+
+    // Group by event
+    const eventMap = new Map<
+      string,
+      { event: Event; debts: { participantName: string; amount: number }[] }
+    >()
+
+    for (const payment of unpaidPayments) {
+      if (!eventMap.has(payment.eventId)) {
+        const event = await this.eventRepository.findById(payment.eventId)
+        if (!event) {
+          continue
+        }
+        eventMap.set(payment.eventId, { event, debts: [] })
+      }
+
+      const participant = await this.participantRepository.findById(payment.participantId)
+      const name = participant?.telegramUsername
+        ? `@${participant.telegramUsername}`
+        : (participant?.displayName ?? 'Unknown')
+
+      eventMap.get(payment.eventId)!.debts.push({
+        participantName: name,
+        amount: payment.amount,
+      })
+    }
+
+    const groups: AdminDebtGroup[] = Array.from(eventMap.values()).map(({ event, debts }) => ({
+      eventDateStr: formatDate(dayjs.tz(event.datetime, config.timezone)),
+      debts,
+    }))
+
+    const message = formatAdminDebtSummary(groups)
     await this.transport.sendMessage(source.chat.id, message)
   }
 

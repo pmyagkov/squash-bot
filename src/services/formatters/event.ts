@@ -360,6 +360,38 @@ export function formatDebtSummary(debts: DebtEntry[]): string {
 }
 
 /**
+ * Group of debts for one event, used by admin debt summary
+ */
+export interface AdminDebtGroup {
+  eventDateStr: string
+  debts: { participantName: string; amount: number }[]
+}
+
+/**
+ * Formats a summary of all outstanding debts grouped by event (admin view)
+ */
+export function formatAdminDebtSummary(groups: AdminDebtGroup[]): string {
+  const allDebts = groups.flatMap((g) => g.debts)
+  if (allDebts.length === 0) {
+    return '\u2705 All payments received!'
+  }
+
+  let text = '\u{1F4B0} Outstanding debts:\n'
+  let total = 0
+
+  for (const group of groups) {
+    text += `\nSquash ${group.eventDateStr}:`
+    for (const debt of group.debts) {
+      text += `\n  ${debt.participantName} \u2014 ${debt.amount} din`
+      total += debt.amount
+    }
+  }
+
+  text += `\n\nTotal: ${total} din (${allDebts.length} unpaid)`
+  return text
+}
+
+/**
  * Formats fallback notification for participants who can't receive DMs
  */
 export function formatFallbackNotificationText(

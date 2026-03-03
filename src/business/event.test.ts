@@ -1837,4 +1837,104 @@ describe('EventBusiness', () => {
       )
     })
   })
+
+  // ── handleAdminPaymentDebt ─────────────────────────────────────────────
+
+  describe('handleAdminPaymentDebt', () => {
+    test('shows all debts grouped by event', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+
+      paymentRepo.getUnpaidPayments.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', participantId: 'pt_1', amount: 1000 }),
+        buildPayment({ eventId: 'ev_1', participantId: 'pt_2', amount: 1000 }),
+      ])
+
+      eventRepo.findById.mockResolvedValue(
+        buildEvent({ id: 'ev_1', datetime: new Date('2024-01-21T21:00:00Z') })
+      )
+
+      participantRepo.findById
+        .mockResolvedValueOnce(buildParticipant({ id: 'pt_1', telegramUsername: 'vasya' }))
+        .mockResolvedValueOnce(buildParticipant({ id: 'pt_2', telegramUsername: 'petya' }))
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'admin:payment:debt')
+      await handler({}, makeSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('\u{1F4B0} Outstanding debts:')
+      )
+    })
+
+    test('shows debts for specific user', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+
+      const participant = buildParticipant({ id: 'pt_vasya', telegramUsername: 'vasya' })
+      participantRepo.findByUsername.mockResolvedValue(participant)
+
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', amount: 1000 }),
+      ])
+
+      eventRepo.findById.mockResolvedValue(
+        buildEvent({ id: 'ev_1', datetime: new Date('2024-01-21T21:00:00Z') })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'admin:payment:debt')
+      await handler({ targetUsername: 'vasya' }, makeSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('\u{1F4B0} Debts for @vasya:')
+      )
+    })
+
+    test('shows no-debts message when no outstanding payments', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const paymentRepo = container.resolve('paymentRepository')
+
+      paymentRepo.getUnpaidPayments.mockResolvedValue([])
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'admin:payment:debt')
+      await handler({}, makeSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('\u2705 All payments received!')
+      )
+    })
+
+    test('user not found sends error', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+
+      participantRepo.findByUsername.mockResolvedValue(undefined)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'admin:payment:debt')
+      await handler({ targetUsername: 'unknown' }, makeSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('not found')
+      )
+    })
+  })
 })
