@@ -128,15 +128,11 @@ export class ScaffoldBusiness {
       await this.logger.log(
         `User ${source.user.id} created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} courts`
       )
+      const owner = await this.participantRepository.findByTelegramId(String(source.user.id))
       void this.transport.logEvent({
         type: 'scaffold_created',
-        scaffoldId: scaffold.id,
-        day: data.day,
-        time: data.time,
-        courts: data.courts,
-        isActive: scaffold.isActive,
-        isPrivate: scaffold.isPrivate,
-        ownerLabel: source.user.username ? `@${source.user.username}` : undefined,
+        scaffold,
+        owner: owner ?? undefined,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -388,7 +384,7 @@ export class ScaffoldBusiness {
         `✅ Scaffold ${code(data.scaffoldId)} deleted`
       )
       await this.logger.log(`User ${source.user.id} deleted scaffold ${data.scaffoldId}`)
-      void this.transport.logEvent({ type: 'scaffold_deleted', scaffoldId: data.scaffoldId })
+      void this.transport.logEvent({ type: 'scaffold_deleted', scaffold })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)

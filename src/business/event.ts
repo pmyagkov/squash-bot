@@ -384,8 +384,8 @@ export class EventBusiness {
     void this.logger.log(`User ${data.userId} joined event ${event.id}`)
     void this.transport.logEvent({
       type: 'participant_joined',
-      eventId: event.id,
-      userName: participant.displayName,
+      event,
+      participant,
     })
   }
 
@@ -413,8 +413,8 @@ export class EventBusiness {
     void this.logger.log(`User ${data.userId} left event ${event.id}`)
     void this.transport.logEvent({
       type: 'participant_left',
-      eventId: event.id,
-      userName: participant.displayName,
+      event,
+      participant,
     })
   }
 
@@ -435,7 +435,7 @@ export class EventBusiness {
     ])
 
     void this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
-    void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
+    void this.transport.logEvent({ type: 'court_added', event: { ...event, courts: newCourts } })
   }
 
   private async handleRemoveCourt(data: CallbackTypes['event:delete-court']): Promise<void> {
@@ -460,7 +460,7 @@ export class EventBusiness {
     ])
 
     void this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
-    void this.transport.logEvent({ type: 'court_removed', eventId: event.id, courts: newCourts })
+    void this.transport.logEvent({ type: 'court_removed', event: { ...event, courts: newCourts } })
   }
 
   private async handleFinalize(data: CallbackTypes['event:finalize']): Promise<void> {
@@ -525,12 +525,10 @@ export class EventBusiness {
 
       void this.logger.log(`User ${data.userId} finalized event ${event.id}`)
 
-      const finalizedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
       void this.transport.logEvent({
         type: 'event_finalized',
-        eventId: event.id,
-        date: finalizedDate,
-        participantCount: participants.length,
+        event,
+        participants: participants.map((ep) => ep.participant),
       })
     } finally {
       this.eventLock.release(event.id)
@@ -558,11 +556,9 @@ export class EventBusiness {
 
     void this.logger.log(`User ${data.userId} cancelled event ${event.id}`)
 
-    const cancelledDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({
       type: 'event_cancelled',
-      eventId: event.id,
-      date: cancelledDate,
+      event,
     })
   }
 
@@ -585,8 +581,7 @@ export class EventBusiness {
     await Promise.all(restoreTasks)
 
     void this.logger.log(`User ${data.userId} restored event ${event.id}`)
-    const restoredDate = formatDate(dayjs.tz(event.datetime, config.timezone))
-    void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
+    void this.transport.logEvent({ type: 'event_restored', event })
   }
 
   private async handleUnfinalize(data: CallbackTypes['event:undo-finalize']): Promise<void> {
@@ -706,12 +701,15 @@ export class EventBusiness {
 
       await this.transport.answerCallback(data.callbackId)
 
-      void this.transport.logEvent({
-        type: 'payment_received',
-        eventId,
-        userName: participant.telegramUsername ?? participant.displayName,
-        amount: payment.amount,
-      })
+      const paymentEvent = await this.eventRepository.findById(eventId)
+      if (paymentEvent) {
+        void this.transport.logEvent({
+          type: 'payment_received',
+          event: paymentEvent,
+          participant,
+          amount: payment.amount,
+        })
+      }
     } finally {
       this.eventLock.release(eventId)
     }
@@ -821,8 +819,8 @@ export class EventBusiness {
     await this.logger.log(`User ${source.user.id} joined event ${event.id}`)
     void this.transport.logEvent({
       type: 'participant_joined',
-      eventId: event.id,
-      userName: participant.displayName,
+      event,
+      participant,
     })
   }
 
@@ -859,8 +857,8 @@ export class EventBusiness {
     await this.logger.log(`User ${source.user.id} left event ${event.id}`)
     void this.transport.logEvent({
       type: 'participant_left',
-      eventId: event.id,
-      userName: participant.displayName,
+      event,
+      participant,
     })
   }
 
@@ -889,7 +887,7 @@ export class EventBusiness {
     }
 
     await this.logger.log(`User ${source.user.id} added court to ${event.id} (now ${newCourts})`)
-    void this.transport.logEvent({ type: 'court_added', eventId: event.id, courts: newCourts })
+    void this.transport.logEvent({ type: 'court_added', event: { ...event, courts: newCourts } })
   }
 
   private async handleRemoveCourtFromDef(
@@ -928,7 +926,7 @@ export class EventBusiness {
     await this.logger.log(
       `User ${source.user.id} removed court from ${event.id} (now ${newCourts})`
     )
-    void this.transport.logEvent({ type: 'court_removed', eventId: event.id, courts: newCourts })
+    void this.transport.logEvent({ type: 'court_removed', event: { ...event, courts: newCourts } })
   }
 
   private async handleFinalizeFromDef(
@@ -1002,12 +1000,10 @@ export class EventBusiness {
 
       await this.logger.log(`User ${source.user.id} finalized event ${event.id}`)
 
-      const finalizedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
       void this.transport.logEvent({
         type: 'event_finalized',
-        eventId: event.id,
-        date: finalizedDate,
-        participantCount: participants.length,
+        event,
+        participants: participants.map((ep) => ep.participant),
       })
     } finally {
       this.eventLock.release(event.id)
@@ -1047,8 +1043,7 @@ export class EventBusiness {
     }
 
     await this.logger.log(`User ${source.user.id} restored event ${event.id}`)
-    const restoredDate = formatDate(dayjs.tz(event.datetime, config.timezone))
-    void this.transport.logEvent({ type: 'event_restored', eventId: event.id, date: restoredDate })
+    void this.transport.logEvent({ type: 'event_restored', event })
   }
 
   private async handleUnfinalizeFromDef(
@@ -1190,12 +1185,15 @@ export class EventBusiness {
         await this.transport.sendMessage(source.chat.id, `✅ Payment marked as paid`)
       }
 
-      void this.transport.logEvent({
-        type: 'payment_received',
-        eventId: data.eventId,
-        userName: participant.telegramUsername ?? participant.displayName,
-        amount: payment.amount,
-      })
+      const paymentEvent = await this.eventRepository.findById(data.eventId)
+      if (paymentEvent) {
+        void this.transport.logEvent({
+          type: 'payment_received',
+          event: paymentEvent,
+          participant,
+          amount: payment.amount,
+        })
+      }
     } finally {
       this.eventLock.release(data.eventId)
     }
@@ -1320,14 +1318,11 @@ export class EventBusiness {
       source.chat.id,
       `📅 Event created\n\n${entityText}\n\nTo announce: ${code(`/event announce ${event.id}`)}`
     )
+    const owner = await this.participantRepository.findByTelegramId(String(source.user.id))
     void this.transport.logEvent({
       type: 'event_created',
-      eventId: event.id,
-      date: dateFormatted,
-      courts: data.courts,
-      status: event.status,
-      isPrivate: event.isPrivate,
-      ownerLabel: source.user.username ? `@${source.user.username}` : undefined,
+      event,
+      owner: owner ?? undefined,
     })
   }
 
@@ -1413,8 +1408,8 @@ export class EventBusiness {
 
     void this.transport.logEvent({
       type: 'payment_received',
-      eventId: event.id,
-      userName: participant.telegramUsername ?? participant.displayName,
+      event,
+      participant,
       amount: payment.amount,
     })
   }
@@ -1602,15 +1597,10 @@ export class EventBusiness {
       `📅 Event created from ${code(scaffold.id)}\n\n${entityText}\n\nTo announce: ${code(`/event announce ${event.id}`)}`
     )
     const owner = await this.participantRepository.findByTelegramId(ownerId)
-    const ownerLabel = owner ? formatParticipantLabel(owner) : undefined
     void this.transport.logEvent({
       type: 'event_created',
-      eventId: event.id,
-      date: dateFormatted,
-      courts: scaffold.defaultCourts,
-      status: event.status,
-      isPrivate: event.isPrivate,
-      ownerLabel,
+      event,
+      owner: owner ?? undefined,
     })
   }
 
@@ -1637,11 +1627,9 @@ export class EventBusiness {
       }
     }
 
-    const cancelledDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     void this.transport.logEvent({
       type: 'event_cancelled',
-      eventId: event.id,
-      date: cancelledDate,
+      event,
     })
   }
 
@@ -1884,16 +1872,11 @@ export class EventBusiness {
       status: 'announced',
     })
 
-    const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
     const owner = await this.participantRepository.findByTelegramId(event.ownerId)
-    const ownerLabel = owner ? formatParticipantLabel(owner) : undefined
     void this.transport.logEvent({
       type: 'event_announced',
-      eventId: id,
-      date: announcedDate,
-      courts: event.courts,
-      isPrivate: event.isPrivate,
-      ownerLabel,
+      event: updatedEvent,
+      owner: owner ?? undefined,
     })
 
     return updatedEvent
@@ -1985,17 +1968,11 @@ export class EventBusiness {
           `Created and announced event ${event.id} from scaffold ${scaffold.id}`
         )
 
-        const createdDate = formatDate(dayjs.tz(event.datetime, config.timezone))
         const owner = await this.participantRepository.findByTelegramId(event.ownerId)
-        const ownerLabel = owner ? formatParticipantLabel(owner) : undefined
         void this.transport.logEvent({
           type: 'event_created',
-          eventId: event.id,
-          date: createdDate,
-          courts: event.courts,
-          status: event.status,
-          isPrivate: event.isPrivate,
-          ownerLabel,
+          event,
+          owner: owner ?? undefined,
         })
       } catch (error) {
         await this.logger.error(
@@ -2441,8 +2418,7 @@ export class EventBusiness {
 
       void this.transport.logEvent({
         type: 'event-not-finalized-reminder',
-        eventId: event.id,
-        date: dayjs.tz(event.datetime, config.timezone).format('ddd D MMM HH:mm'),
+        event,
       })
 
       return { action: 'send', message, keyboard }
