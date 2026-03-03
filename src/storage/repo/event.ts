@@ -51,6 +51,7 @@ export class EventRepo {
     courts: number
     status?: EventStatus
     ownerId: string
+    collectorId?: string
     isPrivate?: boolean
   }): Promise<Event> {
     const id = `ev_${nanoid(8)}`
@@ -70,6 +71,7 @@ export class EventRepo {
         courts: data.courts,
         status,
         ownerId: data.ownerId,
+        collectorId: data.collectorId ?? null,
         isPrivate: data.isPrivate ?? false,
       })
       .returning()
@@ -145,6 +147,7 @@ export class EventRepo {
       telegramMessageId: row.telegramMessageId ?? undefined,
       paymentMessageId: row.paymentMessageId ?? undefined,
       ownerId: row.ownerId,
+      collectorId: row.collectorId ?? undefined,
       isPrivate: row.isPrivate,
       telegramChatId: row.telegramChatId ?? undefined,
       deletedAt: row.deletedAt ?? undefined,

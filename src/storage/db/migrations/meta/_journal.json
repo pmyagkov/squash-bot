@@ -29,6 +29,13 @@
       "when": 1772027362178,
       "tag": "0003_mushy_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772700000000,
+      "tag": "0004_add_collector_and_payment_info",
+      "breakpoints": true
     }
   ]
 }

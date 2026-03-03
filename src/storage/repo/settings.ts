@@ -97,4 +97,13 @@ export class SettingsRepo {
     const value = await this.getSetting('admin_id')
     return value || null
   }
+
+  /**
+   * Get default collector participant ID setting
+   * @returns Default collector ID or null if not configured
+   */
+  async getDefaultCollectorId(): Promise<string | null> {
+    const value = await this.getSetting('default_collector_id')
+    return value || null
+  }
 }

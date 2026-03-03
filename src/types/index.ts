@@ -13,6 +13,7 @@ export interface Scaffold {
   isActive: boolean
   announcementDeadline?: string
   ownerId?: string
+  collectorId?: string
   isPrivate: boolean
   participants: Participant[] // populated via JOIN with scaffold_participants
   deletedAt?: Date
@@ -29,6 +30,7 @@ export interface Event {
   paymentMessageId?: string
   announcementDeadline?: string
   ownerId: string
+  collectorId?: string
   isPrivate: boolean
   telegramChatId?: string
   deletedAt?: Date
@@ -40,6 +42,7 @@ export interface Participant {
   telegramUsername?: string
   telegramId?: string
   displayName: string
+  paymentInfo?: string
 }
 
 // EventParticipant
