@@ -37,6 +37,7 @@ import {
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
   formatNotFinalizedReminder,
+  formatOwnerNotification,
 } from '~/services/formatters/event'
 import type { HandlerResult } from '~/services/notification'
 import { eventJoinDef } from '~/commands/event/join'
@@ -1655,6 +1656,60 @@ export class EventBusiness {
     } catch (error) {
       await this.logger.error(
         `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
+  async notifyOwner(
+    event: Event,
+    type: 'joined' | 'left' | 'court-added' | 'court-removed' | 'announced' | 'finalized',
+    actorName: string | undefined,
+    opts: {
+      totalParticipations?: number
+      courts?: number
+      actorUserId?: number
+      announceUrl?: string
+    } = {}
+  ): Promise<void> {
+    try {
+      // Skip self-notification
+      if (opts.actorUserId && String(opts.actorUserId) === event.ownerId) {
+        return
+      }
+
+      const eventDate = dayjs.tz(event.datetime, config.timezone)
+      const eventDateStr = eventDate.format('ddd D MMM HH:mm')
+
+      const totalParticipations = opts.totalParticipations ?? 0
+      const courts = opts.courts ?? event.courts
+
+      const maxPerCourt = await this.settingsRepository.getMaxPlayersPerCourt()
+      const minPerCourt = await this.settingsRepository.getMinPlayersPerCourt()
+
+      const message = formatOwnerNotification(
+        type,
+        actorName,
+        eventDateStr,
+        totalParticipations,
+        courts,
+        opts.announceUrl,
+        { maxPerCourt, minPerCourt }
+      )
+
+      const ownerTelegramId = parseInt(event.ownerId, 10)
+
+      try {
+        await this.transport.sendMessage(ownerTelegramId, message)
+      } catch {
+        // Fallback to main chat
+        const mainChatId = await this.settingsRepository.getMainChatId()
+        if (mainChatId) {
+          await this.transport.sendMessage(mainChatId, message)
+        }
+      }
+    } catch (error) {
+      await this.logger.error(
+        `Error notifying owner for event ${event.id}: ${error instanceof Error ? error.message : String(error)}`
       )
     }
   }

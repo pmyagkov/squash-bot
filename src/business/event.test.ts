@@ -1153,6 +1153,72 @@ describe('EventBusiness', () => {
     })
   })
 
+  // ── notifyOwner ─────────────────────────────────────────────────────
+
+  describe('notifyOwner', () => {
+    test('sends DM to owner', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'joined',
+        '@vasya',
+        { totalParticipations: 5, courts: 2 }
+      )
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        111,
+        expect.stringContaining('\u{1F464} @vasya joined')
+      )
+    })
+
+    test('skips notification when actor is the owner', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'joined',
+        '@vasya',
+        { totalParticipations: 5, courts: 2, actorUserId: 111 }
+      )
+
+      expect(transport.sendMessage).not.toHaveBeenCalled()
+    })
+
+    test('falls back to main chat when DM fails', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMainChatId.mockResolvedValue(-100123)
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      transport.sendMessage
+        .mockRejectedValueOnce(new Error('Forbidden'))
+        .mockResolvedValueOnce(1)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'joined',
+        '@vasya',
+        { totalParticipations: 5, courts: 2 }
+      )
+
+      expect(transport.sendMessage).toHaveBeenCalledTimes(2)
+      expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String))
+    })
+  })
+
   // ── Edge cases: event not found for callbacks ──────────────────────
 
   describe('callbacks: event not found', () => {
