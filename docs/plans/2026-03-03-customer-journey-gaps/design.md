@@ -29,12 +29,20 @@ Analysis of customer journey paths for all actors (Participant, Admin/Owner, Sys
 | 4 | No automatic payment reminders (/check-payments is stub) | Low (covered by /my debt for now) |
 | 5 | /my debt not implemented — no way to check own debts | High |
 | 6 | /event list shows all events, no "my events" filter | Low (v2) |
+| 12 | Group chat command rejection doesn't include bot link — user can't navigate to DM | Medium |
+| 13 | /help and command responses don't explain what scaffold and event are — concepts are unclear to newcomers | Medium |
+| 14 | Command menu cluttered with utility commands (/myid, /getchatid) — keep only /scaffold and /event | Low |
+| 15 | Manually created events (`/event create`) are never auto-announced — /check-events only handles scaffolds, so forgotten events stay in `created` forever | Medium |
 
 **Decisions:**
 - Gap #1: Close with `/admin say` (already implemented in another branch)
 - Gap #3: /start should show useful info + debts (future work)
 - Gap #4: For now, replace with /my debt command
 - Gap #6: `/event list` = mine, `/event list all` = everything. Not for first release.
+- Gap #12: Group chat command rejection message should include deep link to bot DM (like fallback-notification does).
+- Gap #13: /help and first interaction with /scaffold or /event should explain the concepts (scaffold = recurring session template, event = specific session).
+- Gap #14: Remove /myid, /getchatid from command menu and /help. Only /scaffold and /event should be visible to users.
+- Gap #15: `/check-events` should also auto-announce manual events in `created` status when their time threshold is reached.
 
 ### Journey 2: Admin (scaffold owner)
 
