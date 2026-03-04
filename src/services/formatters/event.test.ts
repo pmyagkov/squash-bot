@@ -755,14 +755,7 @@ describe('event formatters', () => {
     })
 
     it('should format event announced', () => {
-      const result = formatOwnerNotification(
-        'event-announced',
-        undefined,
-        'Tue 21 Jan 21:00',
-        0,
-        2,
-        'https://t.me/c/123/456'
-      )
+      const result = formatOwnerNotification('event-announced', undefined, 'Tue 21 Jan 21:00', 0, 2)
       expect(result).toContain('🎾 Your event announced: Tue 21 Jan 21:00')
     })
 
@@ -772,48 +765,24 @@ describe('event formatters', () => {
     })
 
     it('should append over capacity warning', () => {
-      const result = formatOwnerNotification(
-        'participant-joined',
-        '@vasya',
-        'Tue 21 Jan',
-        10,
-        2,
-        undefined,
-        {
-          maxPerCourt: 4,
-        }
-      )
+      const result = formatOwnerNotification('participant-joined', '@vasya', 'Tue 21 Jan', 10, 2, {
+        maxPerCourt: 4,
+      })
       expect(result).toContain('⚠️ Over capacity')
     })
 
     it('should append low attendance warning', () => {
-      const result = formatOwnerNotification(
-        'participant-left',
-        '@vasya',
-        'Tue 21 Jan',
-        1,
-        2,
-        undefined,
-        {
-          minPerCourt: 2,
-        }
-      )
+      const result = formatOwnerNotification('participant-left', '@vasya', 'Tue 21 Jan', 1, 2, {
+        minPerCourt: 2,
+      })
       expect(result).toContain('⚠️ Low attendance')
     })
 
     it('should not append warning when balance is ok', () => {
-      const result = formatOwnerNotification(
-        'participant-joined',
-        '@vasya',
-        'Tue 21 Jan',
-        4,
-        2,
-        undefined,
-        {
-          maxPerCourt: 4,
-          minPerCourt: 2,
-        }
-      )
+      const result = formatOwnerNotification('participant-joined', '@vasya', 'Tue 21 Jan', 4, 2, {
+        maxPerCourt: 4,
+        minPerCourt: 2,
+      })
       expect(result).not.toContain('⚠️')
     })
   })

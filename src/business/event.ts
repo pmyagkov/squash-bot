@@ -18,6 +18,7 @@ import type { WizardService } from '~/services/wizard/wizardService'
 import type { WizardStep } from '~/services/wizard/types'
 import type { HydratedStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
+import type { ParticipantBusiness } from './participant'
 import type { AppContainer } from '../container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
@@ -204,6 +205,7 @@ export class EventBusiness {
   private notificationRepository: NotificationRepo
   private transport: TelegramTransport
   private logger: Logger
+  private participantBusiness: ParticipantBusiness
   private commandRegistry: CommandRegistry
   private wizardService: WizardService
   private container: AppContainer
@@ -218,6 +220,7 @@ export class EventBusiness {
     this.notificationRepository = container.resolve('notificationRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
+    this.participantBusiness = container.resolve('participantBusiness')
     this.commandRegistry = container.resolve('commandRegistry')
     this.wizardService = container.resolve('wizardService')
     this.container = container
@@ -362,6 +365,20 @@ export class EventBusiness {
       return this.eventRepository.findById(eventId)
     }
     return undefined
+  }
+
+  /**
+   * Resolve collector payment info for an event.
+   * Uses event.collectorId if set, otherwise falls back to default collector.
+   */
+  private async resolveCollectorPaymentInfo(event: Event): Promise<string | undefined> {
+    const collectorId =
+      event.collectorId ?? (await this.participantBusiness.resolveDefaultCollectorId())
+    if (!collectorId) {
+      return undefined
+    }
+    const collector = await this.participantRepository.findById(collectorId)
+    return collector?.paymentInfo
   }
 
   // === Callback Handlers ===
@@ -578,7 +595,9 @@ export class EventBusiness {
 
       // Notify owner (fire-and-forget)
       const actor = await this.participantRepository.findByTelegramId(String(data.userId))
-      void this.notifyOwner(event, 'event-finalized', actor?.displayName ?? 'Unknown')
+      void this.notifyOwner(event, 'event-finalized', actor?.displayName ?? 'Unknown', {
+        actorUserId: data.userId,
+      })
     } finally {
       this.eventLock.release(event.id)
     }
@@ -1366,7 +1385,7 @@ export class EventBusiness {
       .toDate()
 
     // Create event
-    const defaultCollectorId = await this.settingsRepository.getDefaultCollectorId()
+    const defaultCollectorId = await this.participantBusiness.resolveDefaultCollectorId()
     const event = await this.eventRepository.createEvent({
       datetime,
       courts: data.courts,
@@ -1662,13 +1681,7 @@ export class EventBusiness {
       const eventDate = dayjs.tz(event.datetime, config.timezone)
       const eventDateStr = formatDate(eventDate)
 
-      let collectorPaymentInfo: string | undefined
-      const collectorId =
-        event.collectorId ?? (await this.settingsRepository.getDefaultCollectorId())
-      if (collectorId) {
-        const collector = await this.participantRepository.findById(collectorId)
-        collectorPaymentInfo = collector?.paymentInfo
-      }
+      const collectorPaymentInfo = await this.resolveCollectorPaymentInfo(event)
 
       debts.push({ eventDateStr, amount: payment.amount, collectorPaymentInfo })
     }
@@ -1719,7 +1732,7 @@ export class EventBusiness {
     }
 
     try {
-      await this.announceEvent(event.id)
+      await this.announceEvent(event.id, source.user.id)
       const updatedEvent = await this.eventRepository.findById(event.id)
       const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
       const entityText = formatEventListItem(updatedEvent ?? event, announcedDate)
@@ -1873,8 +1886,13 @@ export class EventBusiness {
     } = {}
   ): Promise<void> {
     try {
-      // Skip self-notification
-      if (opts.actorUserId && String(opts.actorUserId) === event.ownerId) {
+      // Skip self-notification for announce/finalize only
+      // Join/leave/court changes always notify owner (capacity info is useful)
+      if (
+        (type === 'event-announced' || type === 'event-finalized') &&
+        opts.actorUserId &&
+        String(opts.actorUserId) === event.ownerId
+      ) {
         return
       }
 
@@ -1893,19 +1911,21 @@ export class EventBusiness {
         eventDateStr,
         totalParticipations,
         courts,
-        opts.announceUrl,
         { maxPerCourt, minPerCourt }
       )
 
       const ownerTelegramId = parseInt(event.ownerId, 10)
+      const keyboard = opts.announceUrl
+        ? new InlineKeyboard().url('🔗 Go to announcement', opts.announceUrl)
+        : undefined
 
       try {
-        await this.transport.sendMessage(ownerTelegramId, message)
+        await this.transport.sendMessage(ownerTelegramId, message, keyboard)
       } catch {
         // Fallback to main chat
         const mainChatId = await this.settingsRepository.getMainChatId()
         if (mainChatId) {
-          await this.transport.sendMessage(mainChatId, message)
+          await this.transport.sendMessage(mainChatId, message, keyboard)
         }
       }
     } catch (error) {
@@ -1926,17 +1946,7 @@ export class EventBusiness {
     const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
 
     // Resolve collector's payment info
-    let collectorPaymentInfo: string | undefined
-    if (event.collectorId) {
-      const collector = await this.participantRepository.findById(event.collectorId)
-      collectorPaymentInfo = collector?.paymentInfo
-    } else {
-      const defaultCollectorId = await this.settingsRepository.getDefaultCollectorId()
-      if (defaultCollectorId) {
-        const collector = await this.participantRepository.findById(defaultCollectorId)
-        collectorPaymentInfo = collector?.paymentInfo
-      }
-    }
+    const collectorPaymentInfo = await this.resolveCollectorPaymentInfo(event)
 
     for (let i = 0; i < participants.length; i++) {
       const ep = participants[i]
@@ -2097,7 +2107,7 @@ export class EventBusiness {
   /**
    * Announces an event to Telegram and updates its status
    */
-  async announceEvent(id: string): Promise<Event> {
+  async announceEvent(id: string, actorUserId?: number): Promise<Event> {
     const event = await this.eventRepository.findById(id)
     if (!event) {
       throw new Error(`Event ${id} not found`)
@@ -2147,7 +2157,10 @@ export class EventBusiness {
       updatedEvent.telegramChatId && updatedEvent.telegramMessageId
         ? buildAnnouncementUrl(updatedEvent.telegramChatId, updatedEvent.telegramMessageId)
         : undefined
-    void this.notifyOwner(updatedEvent, 'event-announced', undefined, { announceUrl })
+    void this.notifyOwner(updatedEvent, 'event-announced', undefined, {
+      announceUrl,
+      actorUserId,
+    })
 
     return updatedEvent
   }

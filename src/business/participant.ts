@@ -1,16 +1,19 @@
 import type { Participant } from '~/types'
 import type { TelegramTransport } from '~/services/transport/telegram'
 import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { SettingsRepo } from '~/storage/repo/settings'
 import type { Logger } from '~/services/logger'
 import type { AppContainer } from '../container'
 
 export class ParticipantBusiness {
   private participantRepository: ParticipantRepo
+  private settingsRepository: SettingsRepo
   private container: AppContainer
   private logger: Logger
 
   constructor(container: AppContainer) {
     this.participantRepository = container.resolve('participantRepository')
+    this.settingsRepository = container.resolve('settingsRepository')
     this.container = container
     this.logger = container.resolve('logger')
   }
@@ -43,5 +46,22 @@ export class ParticipantBusiness {
     }
 
     return participant
+  }
+
+  /**
+   * Resolve default collector participant ID.
+   * Checks `default_collector_id` setting first, falls back to admin's participant record.
+   */
+  async resolveDefaultCollectorId(): Promise<string | null> {
+    const settingValue = await this.settingsRepository.getDefaultCollectorId()
+    if (settingValue) {
+      return settingValue
+    }
+    const adminId = await this.settingsRepository.getAdminId()
+    if (!adminId) {
+      return null
+    }
+    const admin = await this.participantRepository.findByTelegramId(adminId)
+    return admin?.id ?? null
   }
 }

@@ -5,12 +5,10 @@ const SEEDS: Record<string, Record<string, string>> = {
   test: {
     main_chat_id: '-5009884489',
     admin_id: '2201118091',
-    default_collector_id: '2201118091',
   },
   production: {
     main_chat_id: 'REPLACE_WITH_PRODUCTION_CHAT_ID',
     admin_id: 'REPLACE_WITH_PRODUCTION_ADMIN_ID',
-    default_collector_id: 'REPLACE_WITH_PRODUCTION_COLLECTOR_ID',
   },
 }
 

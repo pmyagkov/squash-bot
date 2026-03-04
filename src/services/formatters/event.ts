@@ -280,7 +280,6 @@ export function formatOwnerNotification(
   eventDateStr: string,
   totalParticipations: number,
   courts: number,
-  announceUrl?: string,
   capacityLimits?: CapacityLimits
 ): string {
   let text: string
@@ -300,9 +299,6 @@ export function formatOwnerNotification(
       break
     case 'event-announced':
       text = `🎾 Your event announced: ${eventDateStr}`
-      if (announceUrl) {
-        text += `\n<a href="${announceUrl}">Go to announcement</a>`
-      }
       return text
     case 'event-finalized':
       text = `✅ ${eventDateStr} finalized by ${actorName}`

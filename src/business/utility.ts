@@ -5,6 +5,7 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { PaymentRepo } from '~/storage/repo/payment'
 import type { EventRepo } from '~/storage/repo/event'
+import type { ParticipantBusiness } from './participant'
 import type { AppContainer } from '../container'
 import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
 import { sayDef, type SayData } from '~/commands/utility/say'
@@ -30,6 +31,7 @@ export class UtilityBusiness {
   private commandRegistry: CommandRegistry
   private settingsRepository: SettingsRepo
   private participantRepository: ParticipantRepo
+  private participantBusiness: ParticipantBusiness
   private paymentRepository: PaymentRepo
   private eventRepository: EventRepo
 
@@ -38,6 +40,7 @@ export class UtilityBusiness {
     this.commandRegistry = container.resolve('commandRegistry')
     this.settingsRepository = container.resolve('settingsRepository')
     this.participantRepository = container.resolve('participantRepository')
+    this.participantBusiness = container.resolve('participantBusiness')
     this.paymentRepository = container.resolve('paymentRepository')
     this.eventRepository = container.resolve('eventRepository')
   }
@@ -104,7 +107,7 @@ Use /help to see available commands.`
         // Resolve collector payment info
         let collectorPaymentInfo: string | undefined
         const collectorId =
-          event.collectorId ?? (await this.settingsRepository.getDefaultCollectorId())
+          event.collectorId ?? (await this.participantBusiness.resolveDefaultCollectorId())
         if (collectorId) {
           const collector = await this.participantRepository.findById(collectorId)
           collectorPaymentInfo = collector?.paymentInfo

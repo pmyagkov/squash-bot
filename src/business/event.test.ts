@@ -1285,27 +1285,58 @@ describe('EventBusiness', () => {
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         111,
-        expect.stringContaining('👤 @vasya joined')
+        expect.stringContaining('👤 @vasya joined'),
+        undefined
       )
     })
 
-    test('skips notification when actor is the owner', async ({ container }) => {
+    test('skips notification when actor is the owner for announce/finalize', async ({
+      container,
+    }) => {
       const transport = container.resolve('transport')
       const business = new EventBusiness(container)
       business.init()
 
       await business.notifyOwner(
         buildEvent({ id: 'ev_1', ownerId: '111' }),
-        'participant-joined',
-        '@vasya',
-        {
-          totalParticipations: 5,
-          courts: 2,
-          actorUserId: 111,
-        }
+        'event-announced',
+        undefined,
+        { actorUserId: 111 }
+      )
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'event-finalized',
+        '@owner',
+        { actorUserId: 111 }
       )
 
       expect(transport.sendMessage).not.toHaveBeenCalled()
+    })
+
+    test('still notifies owner for join/leave/court even if actor is owner', async ({
+      container,
+    }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@owner',
+        { totalParticipations: 3, courts: 2, actorUserId: 111 }
+      )
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        111,
+        expect.stringContaining('👤 @owner joined'),
+        undefined
+      )
     })
 
     test('falls back to main chat when DM fails', async ({ container }) => {
@@ -1331,7 +1362,7 @@ describe('EventBusiness', () => {
       )
 
       expect(transport.sendMessage).toHaveBeenCalledTimes(2)
-      expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String))
+      expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String), undefined)
     })
   })
 
