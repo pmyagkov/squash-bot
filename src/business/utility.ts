@@ -174,8 +174,7 @@ Use /help to see available commands.`
 /help - Show this help message
 /event - Manage events
 /scaffold - Manage schedules
-/payment debt - Check your unpaid debts
-/info payment - Set your payment details`
+/payment debt - Check your unpaid debts`
 
     await this.transport.sendMessage(source.chat.id, helpMessage)
   }
