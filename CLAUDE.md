@@ -156,6 +156,10 @@ npm test             # Run all tests
 npm run test:e2e     # Run E2E tests
 ```
 
+### Running Commands
+
+Run shell commands separately, not chained with `&&`. Chained commands bypass permission prompts for individual commands (e.g., `git add` and `git commit` must be separate calls).
+
 ### Before Commit
 
 Always run:
