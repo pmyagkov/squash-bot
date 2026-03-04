@@ -1221,6 +1221,149 @@ describe('EventBusiness', () => {
       expect(count).toBe(0)
       expect(eventRepo.createEvent).not.toHaveBeenCalled()
     })
+
+    test('event inherits collectorId from scaffold', async ({ container }) => {
+      const scaffoldRepo = container.resolve('scaffoldRepository')
+      const eventRepo = container.resolve('eventRepository')
+      const settingsRepo = container.resolve('settingsRepository')
+      const transport = container.resolve('transport')
+
+      const scaffold = buildScaffold({
+        id: 'sc_col',
+        collectorId: 'pt_collector1',
+        isActive: true,
+        ownerId: String(TEST_CONFIG.adminId),
+      })
+      scaffoldRepo.getScaffolds.mockResolvedValue([scaffold])
+      eventRepo.getEvents.mockResolvedValue([])
+
+      const createdEvent = buildEvent({ id: 'ev_col', collectorId: 'pt_collector1' })
+      eventRepo.createEvent.mockResolvedValue(createdEvent)
+
+      // For announceEvent
+      eventRepo.findById.mockResolvedValue(createdEvent)
+      settingsRepo.getMainChatId.mockResolvedValue(TEST_CONFIG.chatId)
+      transport.sendMessage.mockResolvedValue(999)
+      eventRepo.updateEvent.mockResolvedValue(
+        buildEvent({ id: 'ev_col', status: 'announced', telegramMessageId: '999' })
+      )
+
+      settingsRepo.getTimezone.mockResolvedValue('Europe/Belgrade')
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-7d 12:00')
+
+      const business = new EventBusiness(container)
+
+      await business.checkAndCreateEventsFromScaffolds()
+
+      expect(eventRepo.createEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ collectorId: 'pt_collector1' })
+      )
+    })
+  })
+
+  // ── notifyOwner ─────────────────────────────────────────────────────
+
+  describe('notifyOwner', () => {
+    test('sends DM to owner', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@vasya',
+        {
+          totalParticipations: 5,
+          courts: 2,
+        }
+      )
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        111,
+        expect.stringContaining('👤 @vasya joined'),
+        undefined
+      )
+    })
+
+    test('skips notification when actor is the owner for announce/finalize', async ({
+      container,
+    }) => {
+      const transport = container.resolve('transport')
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'event-announced',
+        undefined,
+        { actorUserId: 111 }
+      )
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'event-finalized',
+        '@owner',
+        { actorUserId: 111 }
+      )
+
+      expect(transport.sendMessage).not.toHaveBeenCalled()
+    })
+
+    test('still notifies owner for join/leave/court even if actor is owner', async ({
+      container,
+    }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@owner',
+        { totalParticipations: 3, courts: 2, actorUserId: 111 }
+      )
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        111,
+        expect.stringContaining('👤 @owner joined'),
+        undefined
+      )
+    })
+
+    test('falls back to main chat when DM fails', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMainChatId.mockResolvedValue(-100123)
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      transport.sendMessage.mockRejectedValueOnce(new Error('Forbidden')).mockResolvedValueOnce(1)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@vasya',
+        {
+          totalParticipations: 5,
+          courts: 2,
+        }
+      )
+
+      expect(transport.sendMessage).toHaveBeenCalledTimes(2)
+      expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String), undefined)
+    })
   })
 
   // ── Edge cases: event not found for callbacks ──────────────────────
@@ -1591,6 +1734,308 @@ describe('EventBusiness', () => {
 
       await expect(business.refreshReminder('ev_err')).resolves.not.toThrow()
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Telegram error'))
+    })
+  })
+
+  // ── checkAndAnnounceCreatedEvents ────────────────────────────────
+
+  describe('checkAndAnnounceCreatedEvents', () => {
+    test('announces manual event past announcement deadline', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const settingsRepo = container.resolve('settingsRepository')
+      const transport = container.resolve('transport')
+
+      // Event today at 21:00, status=created — deadline (-1d 12:00) is yesterday, already past
+      const today = new Date()
+      today.setHours(21, 0, 0, 0)
+
+      const event = buildEvent({
+        id: 'ev_manual1',
+        status: 'created',
+        scaffoldId: undefined,
+        datetime: today,
+        ownerId: '111',
+        telegramMessageId: undefined,
+      })
+
+      eventRepo.getEvents.mockResolvedValue([event])
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
+      settingsRepo.getTimezone.mockResolvedValue('UTC')
+      settingsRepo.getMainChatId.mockResolvedValue(-100123)
+
+      // announceEvent internals
+      eventRepo.findById.mockResolvedValue(event)
+      transport.sendMessage.mockResolvedValue(456)
+      eventRepo.updateEvent.mockResolvedValue({
+        ...event,
+        status: 'announced',
+        telegramMessageId: '456',
+      })
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const count = await business.checkAndAnnounceCreatedEvents()
+
+      expect(count).toBe(1)
+      expect(transport.sendMessage).toHaveBeenCalled()
+    })
+
+    test('skips already announced events', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+
+      eventRepo.getEvents.mockResolvedValue([buildEvent({ id: 'ev_ann', status: 'announced' })])
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const count = await business.checkAndAnnounceCreatedEvents()
+
+      expect(count).toBe(0)
+    })
+
+    test('skips created event before announcement deadline', async ({ container }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const settingsRepo = container.resolve('settingsRepository')
+
+      const farFuture = new Date()
+      farFuture.setDate(farFuture.getDate() + 30)
+
+      const event = buildEvent({
+        id: 'ev_future',
+        status: 'created',
+        datetime: farFuture,
+      })
+
+      eventRepo.getEvents.mockResolvedValue([event])
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
+      settingsRepo.getTimezone.mockResolvedValue('UTC')
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const count = await business.checkAndAnnounceCreatedEvents()
+
+      expect(count).toBe(0)
+    })
+  })
+
+  // ── handlePaymentDebt ─────────────────────────────────────────────────
+
+  describe('handlePaymentDebt', () => {
+    test('shows unpaid debts for current user', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+
+      const participant = buildParticipant({ id: 'pt_me', telegramId: '555' })
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
+
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', amount: 1000 }),
+      ])
+
+      const event = buildEvent({
+        id: 'ev_1',
+        datetime: new Date('2024-01-21T21:00:00Z'),
+        collectorId: 'pt_collector',
+      })
+      eventRepo.findById.mockResolvedValue(event)
+
+      const collector = buildParticipant({
+        id: 'pt_collector',
+        paymentInfo: 'Card: 1234',
+      })
+      participantRepo.findById.mockResolvedValue(collector)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSource({ user: { id: 555, firstName: 'Test' } }))
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('💰 Your unpaid debts:')
+      )
+    })
+
+    test('shows no-debts message when all paid', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+
+      const participant = buildParticipant({ id: 'pt_me', telegramId: '555' })
+      participantRepo.findByTelegramId.mockResolvedValue(participant)
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([])
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSource({ user: { id: 555, firstName: 'Test' } }))
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('✅ No unpaid debts!')
+      )
+    })
+  })
+
+  // ── handlePaymentDebt (sudo) ─────────────────────────────────────────────
+
+  describe('handlePaymentDebt (sudo)', () => {
+    function makeSudoSource(overrides?: Parameters<typeof makeSource>[0]): SourceContext {
+      const base = makeSource(overrides)
+      return { ...base, sudo: true }
+    }
+
+    test('shows all debts grouped by event', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+
+      paymentRepo.getUnpaidPayments.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', participantId: 'pt_1', amount: 1000 }),
+        buildPayment({ eventId: 'ev_1', participantId: 'pt_2', amount: 1000 }),
+      ])
+
+      eventRepo.findById.mockResolvedValue(
+        buildEvent({ id: 'ev_1', datetime: new Date('2024-01-21T21:00:00Z') })
+      )
+
+      participantRepo.findById
+        .mockResolvedValueOnce(buildParticipant({ id: 'pt_1', telegramUsername: 'vasya' }))
+        .mockResolvedValueOnce(buildParticipant({ id: 'pt_2', telegramUsername: 'petya' }))
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSudoSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('💰 Outstanding debts:')
+      )
+
+      // Verify both users are shown in the response
+      const message = transport.sendMessage.mock.calls[0][1] as string
+      expect(message).toContain('@vasya')
+      expect(message).toContain('@petya')
+    })
+
+    test('shows debts for specific user', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+
+      const participant = buildParticipant({ id: 'pt_vasya', telegramUsername: 'vasya' })
+      participantRepo.findByUsername.mockResolvedValue(participant)
+
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', amount: 1000 }),
+      ])
+
+      eventRepo.findById.mockResolvedValue(
+        buildEvent({ id: 'ev_1', datetime: new Date('2024-01-21T21:00:00Z') })
+      )
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({ targetUsername: 'vasya' }, makeSudoSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('💰 Debts for @vasya:')
+      )
+    })
+
+    test('shows no-debts message when no outstanding payments', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const paymentRepo = container.resolve('paymentRepository')
+
+      paymentRepo.getUnpaidPayments.mockResolvedValue([])
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSudoSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('✅ All payments received!')
+      )
+    })
+
+    test('user not found sends error', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+
+      participantRepo.findByUsername.mockResolvedValue(undefined)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({ targetUsername: 'unknown' }, makeSudoSource())
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('not found')
+      )
+    })
+  })
+
+  // ── handlePaymentDebt: user sees only own debts ─────────────────────
+
+  describe('handlePaymentDebt: user isolation', () => {
+    test('user sees only their own debts, not others', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+
+      // The calling user
+      const myParticipant = buildParticipant({
+        id: 'pt_me',
+        telegramId: '555',
+        telegramUsername: 'me',
+      })
+      participantRepo.findByTelegramId.mockResolvedValue(myParticipant)
+
+      // Only return payments for the calling user (the repo is called with their participant id)
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', participantId: 'pt_me', amount: 500 }),
+      ])
+
+      const event = buildEvent({
+        id: 'ev_1',
+        datetime: new Date('2024-01-21T21:00:00Z'),
+      })
+      eventRepo.findById.mockResolvedValue(event)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSource({ user: { id: 555, firstName: 'Me' } }))
+
+      // Should call getUnpaidByParticipantId with the calling user's participant id
+      expect(paymentRepo.getUnpaidByParticipantId).toHaveBeenCalledWith('pt_me')
+      // Should NOT call getUnpaidPayments (all-debts admin mode)
+      expect(paymentRepo.getUnpaidPayments).not.toHaveBeenCalled()
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('💰 Your unpaid debts:')
+      )
     })
   })
 })

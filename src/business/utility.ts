@@ -3,10 +3,25 @@ import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { PaymentRepo } from '~/storage/repo/payment'
+import type { EventRepo } from '~/storage/repo/event'
+import type { ParticipantBusiness } from './participant'
 import type { AppContainer } from '../container'
 import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
 import { sayDef, type SayData } from '~/commands/utility/say'
-import { formatFallbackNotificationText } from '~/services/formatters/event'
+import {
+  formatFallbackNotificationText,
+  formatPersonalPaymentText,
+} from '~/services/formatters/event'
+import { InlineKeyboard } from 'grammy'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+import { config } from '~/config'
+import { formatDate } from '~/ui/constants'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 /**
  * Business logic for utility commands
@@ -16,12 +31,18 @@ export class UtilityBusiness {
   private commandRegistry: CommandRegistry
   private settingsRepository: SettingsRepo
   private participantRepository: ParticipantRepo
+  private participantBusiness: ParticipantBusiness
+  private paymentRepository: PaymentRepo
+  private eventRepository: EventRepo
 
   constructor(container: AppContainer) {
     this.transport = container.resolve('transport')
     this.commandRegistry = container.resolve('commandRegistry')
     this.settingsRepository = container.resolve('settingsRepository')
     this.participantRepository = container.resolve('participantRepository')
+    this.participantBusiness = container.resolve('participantBusiness')
+    this.paymentRepository = container.resolve('paymentRepository')
+    this.eventRepository = container.resolve('eventRepository')
   }
 
   /**
@@ -46,8 +67,6 @@ export class UtilityBusiness {
 
     this.transport.ensureBaseCommand('start')
     this.transport.ensureBaseCommand('help')
-    this.transport.ensureBaseCommand('myid')
-    this.transport.ensureBaseCommand('getchatid')
   }
 
   // === Command Handlers ===
@@ -60,23 +79,95 @@ This bot helps organize squash events with automated scheduling and payment trac
 Use /help to see available commands.`
 
     await this.transport.sendMessage(source.chat.id, welcomeMessage)
+
+    // Check for pending payments and unfinalized events
+    const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+    if (!participant) {
+      return
+    }
+
+    // 1. Resend unpaid payment DMs
+    const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
+
+    for (const payment of unpaidPayments) {
+      try {
+        const event = await this.eventRepository.findById(payment.eventId)
+        if (!event?.telegramMessageId) {
+          continue
+        }
+
+        const courtPrice = await this.settingsRepository.getCourtPrice()
+        const eventParticipants = await this.participantRepository.getEventParticipants(event.id)
+        const totalParticipations = eventParticipants.reduce(
+          (sum, ep) => sum + ep.participations,
+          0
+        )
+        const chatId = event.telegramChatId ? parseInt(event.telegramChatId, 10) : 0
+
+        // Resolve collector payment info
+        let collectorPaymentInfo: string | undefined
+        const collectorId =
+          event.collectorId ?? (await this.participantBusiness.resolveDefaultCollectorId())
+        if (collectorId) {
+          const collector = await this.participantRepository.findById(collectorId)
+          collectorPaymentInfo = collector?.paymentInfo
+        }
+
+        const messageText = formatPersonalPaymentText(
+          event,
+          payment.amount,
+          event.courts,
+          courtPrice,
+          totalParticipations,
+          chatId,
+          event.telegramMessageId,
+          collectorPaymentInfo
+        )
+        const keyboard = new InlineKeyboard().text('✅ I paid', `payment:mark-paid:${event.id}`)
+
+        await this.transport.sendMessage(source.chat.id, messageText, keyboard)
+      } catch {
+        // Best-effort: skip failed payments silently
+      }
+    }
+
+    // 2. Remind about unfinalized events owned by this user
+    const allEvents = await this.eventRepository.getEvents()
+    const now = new Date()
+    const unfinalizedOwned = allEvents.filter(
+      (e) => e.ownerId === String(source.user.id) && e.status === 'announced' && e.datetime < now
+    )
+
+    for (const event of unfinalizedOwned) {
+      try {
+        const eventDate = dayjs.tz(event.datetime, config.timezone)
+        let text = `⏰ Your event Squash ${formatDate(eventDate)} is not yet finalized`
+
+        if (event.telegramChatId && event.telegramMessageId) {
+          const chatIdStr = event.telegramChatId.replace(/^-100/, '')
+          const url = `https://t.me/c/${chatIdStr}/${event.telegramMessageId}`
+          text += `\n<a href="${url}">Go to announcement</a>`
+        }
+
+        await this.transport.sendMessage(source.chat.id, text)
+      } catch {
+        // Best-effort
+      }
+    }
   }
 
   private async handleHelp(source: SourceContext): Promise<void> {
-    const helpMessage = `Available commands:
+    const helpMessage = `<b>Squash Bot</b> organizes group squash sessions.
 
-/start - Welcome message
-/help - Show this help
-/myid - Show your user info
-/getchatid - Show current chat ID
+<b>Scaffold</b> — a recurring schedule template (e.g., "every Tuesday at 21:00, 2 courts"). The bot auto-creates events from scaffolds.
 
-/event list - List active events
-/event create <day> <time> <courts> - Create event
+<b>Event</b> — a specific session with date, participants, and payments. Created automatically from a scaffold or manually.
 
-/scaffold create <day> <time> <courts> - Create scaffold (admin)
-/scaffold list - List scaffolds (admin)
-/scaffold update <id> - Toggle scaffold (admin)
-/scaffold delete <id> - Delete scaffold (admin)`
+<b>Commands:</b>
+/help - Show this help message
+/event - Manage events
+/scaffold - Manage schedules
+/payment debt - Check your unpaid debts`
 
     await this.transport.sendMessage(source.chat.id, helpMessage)
   }

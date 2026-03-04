@@ -85,6 +85,7 @@ export class ParticipantRepo {
       telegramId: row.telegramId ?? undefined,
       telegramUsername: row.telegramUsername ?? undefined,
       displayName: row.displayName,
+      paymentInfo: row.paymentInfo ?? undefined,
     }
   }
 

@@ -55,8 +55,10 @@ function createTables(db: ReturnType<typeof drizzle>) {
       is_active INTEGER DEFAULT 1 NOT NULL,
       announcement_deadline TEXT,
       owner_id TEXT,
+      collector_id TEXT,
       is_private INTEGER DEFAULT 0 NOT NULL,
-      deleted_at TEXT
+      deleted_at TEXT,
+      FOREIGN KEY (collector_id) REFERENCES participants(id)
     )
   `)
 
@@ -71,10 +73,12 @@ function createTables(db: ReturnType<typeof drizzle>) {
       payment_message_id TEXT,
       announcement_deadline TEXT,
       owner_id TEXT NOT NULL,
+      collector_id TEXT,
       is_private INTEGER DEFAULT 0 NOT NULL,
       telegram_chat_id TEXT,
       deleted_at TEXT,
-      FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id)
+      FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id),
+      FOREIGN KEY (collector_id) REFERENCES participants(id)
     )
   `)
 
@@ -83,7 +87,8 @@ function createTables(db: ReturnType<typeof drizzle>) {
       id TEXT PRIMARY KEY,
       telegram_username TEXT,
       telegram_id TEXT,
-      display_name TEXT NOT NULL
+      display_name TEXT NOT NULL,
+      payment_info TEXT
     )
   `)
 

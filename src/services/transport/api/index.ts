@@ -36,14 +36,16 @@ export async function createApiServer(
     try {
       const notificationService = container.resolve('notificationService')
       const eventsCreated = await eventBusiness.checkAndCreateEventsFromScaffolds()
+      const autoAnnounced = await eventBusiness.checkAndAnnounceCreatedEvents()
       const unfinalizedNotifications = await eventBusiness.checkUnfinalizedEvents()
       const processedNotifications = await notificationService.processQueue()
       await logger.log(
-        `POST /check-events completed: ${eventsCreated} created, ${unfinalizedNotifications} unfinalized, ${processedNotifications.length} processed`
+        `POST /check-events completed: ${eventsCreated} created, ${autoAnnounced} auto-announced, ${unfinalizedNotifications} unfinalized, ${processedNotifications.length} processed`
       )
       return {
         message: 'Events checked',
         eventsCreated,
+        autoAnnounced,
         unfinalizedNotifications,
         processedNotifications: processedNotifications.length,
       }

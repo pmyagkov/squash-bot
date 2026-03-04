@@ -145,6 +145,13 @@ describe('SettingsRepo', () => {
           expectedValue: '123456789',
           getter: () => settingsRepo.getAdminId(),
         },
+        {
+          methodName: 'getDefaultCollectorId',
+          key: 'default_collector_id',
+          setValue: 'p_collector_123',
+          expectedValue: 'p_collector_123',
+          getter: () => settingsRepo.getDefaultCollectorId(),
+        },
       ])(
         '$methodName should return $key from settings',
         async ({ key, setValue, expectedValue, getter }) => {
@@ -211,6 +218,12 @@ describe('SettingsRepo', () => {
           key: 'admin_id',
           defaultValue: null,
           getter: () => settingsRepo.getAdminId(),
+        },
+        {
+          methodName: 'getDefaultCollectorId',
+          key: 'default_collector_id',
+          defaultValue: null,
+          getter: () => settingsRepo.getDefaultCollectorId(),
         },
       ])(
         '$methodName should return default $key ($defaultValue) when not set',

@@ -187,7 +187,8 @@ export function formatPersonalPaymentText(
   courtPrice: number,
   totalParticipants: number,
   chatId: number,
-  messageId: string
+  messageId: string,
+  collectorPaymentInfo?: string
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const totalCost = courts * courtPrice
@@ -204,6 +205,10 @@ export function formatPersonalPaymentText(
   }
 
   text += `\nYour amount: ${amount} din`
+
+  if (collectorPaymentInfo) {
+    text += `\n\n💳 ${collectorPaymentInfo}`
+  }
 
   return text
 }
@@ -253,6 +258,135 @@ export function buildReminderKeyboard(eventId: string, announceUrl?: string): In
   return kb
 }
 
+type OwnerNotificationType =
+  | 'participant-joined'
+  | 'participant-left'
+  | 'event-court-added'
+  | 'event-court-removed'
+  | 'event-announced'
+  | 'event-finalized'
+
+interface CapacityLimits {
+  maxPerCourt?: number
+  minPerCourt?: number
+}
+
+/**
+ * Formats notification message for event owner about a change
+ */
+export function formatOwnerNotification(
+  type: OwnerNotificationType,
+  actorName: string | undefined,
+  eventDateStr: string,
+  totalParticipations: number,
+  courts: number,
+  capacityLimits?: CapacityLimits
+): string {
+  let text: string
+
+  switch (type) {
+    case 'participant-joined':
+      text = `👤 ${actorName} joined ${eventDateStr}`
+      break
+    case 'participant-left':
+      text = `👤 ${actorName} left ${eventDateStr}`
+      break
+    case 'event-court-added':
+      text = `🏟 Court added for ${eventDateStr}`
+      break
+    case 'event-court-removed':
+      text = `🏟 Court removed for ${eventDateStr}`
+      break
+    case 'event-announced':
+      text = `🎾 Your event announced: ${eventDateStr}`
+      return text
+    case 'event-finalized':
+      text = `✅ ${eventDateStr} finalized by ${actorName}`
+      return text
+  }
+
+  // Balance line for join/leave/court changes
+  text += `\n   Participants: ${totalParticipations} · Courts: ${courts}`
+
+  // Capacity warning
+  if (capacityLimits) {
+    if (capacityLimits.maxPerCourt && totalParticipations > courts * capacityLimits.maxPerCourt) {
+      text += '\n   ⚠️ Over capacity'
+    } else if (
+      capacityLimits.minPerCourt &&
+      totalParticipations < courts * capacityLimits.minPerCourt
+    ) {
+      text += '\n   ⚠️ Low attendance'
+    }
+  }
+
+  return text
+}
+
+/**
+ * Debt entry for the debt summary formatter
+ */
+export interface DebtEntry {
+  eventDateStr: string
+  amount: number
+  collectorPaymentInfo?: string
+}
+
+/**
+ * Formats a summary of unpaid debts for a participant
+ */
+export function formatDebtSummary(debts: DebtEntry[]): string {
+  if (debts.length === 0) {
+    return '\u2705 No unpaid debts!'
+  }
+
+  let text = '\u{1F4B0} Your unpaid debts:\n'
+  let total = 0
+
+  for (const debt of debts) {
+    text += `\nSquash ${debt.eventDateStr} \u2014 ${debt.amount} din`
+    if (debt.collectorPaymentInfo) {
+      text += `\n\u{1F4B3} ${debt.collectorPaymentInfo}`
+    }
+    total += debt.amount
+  }
+
+  text += `\n\nTotal: ${total} din`
+  return text
+}
+
+/**
+ * Group of debts for one event, used by admin debt summary
+ */
+export interface AdminDebtGroup {
+  eventDateStr: string
+  debts: { participantName: string; amount: number }[]
+}
+
+/**
+ * Formats a summary of all outstanding debts grouped by event (admin view)
+ */
+export function formatAdminDebtSummary(groups: AdminDebtGroup[]): string {
+  const allDebts = groups.flatMap((g) => g.debts)
+  if (allDebts.length === 0) {
+    return '\u2705 All payments received!'
+  }
+
+  let text = '\u{1F4B0} Outstanding debts:\n'
+  let total = 0
+
+  for (const group of groups) {
+    text += `\nSquash ${group.eventDateStr}:`
+    for (const debt of group.debts) {
+      text += `\n  ${debt.participantName} \u2014 ${debt.amount} din`
+      total += debt.amount
+    }
+  }
+
+  text += `\n\nTotal: ${total} din (${allDebts.length} unpaid)`
+  return text
+}
+
 /**
  * Formats fallback notification for participants who can't receive DMs
  */
@@ -261,7 +395,6 @@ export function formatFallbackNotificationText(
   botUsername: string
 ): string {
   const mentions = participantNames.join(', ')
-  const link = `tg://resolve?domain=${botUsername}&start`
 
-  return `⚠️ I can't reach you personally, guys\n\n${mentions}\n\nPlease <a href="${link}">start a chat with me</a>\n\n(Click the link and send /start)`
+  return `⚠️ I can't reach you personally, guys\n\n${mentions}\n\nPlease write to @${botUsername} and send /start`
 }

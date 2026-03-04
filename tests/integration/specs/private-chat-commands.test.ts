@@ -38,7 +38,7 @@ describe('private-chat-commands', () => {
     // Should send warning message
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('t.me/test_bot'),
+      expect.stringContaining('@test_bot'),
       expect.anything()
     )
 
@@ -73,13 +73,13 @@ describe('private-chat-commands', () => {
 
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('t.me/test_bot'),
+      expect.stringContaining('@test_bot'),
       expect.anything()
     )
     // Should NOT have processed the command
     expect(api.sendMessage).not.toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('Available commands'),
+      expect.stringContaining('Commands:'),
       expect.anything()
     )
   })
@@ -95,7 +95,7 @@ describe('private-chat-commands', () => {
 
     expect(api.sendMessage).toHaveBeenCalledWith(
       ADMIN_ID,
-      expect.stringContaining('Available commands'),
+      expect.stringContaining('Commands:'),
       expect.anything()
     )
   })
@@ -111,7 +111,7 @@ describe('private-chat-commands', () => {
 
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('t.me/test_bot'),
+      expect.stringContaining('@test_bot'),
       expect.anything()
     )
   })

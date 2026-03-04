@@ -1,5 +1,6 @@
 import { test, describe, expect } from '@tests/setup'
 import { TEST_CONFIG } from '@fixtures/config'
+import { buildParticipant, buildPayment, buildEvent, buildEventParticipant } from '@fixtures'
 import { UtilityBusiness } from '~/business/utility'
 import type { MockAppContainer } from '@mocks'
 import type { SourceContext } from '~/services/command/types'
@@ -53,7 +54,7 @@ describe('UtilityBusiness', () => {
 
   // ── handleHelp ─────────────────────────────────────────────────────
 
-  test('handleHelp → sends command list', async ({ container }) => {
+  test('handleHelp → sends command list with concept explanations', async ({ container }) => {
     const transport = container.resolve('transport')
 
     const business = new UtilityBusiness(container)
@@ -64,12 +65,14 @@ describe('UtilityBusiness', () => {
 
     expect(transport.sendMessage).toHaveBeenCalledWith(
       TEST_CONFIG.chatId,
-      expect.stringContaining('Available commands')
+      expect.stringContaining('Squash Bot')
     )
     const message = transport.sendMessage.mock.calls[0][1]
-    expect(message).toContain('/start')
     expect(message).toContain('/help')
-    expect(message).toContain('/myid')
+    expect(message).toContain('/event')
+    expect(message).toContain('/scaffold')
+    expect(message).not.toContain('/myid')
+    expect(message).not.toContain('/getchatid')
   })
 
   // ── handleMyId ─────────────────────────────────────────────────────
@@ -164,6 +167,100 @@ describe('UtilityBusiness', () => {
     expect(message).toContain('private')
   })
 
+  // ── handleStart: pending payments ─────────────────────────────────
+
+  test('handleStart → resends unpaid payment DMs', async ({ container }) => {
+    const transport = container.resolve('transport')
+    const participantRepo = container.resolve('participantRepository')
+    const paymentRepo = container.resolve('paymentRepository')
+    const eventRepo = container.resolve('eventRepository')
+    const settingsRepo = container.resolve('settingsRepository')
+
+    const participant = buildParticipant({ id: 'pt_me', telegramId: String(TEST_CONFIG.userId) })
+    participantRepo.findByTelegramId.mockResolvedValue(participant)
+
+    paymentRepo.getUnpaidByParticipantId.mockResolvedValue([
+      buildPayment({ eventId: 'ev_1', amount: 1000, id: 10 }),
+    ])
+
+    const event = buildEvent({
+      id: 'ev_1',
+      datetime: new Date('2024-01-21T21:00:00Z'),
+      courts: 2,
+      status: 'finalized',
+      telegramMessageId: '100',
+      telegramChatId: '-100123',
+    })
+    eventRepo.findById.mockResolvedValue(event)
+    eventRepo.getEvents.mockResolvedValue([])
+
+    settingsRepo.getCourtPrice.mockResolvedValue(2000)
+    settingsRepo.getDefaultCollectorId.mockResolvedValue(null)
+
+    participantRepo.getEventParticipants.mockResolvedValue([
+      buildEventParticipant({ participations: 1 }),
+      buildEventParticipant({ participations: 1 }),
+    ])
+
+    transport.sendMessage.mockResolvedValue(1)
+
+    const business = new UtilityBusiness(container)
+    business.init()
+
+    const handler = getHandler(container, 'start')
+    await handler({}, makeSource())
+
+    // First call: welcome message, second call: payment DM
+    expect(transport.sendMessage).toHaveBeenCalledTimes(2)
+    expect(transport.sendMessage).toHaveBeenNthCalledWith(
+      2,
+      TEST_CONFIG.chatId,
+      expect.stringContaining('💰 Payment for Squash'),
+      expect.any(Object) // InlineKeyboard
+    )
+  })
+
+  test('handleStart → shows unfinalized events for owner', async ({ container }) => {
+    const transport = container.resolve('transport')
+    const participantRepo = container.resolve('participantRepository')
+    const paymentRepo = container.resolve('paymentRepository')
+    const eventRepo = container.resolve('eventRepository')
+
+    participantRepo.findByTelegramId.mockResolvedValue(
+      buildParticipant({ id: 'pt_me', telegramId: String(TEST_CONFIG.userId) })
+    )
+    paymentRepo.getUnpaidByParticipantId.mockResolvedValue([])
+
+    // Past event, owned by user, still 'announced'
+    const pastEvent = buildEvent({
+      id: 'ev_past',
+      status: 'announced',
+      ownerId: String(TEST_CONFIG.userId),
+      datetime: new Date('2024-01-10T18:00:00Z'),
+      telegramMessageId: '200',
+      telegramChatId: '-100123',
+    })
+    eventRepo.getEvents.mockResolvedValue([pastEvent])
+
+    transport.sendMessage.mockResolvedValue(1)
+
+    const business = new UtilityBusiness(container)
+    business.init()
+
+    const handler = getHandler(container, 'start')
+    await handler({}, makeSource())
+
+    // First: welcome, Second: unfinalized reminder
+    expect(transport.sendMessage).toHaveBeenCalledTimes(2)
+    expect(transport.sendMessage).toHaveBeenNthCalledWith(
+      2,
+      TEST_CONFIG.chatId,
+      expect.stringContaining('⏰')
+    )
+    const reminderMessage = transport.sendMessage.mock.calls[1][1]
+    expect(reminderMessage).toContain('not yet finalized')
+  })
+
   // ── Cross-cutting concerns ─────────────────────────────────────────
 
   test('all handlers → verify sendMessage called with correct chatId', async ({ container }) => {
@@ -204,14 +301,16 @@ describe('UtilityBusiness', () => {
     expect(startMessage).toContain('Squash Bot')
     expect(startMessage).toContain('/help')
 
-    // Help message includes all command groups
+    // Help message includes concept explanations and commands
     transport.sendMessage.mockClear()
     const helpHandler = getHandler(container, 'help')
     await helpHandler({}, makeSource())
 
     const helpMessage = transport.sendMessage.mock.calls[0][1]
+    expect(helpMessage).toContain('Scaffold')
+    expect(helpMessage).toContain('Event')
     expect(helpMessage).toContain('/event')
     expect(helpMessage).toContain('/scaffold')
-    expect(helpMessage).toContain('/getchatid')
+    expect(helpMessage).toContain('/payment debt')
   })
 })

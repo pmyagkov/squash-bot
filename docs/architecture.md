@@ -258,13 +258,13 @@ For testing strategy, see [docs/testing.md](testing.md).
 ## Core Entities
 
 ### Scaffold (session template)
-Regular schedule that generates specific events.
+Regular schedule that generates specific events. Can have `collectorId` — the participant who collects payments for events created from this scaffold.
 
 ### Event (session)
-Specific session with date, participants, payments. Created from scaffold automatically or manually.
+Specific session with date, participants, payments. Created from scaffold automatically or manually. Has `collectorId` (inherited from scaffold or from `default_collector_id` setting) — their `paymentInfo` is shown in personal payment messages.
 
 ### Participant
-Community member. Identified by Telegram username (if available) or "First Name Last Name".
+Community member. Identified by Telegram username (if available) or "First Name Last Name". Can have `paymentInfo` (free-text payment details like card number) displayed in payment messages when they are the collector.
 
 ### Payment
 Record of participant's payment for a specific session.
@@ -399,6 +399,10 @@ Record of participant's payment for a specific session.
 - `announceEvent(event)` → posts to Telegram, changes status to `announced`
 
 For scaffold-based events, both actions are performed in sequence in `/check-events`.
+
+**Auto-announce created events:**
+
+After processing scaffolds, `/check-events` also picks up manually created events (status `created`) whose announcement deadline has passed. For each such event, it announces automatically using `shouldTrigger` with the `announcement_deadline` setting. This allows users to create events in advance (e.g., `/event create next-sat 19:00 2`) and have them auto-announced at the appropriate time, without manually running `/event announce`. Errors per-event are logged but do not block other events.
 
 ---
 
@@ -655,7 +659,7 @@ Bot reads settings from database on each action where they are needed.
 
 ```
 /my history <filter>
-/my debt
+/payment debt
 ```
 
 **Filter formats for history:**
@@ -674,29 +678,11 @@ Bot reads settings from database on each action where they are needed.
 07.01 Tue — 1000 ₽ ✓
 ```
 
-**Example output `/my debt`:**
-```
-💰 Your debt: 1000 ₽
-
-14.01 Tue — 1000 ₽
-```
-
 ### Commands for admin
 
 ```
-/admin debts
+/admin payment debt [@username]
 /admin history @username <filter>
-```
-
-**Example output `/admin debts`:**
-```
-💰 Debtors:
-
-@vasya — 2500 ₽
-@petya — 1000 ₽
-Ivan Ivanov — 1500 ₽
-
-Total: 5000 ₽
 ```
 
 **`/admin history`** — same filter format as `/my history`
@@ -801,6 +787,7 @@ You can mark payment in corresponding messages in chat.
 | Court capacity overflow | Day before event | Private → Main | Once per state change* | — | Admin |
 | Excess courts | Day before event | Private → Main | Once per state change* | — | Admin |
 | No participants | Day before event (23:59 deadline) | Private → Main | Once per state change* | — | Admin |
+| Owner notification | On join/leave/court/finalize/announce | Owner DM → Main (fallback) | Every change | — | Event owner |
 
 *`overcapacity_notified` flag resets when participants or courts change, triggering immediate capacity check.
 
@@ -991,6 +978,7 @@ Templates for regular sessions. Generate Events automatically.
 | deleted_at | Timestamp | Soft delete timestamp (NULL = active, set = soft-deleted) |
 | announce_hours_before | Number | How many hours before session to create event (default: 12:00 previous day) |
 | admin_id | Relation → Participants | Participant who created/manages this scaffold |
+| collector_id | Relation → Participants | Participant who collects payments (their paymentInfo shown in DMs) |
 | min_participants | Number | Minimum participants required (0 = solo training allowed) |
 
 ### Table: Events
@@ -1007,6 +995,7 @@ Specific sessions — created from scaffold or manually.
 | payment_message_id | Text | ID of payment message in Telegram |
 | deleted_at | Timestamp | Soft delete timestamp (NULL = active, set = soft-deleted) |
 | admin_id | Relation → Participants | Event admin (inherited from scaffold or set by creator for ad-hoc) |
+| collector_id | Relation → Participants | Payment collector (inherited from scaffold or default_collector_id setting) |
 | min_participants | Number | Minimum participants required (inherited from scaffold, 0 = solo allowed) |
 | overcapacity_notified | Checkbox | Whether admin was notified about participant/court imbalance (reset on any change) |
 
@@ -1019,6 +1008,7 @@ Directory of community participants.
 | telegram_username | Text | Telegram username without @ (e.g., "pasha") |
 | telegram_id | Text | Numeric user ID in Telegram |
 | display_name | Text | Display name (First Name Last Name) — used if no username |
+| payment_info | Text | Free-text payment details (e.g., card number) shown in payment DMs when this participant is the collector |
 
 ### Table: EventParticipants
 Link between participants and sessions (many-to-many).
@@ -1053,6 +1043,7 @@ Global bot settings.
 - `court_price` — court cost (default "2000")
 - `timezone` — timezone (default "Europe/Belgrade")
 - `reminder_hour` — hour to send reminders (default "12")
+- `default_collector_id` — default payment collector participant ID (used for ad-hoc events)
 
 ### Test Tables
 
@@ -1075,7 +1066,7 @@ Bot selects table set by chat_id:
 | Endpoint | Method | Description | Called from |
 |----------|--------|-------------|-------------|
 | /health | GET | Healthcheck | n8n (every 5 min) |
-| /check-events | POST | Check if events need to be created/announced | n8n (every 15 min) |
+| /check-events | POST | Create scaffold events, auto-announce created events (see Scenario 2), check unfinalized | n8n (every 15 min) |
 | /check-payments | POST | Check debtors, send reminders | n8n (once a day) |
 
 ---

@@ -81,6 +81,19 @@ export class PaymentRepo {
     return this.toDomain(payment)
   }
 
+  async getUnpaidByParticipantId(participantId: string): Promise<Payment[]> {
+    const results = await db
+      .select()
+      .from(payments)
+      .where(and(eq(payments.participantId, participantId), eq(payments.isPaid, false)))
+    return results.map(this.toDomain)
+  }
+
+  async getUnpaidPayments(): Promise<Payment[]> {
+    const results = await db.select().from(payments).where(eq(payments.isPaid, false))
+    return results.map(this.toDomain)
+  }
+
   async deleteByEvent(eventId: string): Promise<void> {
     await db.delete(payments).where(eq(payments.eventId, eventId))
   }

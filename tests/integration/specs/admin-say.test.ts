@@ -88,7 +88,7 @@ describe('admin-say', () => {
     // Standard fallback notification to group (not the original message)
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('start a chat with me'),
+      expect.stringContaining('write to @test_bot'),
       expect.anything()
     )
     // Confirmation about fallback
@@ -116,7 +116,7 @@ describe('admin-say', () => {
     // Standard fallback notification to group (not the original message)
     expect(api.sendMessage).toHaveBeenCalledWith(
       TEST_CHAT_ID,
-      expect.stringContaining('start a chat with me'),
+      expect.stringContaining('write to @test_bot'),
       expect.anything()
     )
   })

@@ -238,6 +238,10 @@ Auto-create event from scaffold on schedule.
 
 **Edge case:** Uses `shouldTrigger` with time offset notation to determine creation time
 
+#### Auto-announce created events (API) ✅
+
+Handled as part of the `/check-events` endpoint. See [architecture.md — Scenario 2](architecture.md#scenario-2-generate-event-from-scaffold) for implementation details.
+
 ---
 
 ### event-announce ✅
@@ -723,6 +727,86 @@ Please start a chat with me: [Bot Name]
 
 ---
 
+### payment-debt ✅
+
+Check own unpaid debts with collector payment info.
+
+**Actor:** Any user
+**Chat:** Private
+
+**Flow:**
+1. User sends `/payment debt`
+2. Bot looks up participant by telegram ID
+3. Bot fetches all unpaid payments for this participant
+4. Bot formats debt summary with event dates, amounts, and collector payment info
+5. Bot sends formatted message
+
+**Message (has debts):**
+```
+💰 Your unpaid debts:
+
+📅 Tue, 21 Jan, 21:00
+   Amount: 1000 din
+   💳 Card: 1234-5678-9012-3456
+
+📅 Sat, 18 Jan, 19:00
+   Amount: 1500 din
+
+Total: 2500 din
+```
+
+**Message (no debts):** `✅ You have no unpaid debts`
+
+**Errors:**
+- Participant not found → `You are not registered yet. Send /start first.`
+
+---
+
+### admin-payment-debt ✅
+
+View all outstanding debts (admin only).
+
+**Actor:** Admin
+**Chat:** Private
+
+**Flow (all debts):**
+1. Admin sends `/admin payment debt`
+2. Bot fetches all unpaid payments
+3. Bot groups by event, resolves participant names
+4. Bot formats summary with per-event breakdown and totals
+
+**Flow (per-user debts):**
+1. Admin sends `/admin payment debt @username`
+2. Bot finds participant by username
+3. Bot fetches unpaid payments for that participant
+4. Bot formats debt summary (same as `payment-debt` but for the target user)
+
+**Message (all debts):**
+```
+💰 Outstanding debts:
+
+📅 Tue, 21 Jan, 21:00
+   @vasya — 1000 din
+   @petya — 1500 din
+
+📅 Sat, 18 Jan, 19:00
+   @vasya — 2000 din
+
+Total: 3 unpaid payments
+```
+
+**Message (no debts):** `✅ No outstanding debts`
+
+**Errors:**
+- User not found → `Participant @username not found`
+
+**Next steps (what admin can do after viewing debts):**
+- Mark partial repayment: `/admin repay @username <amount>` (see `admin-repay`)
+- Send a direct reminder to a user: `/admin say @username <message>` (see `admin-say`)
+- Users also receive automated payment notifications via the bot after finalization (see `event-payment-notifications`)
+
+---
+
 ## Admin
 
 ### admin ✅
@@ -918,58 +1002,15 @@ View own participation history.
 
 ---
 
-### my-debt
+### ~~my-debt~~ → superseded by `payment-debt`
 
-View own debt.
-
-**Actor:** Any user
-**Chat:** Any
-
-**Flow:**
-1. User sends `/my debt`
-2. Bot identifies user
-3. Bot fetches unpaid Payment records
-4. Bot calculates total and lists events
-
-**Message (has debt):**
-```
-💰 Your debt: 1000 ₽
-
-14.01 Tue — 1000 ₽
-```
-
-**Message (no debt):** "✅ You have no unpaid debts"
+Replaced by `/payment debt` (see Payments section).
 
 ---
 
-### admin-debts
+### ~~admin-debts~~ → superseded by `admin-payment-debt`
 
-View all debtors.
-
-**Actor:** Admin
-**Chat:** Any
-
-**Flow:**
-1. Admin sends `/admin debts`
-2. Bot fetches all unpaid Payment records
-3. Bot groups by participant, calculates totals
-4. Bot formats and sends summary
-
-**Message:**
-```
-💰 Debtors:
-
-@vasya — 2500 ₽
-@petya — 1000 ₽
-Ivan Ivanov — 1500 ₽
-
-Total: 5000 ₽
-```
-
-**Empty state:** "✅ No outstanding debts"
-
-**Errors:**
-- Not admin → "Only admins can view all debts"
+Replaced by `/admin payment debt` (see Payments section).
 
 ---
 
@@ -1057,9 +1098,9 @@ Read settings from Notion.
 
 ## User Onboarding
 
-### start-onboarding
+### start-onboarding ✅
 
-Initialize conversation with bot to enable personal messages.
+Initialize conversation with bot and show pending business.
 
 **Actor:** Any user
 **Chat:** Private (DM with bot)
@@ -1069,35 +1110,104 @@ Initialize conversation with bot to enable personal messages.
 - User manually sends /start to bot
 - First-time interaction with bot
 
-**Related:** `fallback-notification`, `event-payment-notifications`
+**Related:** `fallback-notification`, `event-payment-notifications`, `payment-debt`
 
 **Flow:**
 1. User sends `/start` command to bot (in private chat)
 2. Bot registers user as participant (findOrCreateParticipant with telegram ID, username, display name)
 3. Bot sends welcome message
-4. Conversation initialized → bot can now send personal notifications to this user
-5. Future payment notifications will be delivered successfully
+4. Bot looks up participant and resends any unpaid payment DMs with "I paid" button
+5. Bot checks for unfinalized events owned by user and sends reminders with links
+6. Conversation initialized → bot can now send personal notifications to this user
 
 **Welcome message:**
 ```
-👋 Welcome to Squash Payment Bot!
+Welcome to Squash Bot! 🎾
 
-I can help you feel more comfortable in a question of managing squash sessions.
+This bot helps organize squash events with automated scheduling and payment tracking.
 
-Currently unfinished businesses:
-* Unfinalized sessions (one, two, three, etc.)    // `one`, etc. should be links to announcement messages of corresponding events.
-* Unpaid sessions: cumulitively 10000 din. Type /my debt for details.
-
-To see your history: /my history
+Use /help to see available commands.
 ```
+
+**Pending payments:** For each unpaid payment, bot resends the full personal payment DM (same format as `event-payment-notifications`) with the "✅ I paid" button.
+
+**Unfinalized events:** For each announced event past its datetime that the user owns, bot sends a reminder with a link to the announcement.
 
 **Purpose:**
 - Telegram bots can't initiate conversations with users
 - User must send first message to bot
 - After /start, bot can send personal payment notifications
 - Critical for payment-personal-notifications delivery
+- Reminds users of outstanding debts and unfinalized events on every /start
 
 **Link to this feature:** Used in fallback-notification as deep link `https://t.me/{bot_username}?start`
+
+---
+
+## Collector & Owner
+
+### collector-role ✅
+
+Payment collector identity and payment info in DMs.
+
+**Data model:**
+- `Participant.paymentInfo` — free-text payment details (e.g., card number)
+- `Scaffold.collectorId` — participant who collects payments for scaffold-based events
+- `Event.collectorId` — inherited from scaffold, or from `default_collector_id` setting for ad-hoc events
+- `Settings.default_collector_id` — fallback collector for events without scaffold
+
+**Collector setup:**
+- **Default collector:** The `default_collector_id` setting in the Settings table stores the participant ID of the fallback collector. It is configured directly in the database (or via Notion). This collector is used for ad-hoc events that have no scaffold.
+- **Per-scaffold collector:** Each scaffold has a `collectorId` field (Relation to Participants). It can be set when creating or editing the scaffold. Events created from a scaffold inherit its `collectorId`.
+- **Per-event collector:** Each event has a `collectorId` field. For scaffold-based events it is inherited from the scaffold; for ad-hoc events it comes from `default_collector_id`. It can also be overridden when editing the event.
+- **Payment info:** The collector's `paymentInfo` field on their Participant record stores free-text payment details (e.g., card number, bank name). This is configured directly in the database.
+
+**Flow:**
+1. Event is created (from scaffold or manually)
+2. `collectorId` is set (from scaffold or `default_collector_id` setting)
+3. On finalize, personal payment DMs include collector's `paymentInfo` line:
+   ```
+   💳 Card: 1234-5678-9012-3456
+   ```
+4. If no collector or no `paymentInfo` — line is omitted
+
+---
+
+### owner-notifications ✅
+
+Real-time DM notifications to event owner about participant/court changes with capacity warnings.
+
+**Actor:** System (triggered by event actions)
+**Chat:** Owner DM → Main chat (fallback)
+
+**Triggers:**
+- Participant joins/leaves event
+- Court added/removed
+- Event announced
+- Event finalized
+
+**Flow:**
+1. Action occurs on event (join, leave, court change, finalize, announce)
+2. `notifyOwner()` is called (fire-and-forget)
+3. If actor is the owner → skip (no self-notification)
+4. Format message with event date, action, participant/court balance
+5. Check capacity: warn if over `maxPerCourt` or under `minPerCourt`
+6. Try sending DM to owner
+7. If DM fails → fallback to main chat
+
+**Message formats:**
+```
+👤 @vasya joined Tue 21 Jan 21:00
+   Participants: 5 · Courts: 2
+
+🏟 Court added for Tue 21 Jan 21:00
+   Participants: 5 · Courts: 3
+   ⚠️ Low attendance
+
+🎾 Your event announced: Tue 21 Jan 21:00
+
+✅ Tue 21 Jan finalized by @petya
+```
 
 ---
 

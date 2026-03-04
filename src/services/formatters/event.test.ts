@@ -9,7 +9,11 @@ import {
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
   formatNotFinalizedReminder,
+  formatOwnerNotification,
+  formatDebtSummary,
+  formatAdminDebtSummary,
   type EventParticipantDisplay,
+  type DebtEntry,
 } from './event'
 import type { Event } from '~/types'
 import type { InlineKeyboardButton } from 'grammy/types'
@@ -525,6 +529,44 @@ describe('event formatters', () => {
       expect(result).not.toContain('Full details')
     })
 
+    it('should include collector payment info when provided', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'finalized',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+
+      const result = formatPersonalPaymentText(
+        event,
+        1000,
+        2,
+        2000,
+        4,
+        -100123,
+        '456',
+        'Card: 1234-5678-9012-3456'
+      )
+      expect(result).toContain('💳')
+      expect(result).toContain('Card: 1234-5678-9012-3456')
+    })
+
+    it('should omit payment info line when not provided', () => {
+      const event: Event = {
+        id: 'ev_test123',
+        datetime: new Date('2024-01-20T21:00:00+01:00'),
+        courts: 2,
+        status: 'finalized',
+        ownerId: '111111111',
+        isPrivate: false,
+      }
+
+      const result = formatPersonalPaymentText(event, 1000, 2, 2000, 4, -100123, '456')
+      expect(result).not.toContain('💳')
+    })
+
     it('should format personal payment DM text', () => {
       const event: Event = {
         id: 'ev_test123',
@@ -682,8 +724,124 @@ describe('event formatters', () => {
 
       expect(result).toContain("can't reach")
       expect(result).toContain('@alice, @bob')
-      expect(result).toContain('tg://resolve?domain=test_bot&start')
+      expect(result).toContain('@test_bot')
       expect(result).toContain('/start')
+    })
+  })
+
+  describe('formatOwnerNotification', () => {
+    it('should format participant joined with balance', () => {
+      const result = formatOwnerNotification('participant-joined', '@vasya', 'Tue 21 Jan', 5, 2)
+      expect(result).toContain('👤 @vasya joined Tue 21 Jan')
+      expect(result).toContain('Participants: 5 · Courts: 2')
+    })
+
+    it('should format participant left with balance', () => {
+      const result = formatOwnerNotification('participant-left', '@vasya', 'Tue 21 Jan', 4, 2)
+      expect(result).toContain('👤 @vasya left Tue 21 Jan')
+      expect(result).toContain('Participants: 4 · Courts: 2')
+    })
+
+    it('should format court added with balance', () => {
+      const result = formatOwnerNotification('event-court-added', undefined, 'Tue 21 Jan', 5, 3)
+      expect(result).toContain('🏟 Court added for Tue 21 Jan')
+      expect(result).toContain('Participants: 5 · Courts: 3')
+    })
+
+    it('should format court removed with balance', () => {
+      const result = formatOwnerNotification('event-court-removed', undefined, 'Tue 21 Jan', 5, 1)
+      expect(result).toContain('🏟 Court removed for Tue 21 Jan')
+      expect(result).toContain('Participants: 5 · Courts: 1')
+    })
+
+    it('should format event announced', () => {
+      const result = formatOwnerNotification('event-announced', undefined, 'Tue 21 Jan 21:00', 0, 2)
+      expect(result).toContain('🎾 Your event announced: Tue 21 Jan 21:00')
+    })
+
+    it('should format event finalized', () => {
+      const result = formatOwnerNotification('event-finalized', '@petya', 'Tue 21 Jan', 5, 2)
+      expect(result).toContain('✅ Tue 21 Jan finalized by @petya')
+    })
+
+    it('should append over capacity warning', () => {
+      const result = formatOwnerNotification('participant-joined', '@vasya', 'Tue 21 Jan', 10, 2, {
+        maxPerCourt: 4,
+      })
+      expect(result).toContain('⚠️ Over capacity')
+    })
+
+    it('should append low attendance warning', () => {
+      const result = formatOwnerNotification('participant-left', '@vasya', 'Tue 21 Jan', 1, 2, {
+        minPerCourt: 2,
+      })
+      expect(result).toContain('⚠️ Low attendance')
+    })
+
+    it('should not append warning when balance is ok', () => {
+      const result = formatOwnerNotification('participant-joined', '@vasya', 'Tue 21 Jan', 4, 2, {
+        maxPerCourt: 4,
+        minPerCourt: 2,
+      })
+      expect(result).not.toContain('⚠️')
+    })
+  })
+
+  describe('formatDebtSummary', () => {
+    it('should format debts with payment info', () => {
+      const debts: DebtEntry[] = [
+        { eventDateStr: 'Tue, 21 Jan, 21:00', amount: 1000, collectorPaymentInfo: 'Card: 1234' },
+        { eventDateStr: 'Thu, 23 Jan, 19:00', amount: 1500 },
+      ]
+
+      const result = formatDebtSummary(debts)
+
+      expect(result).toContain('Your unpaid debts:')
+      expect(result).toContain('Squash Tue, 21 Jan, 21:00 — 1000 din')
+      expect(result).toContain('💳 Card: 1234')
+      expect(result).toContain('Squash Thu, 23 Jan, 19:00 — 1500 din')
+      expect(result).toContain('Total: 2500 din')
+    })
+
+    it('should omit payment info when not available', () => {
+      const debts: DebtEntry[] = [{ eventDateStr: 'Tue, 21 Jan, 21:00', amount: 1000 }]
+
+      const result = formatDebtSummary(debts)
+
+      expect(result).toContain('Squash Tue, 21 Jan, 21:00 — 1000 din')
+      expect(result).not.toContain('💳')
+      expect(result).toContain('Total: 1000 din')
+    })
+
+    it('should return no-debts message when empty array', () => {
+      const result = formatDebtSummary([])
+
+      expect(result).toContain('✅ No unpaid debts!')
+    })
+  })
+
+  describe('formatAdminDebtSummary', () => {
+    it('should format all debts grouped by event', () => {
+      const groups = [
+        {
+          eventDateStr: 'Tue 21 Jan 21:00',
+          debts: [
+            { participantName: '@vasya', amount: 1000 },
+            { participantName: '@petya', amount: 1000 },
+          ],
+        },
+      ]
+      const result = formatAdminDebtSummary(groups)
+      expect(result).toContain('💰 Outstanding debts:')
+      expect(result).toContain('Squash Tue 21 Jan 21:00:')
+      expect(result).toContain('@vasya — 1000 din')
+      expect(result).toContain('@petya — 1000 din')
+      expect(result).toContain('Total: 2000 din (2 unpaid)')
+    })
+
+    it('should return no-debts message when empty', () => {
+      const result = formatAdminDebtSummary([])
+      expect(result).toContain('✅ All payments received!')
     })
   })
 })

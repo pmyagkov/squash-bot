@@ -42,7 +42,8 @@ export class ScaffoldRepo {
     courts: number,
     announcementDeadline?: string,
     ownerId?: string,
-    isPrivate?: boolean
+    isPrivate?: boolean,
+    collectorId?: string
   ): Promise<Scaffold> {
     const id = `sc_${nanoid(8)}`
 
@@ -56,6 +57,7 @@ export class ScaffoldRepo {
         isActive: true,
         announcementDeadline,
         ownerId,
+        collectorId,
         isPrivate: isPrivate ?? false,
       })
       .returning()
@@ -174,6 +176,7 @@ export class ScaffoldRepo {
       isActive: row.isActive,
       announcementDeadline: row.announcementDeadline ?? undefined,
       ownerId: row.ownerId ?? undefined,
+      collectorId: row.collectorId ?? undefined,
       isPrivate: row.isPrivate,
       participants: [],
       deletedAt: row.deletedAt ?? undefined,

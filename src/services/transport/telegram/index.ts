@@ -241,9 +241,7 @@ export class TelegramTransport {
     // Redirect group chat commands to private
     if (ctx.chat?.type !== 'private') {
       const botInfo = this.getBotInfo()
-      await ctx.reply(
-        `This command is not supported in group chats. Please <a href="https://t.me/${botInfo.username}">message me directly</a>.`
-      )
+      await ctx.reply(`This command is available only in DM. Write to @${botInfo.username}`)
       return
     }
     // Wizard routing: intercept text input from users with active wizard
@@ -294,6 +292,7 @@ export class TelegramTransport {
             registered,
             args: commandArgs,
             ctx,
+            sudo: true,
           })
           .catch(async (error) => {
             await this.logger.error(

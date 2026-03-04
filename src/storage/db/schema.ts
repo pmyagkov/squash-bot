@@ -34,6 +34,7 @@ export const scaffolds = pgTable('scaffolds', {
     .notNull(),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id'),
+  collectorId: text('collector_id').references(() => participants.id),
   isPrivate: booleanInt('is_private')
     .default(sql`0`)
     .notNull(),
@@ -51,6 +52,7 @@ export const events = pgTable('events', {
   paymentMessageId: text('payment_message_id'),
   announcementDeadline: text('announcement_deadline'),
   ownerId: text('owner_id').notNull(),
+  collectorId: text('collector_id').references(() => participants.id),
   isPrivate: booleanInt('is_private')
     .default(sql`0`)
     .notNull(),
@@ -64,6 +66,7 @@ export const participants = pgTable('participants', {
   telegramUsername: text('telegram_username'),
   telegramId: text('telegram_id'),
   displayName: text('display_name').notNull(),
+  paymentInfo: text('payment_info'),
 })
 
 // EventParticipants junction table

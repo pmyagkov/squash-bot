@@ -16,6 +16,7 @@ CREATE TABLE "events" (
 	"payment_message_id" text,
 	"announcement_deadline" text,
 	"owner_id" text NOT NULL,
+	"collector_id" text,
 	"is_private" integer DEFAULT 0 NOT NULL,
 	"telegram_chat_id" text,
 	"deleted_at" timestamp with time zone
@@ -38,7 +39,8 @@ CREATE TABLE "participants" (
 	"id" text PRIMARY KEY NOT NULL,
 	"telegram_username" text,
 	"telegram_id" text,
-	"display_name" text NOT NULL
+	"display_name" text NOT NULL,
+	"payment_info" text
 );
 --> statement-breakpoint
 CREATE TABLE "payments" (
@@ -68,6 +70,7 @@ CREATE TABLE "scaffolds" (
 	"is_active" integer DEFAULT 1 NOT NULL,
 	"announcement_deadline" text,
 	"owner_id" text,
+	"collector_id" text,
 	"is_private" integer DEFAULT 0 NOT NULL,
 	"deleted_at" timestamp with time zone
 );
@@ -80,7 +83,9 @@ CREATE TABLE "settings" (
 ALTER TABLE "event_participants" ADD CONSTRAINT "event_participants_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "event_participants" ADD CONSTRAINT "event_participants_participant_id_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "public"."participants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "events" ADD CONSTRAINT "events_scaffold_id_scaffolds_id_fk" FOREIGN KEY ("scaffold_id") REFERENCES "public"."scaffolds"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "events" ADD CONSTRAINT "events_collector_id_participants_id_fk" FOREIGN KEY ("collector_id") REFERENCES "public"."participants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payments" ADD CONSTRAINT "payments_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payments" ADD CONSTRAINT "payments_participant_id_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "public"."participants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "scaffold_participants" ADD CONSTRAINT "scaffold_participants_scaffold_id_scaffolds_id_fk" FOREIGN KEY ("scaffold_id") REFERENCES "public"."scaffolds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "scaffold_participants" ADD CONSTRAINT "scaffold_participants_participant_id_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "public"."participants"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "scaffold_participants" ADD CONSTRAINT "scaffold_participants_participant_id_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "public"."participants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "scaffolds" ADD CONSTRAINT "scaffolds_collector_id_participants_id_fk" FOREIGN KEY ("collector_id") REFERENCES "public"."participants"("id") ON DELETE no action ON UPDATE no action;

@@ -35,12 +35,14 @@ export type SourceContext =
       type: 'command'
       chat: ChatContext
       user: UserContext
+      sudo?: boolean
     }
   | {
       type: 'callback'
       callbackId: string
       chat: ChatContext
       user: UserContext
+      sudo?: boolean
     }
 
 // Static command definition — what command files export (no handler)

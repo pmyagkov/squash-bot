@@ -18,6 +18,7 @@ import type { WizardService } from '~/services/wizard/wizardService'
 import type { WizardStep } from '~/services/wizard/types'
 import type { HydratedStep } from '~/services/wizard/types'
 import { WizardCancelledError } from '~/services/wizard/types'
+import type { ParticipantBusiness } from './participant'
 import type { AppContainer } from '../container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ScaffoldRepo } from '~/storage/repo/scaffold'
@@ -37,7 +38,11 @@ import {
   formatPaidPersonalPaymentText,
   formatFallbackNotificationText,
   formatNotFinalizedReminder,
+  formatOwnerNotification,
+  formatDebtSummary,
+  formatAdminDebtSummary,
 } from '~/services/formatters/event'
+import type { DebtEntry, AdminDebtGroup } from '~/services/formatters/event'
 import type { HandlerResult } from '~/services/notification'
 import { eventJoinDef } from '~/commands/event/join'
 import { eventActionDef } from '~/commands/event/eventAction'
@@ -53,6 +58,7 @@ import {
   eventMenuDef,
 } from '~/commands/event/defs'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
+import { paymentDebtDef, type PaymentDebtData } from '~/commands/payment/defs'
 import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
 import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
 
@@ -199,6 +205,7 @@ export class EventBusiness {
   private notificationRepository: NotificationRepo
   private transport: TelegramTransport
   private logger: Logger
+  private participantBusiness: ParticipantBusiness
   private commandRegistry: CommandRegistry
   private wizardService: WizardService
   private container: AppContainer
@@ -213,6 +220,7 @@ export class EventBusiness {
     this.notificationRepository = container.resolve('notificationRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
+    this.participantBusiness = container.resolve('participantBusiness')
     this.commandRegistry = container.resolve('commandRegistry')
     this.wizardService = container.resolve('wizardService')
     this.container = container
@@ -330,6 +338,10 @@ export class EventBusiness {
       await this.handleEventEditMenu(data, source)
     })
 
+    this.commandRegistry.register('payment:debt', paymentDebtDef, async (data, source) => {
+      await this.handlePaymentDebt(data as PaymentDebtData, source)
+    })
+
     this.transport.onEdit('event', (action, entityId, ctx) =>
       this.handleEventEditAction(action, entityId, ctx)
     )
@@ -353,6 +365,20 @@ export class EventBusiness {
       return this.eventRepository.findById(eventId)
     }
     return undefined
+  }
+
+  /**
+   * Resolve collector payment info for an event.
+   * Uses event.collectorId if set, otherwise falls back to default collector.
+   */
+  private async resolveCollectorPaymentInfo(event: Event): Promise<string | undefined> {
+    const collectorId =
+      event.collectorId ?? (await this.participantBusiness.resolveDefaultCollectorId())
+    if (!collectorId) {
+      return undefined
+    }
+    const collector = await this.participantRepository.findById(collectorId)
+    return collector?.paymentInfo
   }
 
   // === Callback Handlers ===
@@ -387,6 +413,15 @@ export class EventBusiness {
       event,
       participant,
     })
+
+    // Notify owner (fire-and-forget)
+    const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const joinTotal = joinParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'participant-joined', participant.displayName, {
+      totalParticipations: joinTotal,
+      courts: event.courts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
@@ -416,6 +451,15 @@ export class EventBusiness {
       event,
       participant,
     })
+
+    // Notify owner (fire-and-forget)
+    const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const leaveTotal = leaveParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'participant-left', participant.displayName, {
+      totalParticipations: leaveTotal,
+      courts: event.courts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add-court']): Promise<void> {
@@ -436,6 +480,15 @@ export class EventBusiness {
 
     void this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
     void this.transport.logEvent({ type: 'court_added', event: { ...event, courts: newCourts } })
+
+    // Notify owner (fire-and-forget)
+    const addCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const addCourtTotal = addCourtParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'event-court-added', undefined, {
+      totalParticipations: addCourtTotal,
+      courts: newCourts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleRemoveCourt(data: CallbackTypes['event:delete-court']): Promise<void> {
@@ -461,6 +514,15 @@ export class EventBusiness {
 
     void this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
     void this.transport.logEvent({ type: 'court_removed', event: { ...event, courts: newCourts } })
+
+    // Notify owner (fire-and-forget)
+    const removeCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const removeCourtTotal = removeCourtParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    void this.notifyOwner(event, 'event-court-removed', undefined, {
+      totalParticipations: removeCourtTotal,
+      courts: newCourts,
+      actorUserId: data.userId,
+    })
   }
 
   private async handleFinalize(data: CallbackTypes['event:finalize']): Promise<void> {
@@ -529,6 +591,12 @@ export class EventBusiness {
         type: 'event_finalized',
         event,
         participants: participants.map((ep) => ep.participant),
+      })
+
+      // Notify owner (fire-and-forget)
+      const actor = await this.participantRepository.findByTelegramId(String(data.userId))
+      void this.notifyOwner(event, 'event-finalized', actor?.displayName ?? 'Unknown', {
+        actorUserId: data.userId,
       })
     } finally {
       this.eventLock.release(event.id)
@@ -1317,12 +1385,14 @@ export class EventBusiness {
       .toDate()
 
     // Create event
+    const defaultCollectorId = await this.participantBusiness.resolveDefaultCollectorId()
     const event = await this.eventRepository.createEvent({
       datetime,
       courts: data.courts,
       status: 'created',
       ownerId: String(source.user.id),
       isPrivate: data.isPrivate,
+      collectorId: defaultCollectorId ?? undefined,
     })
 
     // Format success message
@@ -1504,6 +1574,122 @@ export class EventBusiness {
     void this.transport.logEvent({ type: 'payment_cancelled', event, participant })
   }
 
+  private async handlePaymentDebt(data: PaymentDebtData, source: SourceContext): Promise<void> {
+    // Sudo mode: show all debts or per-user debts
+    if (source.sudo) {
+      if (data.targetUsername) {
+        // Per-user mode
+        const participant = await this.participantRepository.findByUsername(data.targetUsername)
+        if (!participant) {
+          await this.transport.sendMessage(source.chat.id, `User @${data.targetUsername} not found`)
+          return
+        }
+
+        const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
+        const debts: DebtEntry[] = []
+        for (const payment of unpaidPayments) {
+          const event = await this.eventRepository.findById(payment.eventId)
+          if (!event) {
+            continue
+          }
+          const eventDate = dayjs.tz(event.datetime, config.timezone)
+          debts.push({ eventDateStr: formatDate(eventDate), amount: payment.amount })
+        }
+
+        if (debts.length === 0) {
+          await this.transport.sendMessage(
+            source.chat.id,
+            `✅ @${data.targetUsername} has no debts!`
+          )
+          return
+        }
+
+        let text = `💰 Debts for @${data.targetUsername}:\n`
+        let total = 0
+        for (const debt of debts) {
+          text += `\nSquash ${debt.eventDateStr} — ${debt.amount} din`
+          total += debt.amount
+        }
+        text += `\n\nTotal: ${total} din`
+        await this.transport.sendMessage(source.chat.id, text)
+        return
+      }
+
+      // All debts mode
+      const unpaidPayments = await this.paymentRepository.getUnpaidPayments()
+      if (unpaidPayments.length === 0) {
+        await this.transport.sendMessage(source.chat.id, '✅ All payments received!')
+        return
+      }
+
+      // Group by event
+      const eventMap = new Map<
+        string,
+        { event: Event; debts: { participantName: string; amount: number }[] }
+      >()
+
+      for (const payment of unpaidPayments) {
+        if (!eventMap.has(payment.eventId)) {
+          const event = await this.eventRepository.findById(payment.eventId)
+          if (!event) {
+            continue
+          }
+          eventMap.set(payment.eventId, { event, debts: [] })
+        }
+
+        const participant = await this.participantRepository.findById(payment.participantId)
+        const name = participant?.telegramUsername
+          ? `@${participant.telegramUsername}`
+          : (participant?.displayName ?? 'Unknown')
+
+        eventMap.get(payment.eventId)!.debts.push({
+          participantName: name,
+          amount: payment.amount,
+        })
+      }
+
+      const groups: AdminDebtGroup[] = Array.from(eventMap.values()).map(({ event, debts }) => ({
+        eventDateStr: formatDate(dayjs.tz(event.datetime, config.timezone)),
+        debts,
+      }))
+
+      const message = formatAdminDebtSummary(groups)
+      await this.transport.sendMessage(source.chat.id, message)
+      return
+    }
+
+    // Regular user mode: show only own debts
+    const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+    if (!participant) {
+      await this.transport.sendMessage(source.chat.id, '✅ No unpaid debts!')
+      return
+    }
+
+    const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
+    if (unpaidPayments.length === 0) {
+      await this.transport.sendMessage(source.chat.id, '✅ No unpaid debts!')
+      return
+    }
+
+    const debts: DebtEntry[] = []
+    for (const payment of unpaidPayments) {
+      const event = await this.eventRepository.findById(payment.eventId)
+      if (!event) {
+        continue
+      }
+
+      const eventDate = dayjs.tz(event.datetime, config.timezone)
+      const eventDateStr = formatDate(eventDate)
+
+      const collectorPaymentInfo = await this.resolveCollectorPaymentInfo(event)
+
+      debts.push({ eventDateStr, amount: payment.amount, collectorPaymentInfo })
+    }
+
+    const message = formatDebtSummary(debts)
+    await this.transport.sendMessage(source.chat.id, message)
+  }
+
   // === Command Handlers ===
 
   private async handleListFromDef(source: SourceContext): Promise<void> {
@@ -1546,7 +1732,7 @@ export class EventBusiness {
     }
 
     try {
-      await this.announceEvent(event.id)
+      await this.announceEvent(event.id, source.user.id)
       const updatedEvent = await this.eventRepository.findById(event.id)
       const announcedDate = formatDate(dayjs.tz(event.datetime, config.timezone))
       const entityText = formatEventListItem(updatedEvent ?? event, announcedDate)
@@ -1602,6 +1788,7 @@ export class EventBusiness {
       courts: scaffold.defaultCourts,
       status: 'created',
       ownerId,
+      collectorId: scaffold.collectorId,
     })
 
     // Format success message
@@ -1681,6 +1868,73 @@ export class EventBusiness {
     }
   }
 
+  async notifyOwner(
+    event: Event,
+    type:
+      | 'participant-joined'
+      | 'participant-left'
+      | 'event-court-added'
+      | 'event-court-removed'
+      | 'event-announced'
+      | 'event-finalized',
+    actorName: string | undefined,
+    opts: {
+      totalParticipations?: number
+      courts?: number
+      actorUserId?: number
+      announceUrl?: string
+    } = {}
+  ): Promise<void> {
+    try {
+      // Skip self-notification for announce/finalize only
+      // Join/leave/court changes always notify owner (capacity info is useful)
+      if (
+        (type === 'event-announced' || type === 'event-finalized') &&
+        opts.actorUserId &&
+        String(opts.actorUserId) === event.ownerId
+      ) {
+        return
+      }
+
+      const eventDate = dayjs.tz(event.datetime, config.timezone)
+      const eventDateStr = eventDate.format('ddd D MMM HH:mm')
+
+      const totalParticipations = opts.totalParticipations ?? 0
+      const courts = opts.courts ?? event.courts
+
+      const maxPerCourt = await this.settingsRepository.getMaxPlayersPerCourt()
+      const minPerCourt = await this.settingsRepository.getMinPlayersPerCourt()
+
+      const message = formatOwnerNotification(
+        type,
+        actorName,
+        eventDateStr,
+        totalParticipations,
+        courts,
+        { maxPerCourt, minPerCourt }
+      )
+
+      const ownerTelegramId = parseInt(event.ownerId, 10)
+      const keyboard = opts.announceUrl
+        ? new InlineKeyboard().url('🔗 Go to announcement', opts.announceUrl)
+        : undefined
+
+      try {
+        await this.transport.sendMessage(ownerTelegramId, message, keyboard)
+      } catch {
+        // Fallback to main chat
+        const mainChatId = await this.settingsRepository.getMainChatId()
+        if (mainChatId) {
+          await this.transport.sendMessage(mainChatId, message, keyboard)
+        }
+      }
+    } catch (error) {
+      await this.logger.error(
+        `Error notifying owner for event ${event.id}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
   private async sendPersonalPaymentNotifications(
     event: Event,
     participants: EventParticipant[],
@@ -1690,6 +1944,9 @@ export class EventBusiness {
   ): Promise<EventParticipant[]> {
     const failedParticipants: EventParticipant[] = []
     const totalParticipations = participants.reduce((sum, ep) => sum + ep.participations, 0)
+
+    // Resolve collector's payment info
+    const collectorPaymentInfo = await this.resolveCollectorPaymentInfo(event)
 
     for (let i = 0; i < participants.length; i++) {
       const ep = participants[i]
@@ -1708,7 +1965,8 @@ export class EventBusiness {
         courtPrice,
         totalParticipations,
         chatId,
-        event.telegramMessageId!
+        event.telegramMessageId!,
+        collectorPaymentInfo
       )
       const keyboard = new InlineKeyboard().text('✅ I paid', `payment:mark-paid:${event.id}`)
 
@@ -1849,7 +2107,7 @@ export class EventBusiness {
   /**
    * Announces an event to Telegram and updates its status
    */
-  async announceEvent(id: string): Promise<Event> {
+  async announceEvent(id: string, actorUserId?: number): Promise<Event> {
     const event = await this.eventRepository.findById(id)
     if (!event) {
       throw new Error(`Event ${id} not found`)
@@ -1892,6 +2150,16 @@ export class EventBusiness {
       type: 'event_announced',
       event: updatedEvent,
       owner: owner ?? undefined,
+    })
+
+    // Notify owner (fire-and-forget)
+    const announceUrl =
+      updatedEvent.telegramChatId && updatedEvent.telegramMessageId
+        ? buildAnnouncementUrl(updatedEvent.telegramChatId, updatedEvent.telegramMessageId)
+        : undefined
+    void this.notifyOwner(updatedEvent, 'event-announced', undefined, {
+      announceUrl,
+      actorUserId,
     })
 
     return updatedEvent
@@ -1961,6 +2229,7 @@ export class EventBusiness {
           status: 'created',
           ownerId,
           isPrivate: scaffold.isPrivate,
+          collectorId: scaffold.collectorId,
         })
 
         // Copy scaffold participants to private event
@@ -1997,6 +2266,44 @@ export class EventBusiness {
     }
 
     return createdCount
+  }
+
+  /**
+   * Auto-announces manual events in 'created' status when their datetime
+   * is within the announcement deadline threshold.
+   */
+  async checkAndAnnounceCreatedEvents(): Promise<number> {
+    const allEvents = await this.eventRepository.getEvents()
+    const createdEvents = allEvents.filter((e) => e.status === 'created')
+
+    if (createdEvents.length === 0) {
+      return 0
+    }
+
+    const timezone = await this.settingsRepository.getTimezone()
+    const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
+
+    let count = 0
+
+    for (const event of createdEvents) {
+      try {
+        const deadline = event.announcementDeadline ?? defaultDeadline
+
+        if (!shouldTrigger(deadline, event.datetime, timezone)) {
+          continue
+        }
+
+        await this.announceEvent(event.id)
+        count++
+        await this.logger.log(`Auto-announced created event ${event.id}`)
+      } catch (error) {
+        await this.logger.error(
+          `Failed to auto-announce event ${event.id}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+    }
+
+    return count
   }
 
   private async handleDeleteFromDef(

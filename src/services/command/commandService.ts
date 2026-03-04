@@ -10,6 +10,7 @@ export interface RunInput {
   registered: RegisteredCommand
   args: string[]
   ctx: Context
+  sudo?: boolean
 }
 
 export class CommandService {
@@ -18,7 +19,7 @@ export class CommandService {
     private wizardService: WizardService
   ) {}
 
-  async run({ registered, args, ctx }: RunInput): Promise<void> {
+  async run({ registered, args, ctx, sudo }: RunInput): Promise<void> {
     try {
       // 1. Parse
       const input = { args, ctx, container: this.container }
@@ -64,8 +65,8 @@ export class CommandService {
         lastName: ctx.from?.last_name,
       }
       const source: SourceContext = ctx.callbackQuery
-        ? { type: 'callback', callbackId: ctx.callbackQuery.id, chat, user }
-        : { type: 'command', chat, user }
+        ? { type: 'callback', callbackId: ctx.callbackQuery.id, chat, user, sudo }
+        : { type: 'command', chat, user, sudo }
 
       // 6. Call handler
       await registered.handler(result.parsed, source)

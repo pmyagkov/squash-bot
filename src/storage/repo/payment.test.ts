@@ -228,4 +228,129 @@ describe('PaymentRepo', () => {
       expect(dbResult).toHaveLength(0)
     })
   })
+
+  describe('getUnpaidByParticipantId', () => {
+    it('should return only unpaid payments for given participant', async () => {
+      // Create two unpaid payments for test participant across different events
+      await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
+      const event2 = await eventRepo.createEvent({
+        datetime: new Date('2024-01-21T21:00:00Z'),
+        courts: 2,
+        ownerId: '111111111',
+      })
+      await paymentRepo.createPayment(event2.id, testParticipantId, 3000)
+
+      const unpaid = await paymentRepo.getUnpaidByParticipantId(testParticipantId)
+      expect(unpaid).toHaveLength(2)
+      expect(unpaid[0].participantId).toBe(testParticipantId)
+      expect(unpaid[1].participantId).toBe(testParticipantId)
+      expect(unpaid[0].isPaid).toBe(false)
+      expect(unpaid[1].isPaid).toBe(false)
+    })
+
+    it('should exclude paid payments', async () => {
+      const payment1 = await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
+      const event2 = await eventRepo.createEvent({
+        datetime: new Date('2024-01-21T21:00:00Z'),
+        courts: 2,
+        ownerId: '111111111',
+      })
+      await paymentRepo.createPayment(event2.id, testParticipantId, 3000)
+
+      // Mark first payment as paid
+      assert(typeof payment1.id === 'number')
+      await paymentRepo.markAsPaid(payment1.id)
+
+      const unpaid = await paymentRepo.getUnpaidByParticipantId(testParticipantId)
+      expect(unpaid).toHaveLength(1)
+      expect(unpaid[0].amount).toBe(3000)
+      expect(unpaid[0].isPaid).toBe(false)
+    })
+
+    it('should not return payments for other participants', async () => {
+      const { participant: participant2 } = await participantRepo.findOrCreateParticipant(
+        '456',
+        'user2',
+        'User Two'
+      )
+
+      await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
+      await paymentRepo.createPayment(testEventId, participant2.id, 3000)
+
+      const unpaid = await paymentRepo.getUnpaidByParticipantId(testParticipantId)
+      expect(unpaid).toHaveLength(1)
+      expect(unpaid[0].participantId).toBe(testParticipantId)
+      expect(unpaid[0].amount).toBe(2000)
+    })
+
+    it('should return empty array when all payments are paid', async () => {
+      const payment = await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
+      assert(typeof payment.id === 'number')
+      await paymentRepo.markAsPaid(payment.id)
+
+      const unpaid = await paymentRepo.getUnpaidByParticipantId(testParticipantId)
+      expect(unpaid).toEqual([])
+    })
+
+    it('should return empty array for participant with no payments', async () => {
+      const unpaid = await paymentRepo.getUnpaidByParticipantId(testParticipantId)
+      expect(unpaid).toEqual([])
+    })
+  })
+
+  describe('getUnpaidPayments', () => {
+    it('should return all unpaid payments across participants', async () => {
+      const { participant: participant2 } = await participantRepo.findOrCreateParticipant(
+        '456',
+        'user2',
+        'User Two'
+      )
+
+      await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
+      await paymentRepo.createPayment(testEventId, participant2.id, 3000)
+
+      const unpaid = await paymentRepo.getUnpaidPayments()
+      expect(unpaid).toHaveLength(2)
+      expect(unpaid.every((p) => p.isPaid === false)).toBe(true)
+    })
+
+    it('should exclude paid payments', async () => {
+      const { participant: participant2 } = await participantRepo.findOrCreateParticipant(
+        '456',
+        'user2',
+        'User Two'
+      )
+
+      const payment1 = await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
+      await paymentRepo.createPayment(testEventId, participant2.id, 3000)
+
+      // Mark first payment as paid
+      assert(typeof payment1.id === 'number')
+      await paymentRepo.markAsPaid(payment1.id)
+
+      const unpaid = await paymentRepo.getUnpaidPayments()
+      expect(unpaid).toHaveLength(1)
+      expect(unpaid[0].participantId).toBe(participant2.id)
+      expect(unpaid[0].isPaid).toBe(false)
+    })
+
+    it('should return empty array when all payments are paid', async () => {
+      const payment = await paymentRepo.createPayment(testEventId, testParticipantId, 2000)
+      assert(typeof payment.id === 'number')
+      await paymentRepo.markAsPaid(payment.id)
+
+      // Verify via direct DB query that payment exists but is paid
+      const dbResult = await db.select().from(payments).where(eq(payments.id, payment.id))
+      expect(dbResult).toHaveLength(1)
+      expect(dbResult[0].isPaid).toBe(true)
+
+      const unpaid = await paymentRepo.getUnpaidPayments()
+      expect(unpaid).toEqual([])
+    })
+
+    it('should return empty array when no payments exist', async () => {
+      const unpaid = await paymentRepo.getUnpaidPayments()
+      expect(unpaid).toEqual([])
+    })
+  })
 })
