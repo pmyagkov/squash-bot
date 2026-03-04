@@ -17,8 +17,8 @@ else
   TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   TEXT="🔴 Squash Bot health check failed!%0A%0AStatus: ${RESPONSE}%0ATime: ${TIMESTAMP}"
   curl -s -X POST "${TG_API}/sendMessage" \
-    -d "chat_id=${ADMIN_CHAT_ID}" \
+    -d "chat_id=${TELEGRAM_LOG_CHAT_ID}" \
     -d "text=${TEXT}" \
     > /dev/null 2>&1
-  echo "[health-check] Alert sent to ${ADMIN_CHAT_ID}"
+  echo "[health-check] Alert sent to ${TELEGRAM_LOG_CHAT_ID}"
 fi

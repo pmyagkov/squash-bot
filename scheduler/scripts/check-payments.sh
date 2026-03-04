@@ -25,8 +25,8 @@ else
   [ -z "$ERROR_MSG" ] && ERROR_MSG="HTTP ${HTTP_CODE}"
   TEXT="🔴 check-payments failed!%0A%0AError: ${ERROR_MSG}%0ATime: ${TIMESTAMP}"
   curl -s -X POST "${TG_API}/sendMessage" \
-    -d "chat_id=${ADMIN_CHAT_ID}" \
+    -d "chat_id=${TELEGRAM_LOG_CHAT_ID}" \
     -d "text=${TEXT}" \
     > /dev/null 2>&1
-  echo "[check-payments] Alert sent to ${ADMIN_CHAT_ID}"
+  echo "[check-payments] Alert sent to ${TELEGRAM_LOG_CHAT_ID}"
 fi
