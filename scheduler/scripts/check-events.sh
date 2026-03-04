@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+# Telegram API URL (test server uses /test/ prefix)
+if [ "$TELEGRAM_TEST_SERVER" = "true" ]; then
+  TG_API="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/test"
+else
+  TG_API="https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}"
+fi
+
 RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 \
   -X POST "${BOT_URL}/check-events" \
   -H "X-API-Key: ${API_KEY}" \
@@ -15,7 +22,7 @@ if [ "$HTTP_CODE" != "200" ] || echo "$BODY" | grep -q '"error"'; then
   ERROR_MSG=$(echo "$BODY" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//;s/"//')
   [ -z "$ERROR_MSG" ] && ERROR_MSG="HTTP ${HTTP_CODE}"
   TEXT="🔴 check-events failed!%0A%0AError: ${ERROR_MSG}%0ATime: ${TIMESTAMP}"
-  curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  curl -s -X POST "${TG_API}/sendMessage" \
     -d "chat_id=${ADMIN_CHAT_ID}" \
     -d "text=${TEXT}" \
     > /dev/null 2>&1
