@@ -400,6 +400,10 @@ Record of participant's payment for a specific session.
 
 For scaffold-based events, both actions are performed in sequence in `/check-events`.
 
+**Auto-announce created events:**
+
+After processing scaffolds, `/check-events` also picks up manually created events (status `created`) whose announcement deadline has passed. For each such event, it announces automatically using `shouldTrigger` with the `announcement_deadline` setting. This allows users to create events in advance (e.g., `/event create next-sat 19:00 2`) and have them auto-announced at the appropriate time, without manually running `/event announce`. Errors per-event are logged but do not block other events.
+
 ---
 
 ## Scenario 3: Manual Event Creation (ad-hoc)
@@ -1062,7 +1066,7 @@ Bot selects table set by chat_id:
 | Endpoint | Method | Description | Called from |
 |----------|--------|-------------|-------------|
 | /health | GET | Healthcheck | n8n (every 5 min) |
-| /check-events | POST | Create scaffold events, auto-announce created events, check unfinalized | n8n (every 15 min) |
+| /check-events | POST | Create scaffold events, auto-announce created events (see Scenario 2), check unfinalized | n8n (every 15 min) |
 | /check-payments | POST | Check debtors, send reminders | n8n (once a day) |
 
 ---

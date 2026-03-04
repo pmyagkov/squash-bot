@@ -259,12 +259,12 @@ export function buildReminderKeyboard(eventId: string, announceUrl?: string): In
 }
 
 type OwnerNotificationType =
-  | 'joined'
-  | 'left'
-  | 'court-added'
-  | 'court-removed'
-  | 'announced'
-  | 'finalized'
+  | 'participant-joined'
+  | 'participant-left'
+  | 'event-court-added'
+  | 'event-court-removed'
+  | 'event-announced'
+  | 'event-finalized'
 
 interface CapacityLimits {
   maxPerCourt?: number
@@ -286,25 +286,25 @@ export function formatOwnerNotification(
   let text: string
 
   switch (type) {
-    case 'joined':
+    case 'participant-joined':
       text = `👤 ${actorName} joined ${eventDateStr}`
       break
-    case 'left':
+    case 'participant-left':
       text = `👤 ${actorName} left ${eventDateStr}`
       break
-    case 'court-added':
+    case 'event-court-added':
       text = `🏟 Court added for ${eventDateStr}`
       break
-    case 'court-removed':
+    case 'event-court-removed':
       text = `🏟 Court removed for ${eventDateStr}`
       break
-    case 'announced':
+    case 'event-announced':
       text = `🎾 Your event announced: ${eventDateStr}`
       if (announceUrl) {
         text += `\n<a href="${announceUrl}">Go to announcement</a>`
       }
       return text
-    case 'finalized':
+    case 'event-finalized':
       text = `✅ ${eventDateStr} finalized by ${actorName}`
       return text
   }

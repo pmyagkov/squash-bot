@@ -240,19 +240,7 @@ Auto-create event from scaffold on schedule.
 
 #### Auto-announce created events (API) ✅
 
-Auto-announce manually created events when their announcement deadline passes.
-
-**Actor:** System (n8n)
-**Trigger:** POST /check-events (every 15 min)
-
-**Flow:**
-1. n8n calls POST /check-events
-2. After scaffold event creation, bot fetches all events with status `created`
-3. For each created event, checks if announcement deadline has passed (using `shouldTrigger`)
-4. If past deadline → announces event (see event-announce)
-5. Errors per-event are logged but don't block other events
-
-**Purpose:** Allows users to create events in advance (e.g., `/event create next-sat 19:00 2`) and have them auto-announced at the appropriate time, without manually running `/event announce`.
+Handled as part of the `/check-events` endpoint. See [architecture.md — Scenario 2](architecture.md#scenario-2-generate-event-from-scaffold) for implementation details.
 
 ---
 
@@ -812,6 +800,11 @@ Total: 3 unpaid payments
 **Errors:**
 - User not found → `Participant @username not found`
 
+**Next steps (what admin can do after viewing debts):**
+- Mark partial repayment: `/admin repay @username <amount>` (see `admin-repay`)
+- Send a direct reminder to a user: `/admin say @username <message>` (see `admin-say`)
+- Users also receive automated payment notifications via the bot after finalization (see `event-payment-notifications`)
+
 ---
 
 ## Admin
@@ -1162,6 +1155,12 @@ Payment collector identity and payment info in DMs.
 - `Scaffold.collectorId` — participant who collects payments for scaffold-based events
 - `Event.collectorId` — inherited from scaffold, or from `default_collector_id` setting for ad-hoc events
 - `Settings.default_collector_id` — fallback collector for events without scaffold
+
+**Collector setup:**
+- **Default collector:** The `default_collector_id` setting in the Settings table stores the participant ID of the fallback collector. It is configured directly in the database (or via Notion). This collector is used for ad-hoc events that have no scaffold.
+- **Per-scaffold collector:** Each scaffold has a `collectorId` field (Relation to Participants). It can be set when creating or editing the scaffold. Events created from a scaffold inherit its `collectorId`.
+- **Per-event collector:** Each event has a `collectorId` field. For scaffold-based events it is inherited from the scaffold; for ad-hoc events it comes from `default_collector_id`. It can also be overridden when editing the event.
+- **Payment info:** The collector's `paymentInfo` field on their Participant record stores free-text payment details (e.g., card number, bank name). This is configured directly in the database.
 
 **Flow:**
 1. Event is created (from scaffold or manually)

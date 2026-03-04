@@ -292,6 +292,7 @@ export class TelegramTransport {
             registered,
             args: commandArgs,
             ctx,
+            sudo: true,
           })
           .catch(async (error) => {
             await this.logger.error(

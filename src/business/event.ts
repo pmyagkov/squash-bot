@@ -57,11 +57,7 @@ import {
   eventMenuDef,
 } from '~/commands/event/defs'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
-import {
-  paymentDebtDef,
-  adminPaymentDebtDef,
-  type AdminPaymentDebtData,
-} from '~/commands/payment/defs'
+import { paymentDebtDef, type PaymentDebtData } from '~/commands/payment/defs'
 import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
 import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
 
@@ -339,17 +335,9 @@ export class EventBusiness {
       await this.handleEventEditMenu(data, source)
     })
 
-    this.commandRegistry.register('payment:debt', paymentDebtDef, async (_data, source) => {
-      await this.handlePaymentDebt(source)
+    this.commandRegistry.register('payment:debt', paymentDebtDef, async (data, source) => {
+      await this.handlePaymentDebt(data as PaymentDebtData, source)
     })
-
-    this.commandRegistry.register(
-      'admin:payment:debt',
-      adminPaymentDebtDef,
-      async (data, source) => {
-        await this.handleAdminPaymentDebt(data as AdminPaymentDebtData, source)
-      }
-    )
 
     this.transport.onEdit('event', (action, entityId, ctx) =>
       this.handleEventEditAction(action, entityId, ctx)
@@ -412,7 +400,7 @@ export class EventBusiness {
     // Notify owner (fire-and-forget)
     const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
     const joinTotal = joinParticipants.reduce((sum, ep) => sum + ep.participations, 0)
-    void this.notifyOwner(event, 'joined', participant.displayName, {
+    void this.notifyOwner(event, 'participant-joined', participant.displayName, {
       totalParticipations: joinTotal,
       courts: event.courts,
       actorUserId: data.userId,
@@ -450,7 +438,7 @@ export class EventBusiness {
     // Notify owner (fire-and-forget)
     const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
     const leaveTotal = leaveParticipants.reduce((sum, ep) => sum + ep.participations, 0)
-    void this.notifyOwner(event, 'left', participant.displayName, {
+    void this.notifyOwner(event, 'participant-left', participant.displayName, {
       totalParticipations: leaveTotal,
       courts: event.courts,
       actorUserId: data.userId,
@@ -479,7 +467,7 @@ export class EventBusiness {
     // Notify owner (fire-and-forget)
     const addCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
     const addCourtTotal = addCourtParticipants.reduce((sum, ep) => sum + ep.participations, 0)
-    void this.notifyOwner(event, 'court-added', undefined, {
+    void this.notifyOwner(event, 'event-court-added', undefined, {
       totalParticipations: addCourtTotal,
       courts: newCourts,
       actorUserId: data.userId,
@@ -513,7 +501,7 @@ export class EventBusiness {
     // Notify owner (fire-and-forget)
     const removeCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
     const removeCourtTotal = removeCourtParticipants.reduce((sum, ep) => sum + ep.participations, 0)
-    void this.notifyOwner(event, 'court-removed', undefined, {
+    void this.notifyOwner(event, 'event-court-removed', undefined, {
       totalParticipations: removeCourtTotal,
       courts: newCourts,
       actorUserId: data.userId,
@@ -590,7 +578,7 @@ export class EventBusiness {
 
       // Notify owner (fire-and-forget)
       const actor = await this.participantRepository.findByTelegramId(String(data.userId))
-      void this.notifyOwner(event, 'finalized', actor?.displayName ?? 'Unknown')
+      void this.notifyOwner(event, 'event-finalized', actor?.displayName ?? 'Unknown')
     } finally {
       this.eventLock.release(event.id)
     }
@@ -1567,7 +1555,91 @@ export class EventBusiness {
     void this.transport.logEvent({ type: 'payment_cancelled', event, participant })
   }
 
-  private async handlePaymentDebt(source: SourceContext): Promise<void> {
+  private async handlePaymentDebt(data: PaymentDebtData, source: SourceContext): Promise<void> {
+    // Sudo mode: show all debts or per-user debts
+    if (source.sudo) {
+      if (data.targetUsername) {
+        // Per-user mode
+        const participant = await this.participantRepository.findByUsername(data.targetUsername)
+        if (!participant) {
+          await this.transport.sendMessage(source.chat.id, `User @${data.targetUsername} not found`)
+          return
+        }
+
+        const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
+        const debts: DebtEntry[] = []
+        for (const payment of unpaidPayments) {
+          const event = await this.eventRepository.findById(payment.eventId)
+          if (!event) {
+            continue
+          }
+          const eventDate = dayjs.tz(event.datetime, config.timezone)
+          debts.push({ eventDateStr: formatDate(eventDate), amount: payment.amount })
+        }
+
+        if (debts.length === 0) {
+          await this.transport.sendMessage(
+            source.chat.id,
+            `✅ @${data.targetUsername} has no debts!`
+          )
+          return
+        }
+
+        let text = `💰 Debts for @${data.targetUsername}:\n`
+        let total = 0
+        for (const debt of debts) {
+          text += `\nSquash ${debt.eventDateStr} — ${debt.amount} din`
+          total += debt.amount
+        }
+        text += `\n\nTotal: ${total} din`
+        await this.transport.sendMessage(source.chat.id, text)
+        return
+      }
+
+      // All debts mode
+      const unpaidPayments = await this.paymentRepository.getUnpaidPayments()
+      if (unpaidPayments.length === 0) {
+        await this.transport.sendMessage(source.chat.id, '✅ All payments received!')
+        return
+      }
+
+      // Group by event
+      const eventMap = new Map<
+        string,
+        { event: Event; debts: { participantName: string; amount: number }[] }
+      >()
+
+      for (const payment of unpaidPayments) {
+        if (!eventMap.has(payment.eventId)) {
+          const event = await this.eventRepository.findById(payment.eventId)
+          if (!event) {
+            continue
+          }
+          eventMap.set(payment.eventId, { event, debts: [] })
+        }
+
+        const participant = await this.participantRepository.findById(payment.participantId)
+        const name = participant?.telegramUsername
+          ? `@${participant.telegramUsername}`
+          : (participant?.displayName ?? 'Unknown')
+
+        eventMap.get(payment.eventId)!.debts.push({
+          participantName: name,
+          amount: payment.amount,
+        })
+      }
+
+      const groups: AdminDebtGroup[] = Array.from(eventMap.values()).map(({ event, debts }) => ({
+        eventDateStr: formatDate(dayjs.tz(event.datetime, config.timezone)),
+        debts,
+      }))
+
+      const message = formatAdminDebtSummary(groups)
+      await this.transport.sendMessage(source.chat.id, message)
+      return
+    }
+
+    // Regular user mode: show only own debts
     const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
     if (!participant) {
       await this.transport.sendMessage(source.chat.id, '✅ No unpaid debts!')
@@ -1602,90 +1674,6 @@ export class EventBusiness {
     }
 
     const message = formatDebtSummary(debts)
-    await this.transport.sendMessage(source.chat.id, message)
-  }
-
-  private async handleAdminPaymentDebt(
-    data: AdminPaymentDebtData,
-    source: SourceContext
-  ): Promise<void> {
-    if (data.targetUsername) {
-      // Per-user mode
-      const participant = await this.participantRepository.findByUsername(data.targetUsername)
-      if (!participant) {
-        await this.transport.sendMessage(source.chat.id, `User @${data.targetUsername} not found`)
-        return
-      }
-
-      const unpaidPayments = await this.paymentRepository.getUnpaidByParticipantId(participant.id)
-      const debts: DebtEntry[] = []
-      for (const payment of unpaidPayments) {
-        const event = await this.eventRepository.findById(payment.eventId)
-        if (!event) {
-          continue
-        }
-        const eventDate = dayjs.tz(event.datetime, config.timezone)
-        debts.push({ eventDateStr: formatDate(eventDate), amount: payment.amount })
-      }
-
-      if (debts.length === 0) {
-        await this.transport.sendMessage(
-          source.chat.id,
-          `\u2705 @${data.targetUsername} has no debts!`
-        )
-        return
-      }
-
-      let text = `\u{1F4B0} Debts for @${data.targetUsername}:\n`
-      let total = 0
-      for (const debt of debts) {
-        text += `\nSquash ${debt.eventDateStr} \u2014 ${debt.amount} din`
-        total += debt.amount
-      }
-      text += `\n\nTotal: ${total} din`
-      await this.transport.sendMessage(source.chat.id, text)
-      return
-    }
-
-    // All debts mode
-    const unpaidPayments = await this.paymentRepository.getUnpaidPayments()
-    if (unpaidPayments.length === 0) {
-      await this.transport.sendMessage(source.chat.id, '\u2705 All payments received!')
-      return
-    }
-
-    // Group by event
-    const eventMap = new Map<
-      string,
-      { event: Event; debts: { participantName: string; amount: number }[] }
-    >()
-
-    for (const payment of unpaidPayments) {
-      if (!eventMap.has(payment.eventId)) {
-        const event = await this.eventRepository.findById(payment.eventId)
-        if (!event) {
-          continue
-        }
-        eventMap.set(payment.eventId, { event, debts: [] })
-      }
-
-      const participant = await this.participantRepository.findById(payment.participantId)
-      const name = participant?.telegramUsername
-        ? `@${participant.telegramUsername}`
-        : (participant?.displayName ?? 'Unknown')
-
-      eventMap.get(payment.eventId)!.debts.push({
-        participantName: name,
-        amount: payment.amount,
-      })
-    }
-
-    const groups: AdminDebtGroup[] = Array.from(eventMap.values()).map(({ event, debts }) => ({
-      eventDateStr: formatDate(dayjs.tz(event.datetime, config.timezone)),
-      debts,
-    }))
-
-    const message = formatAdminDebtSummary(groups)
     await this.transport.sendMessage(source.chat.id, message)
   }
 
@@ -1869,7 +1857,13 @@ export class EventBusiness {
 
   async notifyOwner(
     event: Event,
-    type: 'joined' | 'left' | 'court-added' | 'court-removed' | 'announced' | 'finalized',
+    type:
+      | 'participant-joined'
+      | 'participant-left'
+      | 'event-court-added'
+      | 'event-court-removed'
+      | 'event-announced'
+      | 'event-finalized',
     actorName: string | undefined,
     opts: {
       totalParticipations?: number
@@ -2153,7 +2147,7 @@ export class EventBusiness {
       updatedEvent.telegramChatId && updatedEvent.telegramMessageId
         ? buildAnnouncementUrl(updatedEvent.telegramChatId, updatedEvent.telegramMessageId)
         : undefined
-    void this.notifyOwner(updatedEvent, 'announced', undefined, { announceUrl })
+    void this.notifyOwner(updatedEvent, 'event-announced', undefined, { announceUrl })
 
     return updatedEvent
   }

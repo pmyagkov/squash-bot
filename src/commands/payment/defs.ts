@@ -1,15 +1,10 @@
 import type { CommandDef } from '~/services/command/types'
 
-export const paymentDebtDef: CommandDef<Record<string, never>> = {
-  parser: () => ({ parsed: {}, missing: [] }),
-  steps: [],
-}
-
-export interface AdminPaymentDebtData {
+export interface PaymentDebtData {
   targetUsername?: string
 }
 
-export const adminPaymentDebtDef: CommandDef<AdminPaymentDebtData> = {
+export const paymentDebtDef: CommandDef<PaymentDebtData> = {
   parser: ({ args }) => {
     if (args.length === 0) {
       return { parsed: {}, missing: [] }

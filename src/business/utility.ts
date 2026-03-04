@@ -161,6 +161,7 @@ Use /help to see available commands.`
 <b>Event</b> — a specific session with date, participants, and payments. Created automatically from a scaffold or manually.
 
 <b>Commands:</b>
+/help - Show this help message
 /event - Manage events
 /scaffold - Manage schedules
 /payment debt - Check your unpaid debts`

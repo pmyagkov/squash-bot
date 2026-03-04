@@ -1273,14 +1273,19 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      await business.notifyOwner(buildEvent({ id: 'ev_1', ownerId: '111' }), 'joined', '@vasya', {
-        totalParticipations: 5,
-        courts: 2,
-      })
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@vasya',
+        {
+          totalParticipations: 5,
+          courts: 2,
+        }
+      )
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         111,
-        expect.stringContaining('\u{1F464} @vasya joined')
+        expect.stringContaining('👤 @vasya joined')
       )
     })
 
@@ -1289,11 +1294,16 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      await business.notifyOwner(buildEvent({ id: 'ev_1', ownerId: '111' }), 'joined', '@vasya', {
-        totalParticipations: 5,
-        courts: 2,
-        actorUserId: 111,
-      })
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@vasya',
+        {
+          totalParticipations: 5,
+          courts: 2,
+          actorUserId: 111,
+        }
+      )
 
       expect(transport.sendMessage).not.toHaveBeenCalled()
     })
@@ -1310,10 +1320,15 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      await business.notifyOwner(buildEvent({ id: 'ev_1', ownerId: '111' }), 'joined', '@vasya', {
-        totalParticipations: 5,
-        courts: 2,
-      })
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@vasya',
+        {
+          totalParticipations: 5,
+          courts: 2,
+        }
+      )
 
       expect(transport.sendMessage).toHaveBeenCalledTimes(2)
       expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String))
@@ -1811,7 +1826,7 @@ describe('EventBusiness', () => {
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         expect.any(Number),
-        expect.stringContaining('\u{1F4B0} Your unpaid debts:')
+        expect.stringContaining('💰 Your unpaid debts:')
       )
     })
 
@@ -1832,14 +1847,19 @@ describe('EventBusiness', () => {
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         expect.any(Number),
-        expect.stringContaining('\u2705 No unpaid debts!')
+        expect.stringContaining('✅ No unpaid debts!')
       )
     })
   })
 
-  // ── handleAdminPaymentDebt ─────────────────────────────────────────────
+  // ── handlePaymentDebt (sudo) ─────────────────────────────────────────────
 
-  describe('handleAdminPaymentDebt', () => {
+  describe('handlePaymentDebt (sudo)', () => {
+    function makeSudoSource(overrides?: Parameters<typeof makeSource>[0]): SourceContext {
+      const base = makeSource(overrides)
+      return { ...base, sudo: true }
+    }
+
     test('shows all debts grouped by event', async ({ container }) => {
       const transport = container.resolve('transport')
       const paymentRepo = container.resolve('paymentRepository')
@@ -1862,13 +1882,18 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCommandHandler(container, 'admin:payment:debt')
-      await handler({}, makeSource())
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSudoSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         expect.any(Number),
-        expect.stringContaining('\u{1F4B0} Outstanding debts:')
+        expect.stringContaining('💰 Outstanding debts:')
       )
+
+      // Verify both users are shown in the response
+      const message = transport.sendMessage.mock.calls[0][1] as string
+      expect(message).toContain('@vasya')
+      expect(message).toContain('@petya')
     })
 
     test('shows debts for specific user', async ({ container }) => {
@@ -1891,12 +1916,12 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCommandHandler(container, 'admin:payment:debt')
-      await handler({ targetUsername: 'vasya' }, makeSource())
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({ targetUsername: 'vasya' }, makeSudoSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         expect.any(Number),
-        expect.stringContaining('\u{1F4B0} Debts for @vasya:')
+        expect.stringContaining('💰 Debts for @vasya:')
       )
     })
 
@@ -1909,12 +1934,12 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCommandHandler(container, 'admin:payment:debt')
-      await handler({}, makeSource())
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSudoSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         expect.any(Number),
-        expect.stringContaining('\u2705 All payments received!')
+        expect.stringContaining('✅ All payments received!')
       )
     })
 
@@ -1927,12 +1952,58 @@ describe('EventBusiness', () => {
       const business = new EventBusiness(container)
       business.init()
 
-      const handler = getCommandHandler(container, 'admin:payment:debt')
-      await handler({ targetUsername: 'unknown' }, makeSource())
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({ targetUsername: 'unknown' }, makeSudoSource())
 
       expect(transport.sendMessage).toHaveBeenCalledWith(
         expect.any(Number),
         expect.stringContaining('not found')
+      )
+    })
+  })
+
+  // ── handlePaymentDebt: user sees only own debts ─────────────────────
+
+  describe('handlePaymentDebt: user isolation', () => {
+    test('user sees only their own debts, not others', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const participantRepo = container.resolve('participantRepository')
+      const paymentRepo = container.resolve('paymentRepository')
+      const eventRepo = container.resolve('eventRepository')
+
+      // The calling user
+      const myParticipant = buildParticipant({
+        id: 'pt_me',
+        telegramId: '555',
+        telegramUsername: 'me',
+      })
+      participantRepo.findByTelegramId.mockResolvedValue(myParticipant)
+
+      // Only return payments for the calling user (the repo is called with their participant id)
+      paymentRepo.getUnpaidByParticipantId.mockResolvedValue([
+        buildPayment({ eventId: 'ev_1', participantId: 'pt_me', amount: 500 }),
+      ])
+
+      const event = buildEvent({
+        id: 'ev_1',
+        datetime: new Date('2024-01-21T21:00:00Z'),
+      })
+      eventRepo.findById.mockResolvedValue(event)
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCommandHandler(container, 'payment:debt')
+      await handler({}, makeSource({ user: { id: 555, firstName: 'Me' } }))
+
+      // Should call getUnpaidByParticipantId with the calling user's participant id
+      expect(paymentRepo.getUnpaidByParticipantId).toHaveBeenCalledWith('pt_me')
+      // Should NOT call getUnpaidPayments (all-debts admin mode)
+      expect(paymentRepo.getUnpaidPayments).not.toHaveBeenCalled()
+
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.stringContaining('💰 Your unpaid debts:')
       )
     })
   })

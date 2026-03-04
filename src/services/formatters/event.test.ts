@@ -549,7 +549,7 @@ describe('event formatters', () => {
         '456',
         'Card: 1234-5678-9012-3456'
       )
-      expect(result).toContain('\u{1F4B3}')
+      expect(result).toContain('💳')
       expect(result).toContain('Card: 1234-5678-9012-3456')
     })
 
@@ -564,7 +564,7 @@ describe('event formatters', () => {
       }
 
       const result = formatPersonalPaymentText(event, 1000, 2, 2000, 4, -100123, '456')
-      expect(result).not.toContain('\u{1F4B3}')
+      expect(result).not.toContain('💳')
     })
 
     it('should format personal payment DM text', () => {
@@ -731,66 +731,90 @@ describe('event formatters', () => {
 
   describe('formatOwnerNotification', () => {
     it('should format participant joined with balance', () => {
-      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 5, 2)
-      expect(result).toContain('\u{1F464} @vasya joined Tue 21 Jan')
-      expect(result).toContain('Participants: 5 \u00B7 Courts: 2')
+      const result = formatOwnerNotification('participant-joined', '@vasya', 'Tue 21 Jan', 5, 2)
+      expect(result).toContain('👤 @vasya joined Tue 21 Jan')
+      expect(result).toContain('Participants: 5 · Courts: 2')
     })
 
     it('should format participant left with balance', () => {
-      const result = formatOwnerNotification('left', '@vasya', 'Tue 21 Jan', 4, 2)
-      expect(result).toContain('\u{1F464} @vasya left Tue 21 Jan')
-      expect(result).toContain('Participants: 4 \u00B7 Courts: 2')
+      const result = formatOwnerNotification('participant-left', '@vasya', 'Tue 21 Jan', 4, 2)
+      expect(result).toContain('👤 @vasya left Tue 21 Jan')
+      expect(result).toContain('Participants: 4 · Courts: 2')
     })
 
     it('should format court added with balance', () => {
-      const result = formatOwnerNotification('court-added', undefined, 'Tue 21 Jan', 5, 3)
-      expect(result).toContain('\u{1F3DF} Court added for Tue 21 Jan')
-      expect(result).toContain('Participants: 5 \u00B7 Courts: 3')
+      const result = formatOwnerNotification('event-court-added', undefined, 'Tue 21 Jan', 5, 3)
+      expect(result).toContain('🏟 Court added for Tue 21 Jan')
+      expect(result).toContain('Participants: 5 · Courts: 3')
     })
 
     it('should format court removed with balance', () => {
-      const result = formatOwnerNotification('court-removed', undefined, 'Tue 21 Jan', 5, 1)
-      expect(result).toContain('\u{1F3DF} Court removed for Tue 21 Jan')
-      expect(result).toContain('Participants: 5 \u00B7 Courts: 1')
+      const result = formatOwnerNotification('event-court-removed', undefined, 'Tue 21 Jan', 5, 1)
+      expect(result).toContain('🏟 Court removed for Tue 21 Jan')
+      expect(result).toContain('Participants: 5 · Courts: 1')
     })
 
     it('should format event announced', () => {
       const result = formatOwnerNotification(
-        'announced',
+        'event-announced',
         undefined,
         'Tue 21 Jan 21:00',
         0,
         2,
         'https://t.me/c/123/456'
       )
-      expect(result).toContain('\u{1F3BE} Your event announced: Tue 21 Jan 21:00')
+      expect(result).toContain('🎾 Your event announced: Tue 21 Jan 21:00')
     })
 
     it('should format event finalized', () => {
-      const result = formatOwnerNotification('finalized', '@petya', 'Tue 21 Jan', 5, 2)
-      expect(result).toContain('\u2705 Tue 21 Jan finalized by @petya')
+      const result = formatOwnerNotification('event-finalized', '@petya', 'Tue 21 Jan', 5, 2)
+      expect(result).toContain('✅ Tue 21 Jan finalized by @petya')
     })
 
     it('should append over capacity warning', () => {
-      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 10, 2, undefined, {
-        maxPerCourt: 4,
-      })
-      expect(result).toContain('\u26A0\uFE0F Over capacity')
+      const result = formatOwnerNotification(
+        'participant-joined',
+        '@vasya',
+        'Tue 21 Jan',
+        10,
+        2,
+        undefined,
+        {
+          maxPerCourt: 4,
+        }
+      )
+      expect(result).toContain('⚠️ Over capacity')
     })
 
     it('should append low attendance warning', () => {
-      const result = formatOwnerNotification('left', '@vasya', 'Tue 21 Jan', 1, 2, undefined, {
-        minPerCourt: 2,
-      })
-      expect(result).toContain('\u26A0\uFE0F Low attendance')
+      const result = formatOwnerNotification(
+        'participant-left',
+        '@vasya',
+        'Tue 21 Jan',
+        1,
+        2,
+        undefined,
+        {
+          minPerCourt: 2,
+        }
+      )
+      expect(result).toContain('⚠️ Low attendance')
     })
 
     it('should not append warning when balance is ok', () => {
-      const result = formatOwnerNotification('joined', '@vasya', 'Tue 21 Jan', 4, 2, undefined, {
-        maxPerCourt: 4,
-        minPerCourt: 2,
-      })
-      expect(result).not.toContain('\u26A0\uFE0F')
+      const result = formatOwnerNotification(
+        'participant-joined',
+        '@vasya',
+        'Tue 21 Jan',
+        4,
+        2,
+        undefined,
+        {
+          maxPerCourt: 4,
+          minPerCourt: 2,
+        }
+      )
+      expect(result).not.toContain('⚠️')
     })
   })
 
@@ -804,9 +828,9 @@ describe('event formatters', () => {
       const result = formatDebtSummary(debts)
 
       expect(result).toContain('Your unpaid debts:')
-      expect(result).toContain('Squash Tue, 21 Jan, 21:00 \u2014 1000 din')
-      expect(result).toContain('\u{1F4B3} Card: 1234')
-      expect(result).toContain('Squash Thu, 23 Jan, 19:00 \u2014 1500 din')
+      expect(result).toContain('Squash Tue, 21 Jan, 21:00 — 1000 din')
+      expect(result).toContain('💳 Card: 1234')
+      expect(result).toContain('Squash Thu, 23 Jan, 19:00 — 1500 din')
       expect(result).toContain('Total: 2500 din')
     })
 
@@ -815,15 +839,15 @@ describe('event formatters', () => {
 
       const result = formatDebtSummary(debts)
 
-      expect(result).toContain('Squash Tue, 21 Jan, 21:00 \u2014 1000 din')
-      expect(result).not.toContain('\u{1F4B3}')
+      expect(result).toContain('Squash Tue, 21 Jan, 21:00 — 1000 din')
+      expect(result).not.toContain('💳')
       expect(result).toContain('Total: 1000 din')
     })
 
     it('should return no-debts message when empty array', () => {
       const result = formatDebtSummary([])
 
-      expect(result).toContain('\u2705 No unpaid debts!')
+      expect(result).toContain('✅ No unpaid debts!')
     })
   })
 
@@ -839,16 +863,16 @@ describe('event formatters', () => {
         },
       ]
       const result = formatAdminDebtSummary(groups)
-      expect(result).toContain('\u{1F4B0} Outstanding debts:')
+      expect(result).toContain('💰 Outstanding debts:')
       expect(result).toContain('Squash Tue 21 Jan 21:00:')
-      expect(result).toContain('@vasya \u2014 1000 din')
-      expect(result).toContain('@petya \u2014 1000 din')
+      expect(result).toContain('@vasya — 1000 din')
+      expect(result).toContain('@petya — 1000 din')
       expect(result).toContain('Total: 2000 din (2 unpaid)')
     })
 
     it('should return no-debts message when empty', () => {
       const result = formatAdminDebtSummary([])
-      expect(result).toContain('\u2705 All payments received!')
+      expect(result).toContain('✅ All payments received!')
     })
   })
 })

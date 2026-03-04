@@ -68,6 +68,7 @@ describe('UtilityBusiness', () => {
       expect.stringContaining('Squash Bot')
     )
     const message = transport.sendMessage.mock.calls[0][1]
+    expect(message).toContain('/help')
     expect(message).toContain('/event')
     expect(message).toContain('/scaffold')
     expect(message).not.toContain('/myid')
@@ -256,6 +257,8 @@ describe('UtilityBusiness', () => {
       TEST_CONFIG.chatId,
       expect.stringContaining('⏰')
     )
+    const reminderMessage = transport.sendMessage.mock.calls[1][1]
+    expect(reminderMessage).toContain('not yet finalized')
   })
 
   // ── Cross-cutting concerns ─────────────────────────────────────────
