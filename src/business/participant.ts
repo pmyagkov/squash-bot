@@ -38,8 +38,7 @@ export class ParticipantBusiness {
       )
       void this.transport.logEvent({
         type: 'participant_registered',
-        participantId: participant.id,
-        displayName: participant.displayName,
+        participant,
       })
     }
 

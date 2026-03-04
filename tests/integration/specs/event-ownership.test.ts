@@ -5,6 +5,8 @@ import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/test
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 describe('event-ownership', () => {
   let bot: Bot
   let api: BotApiMock
@@ -29,6 +31,7 @@ describe('event-ownership', () => {
           chatId: TEST_CHAT_ID,
         })
         await bot.handleUpdate(update)
+        await tick()
 
         const addCall = api.sendMessage.mock.calls.find(([, text]) =>
           text.includes('📅 Event created')
@@ -57,6 +60,7 @@ describe('event-ownership', () => {
           chatId: TEST_CHAT_ID,
         })
         await bot.handleUpdate(update)
+        await tick()
 
         const addCall = api.sendMessage.mock.calls.find(([, text]) =>
           text.includes('📅 Event created')
@@ -77,6 +81,7 @@ describe('event-ownership', () => {
           chatId: TEST_CHAT_ID,
         })
         await bot.handleUpdate(update)
+        await tick()
 
         const addCall = api.sendMessage.mock.calls.find(([, text]) =>
           text.includes('📅 Event created')
@@ -107,6 +112,7 @@ describe('event-ownership', () => {
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
+      await tick()
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
@@ -134,6 +140,7 @@ describe('event-ownership', () => {
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
+      await tick()
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
@@ -155,6 +162,7 @@ describe('event-ownership', () => {
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
+      await tick()
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
@@ -169,6 +177,7 @@ describe('event-ownership', () => {
         chatId: TEST_CHAT_ID,
       })
       await bot.handleUpdate(update)
+      await tick()
 
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,

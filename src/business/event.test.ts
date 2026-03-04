@@ -1699,16 +1699,15 @@ describe('EventBusiness', () => {
       const settingsRepo = container.resolve('settingsRepository')
       const transport = container.resolve('transport')
 
-      // Event tomorrow at 18:00, status=created
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      tomorrow.setHours(18, 0, 0, 0)
+      // Event today at 21:00, status=created — deadline (-1d 12:00) is yesterday, already past
+      const today = new Date()
+      today.setHours(21, 0, 0, 0)
 
       const event = buildEvent({
         id: 'ev_manual1',
         status: 'created',
         scaffoldId: undefined,
-        datetime: tomorrow,
+        datetime: today,
         ownerId: '111',
         telegramMessageId: undefined,
       })

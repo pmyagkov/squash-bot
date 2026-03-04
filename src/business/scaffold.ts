@@ -128,15 +128,11 @@ export class ScaffoldBusiness {
       await this.logger.log(
         `User ${source.user.id} created scaffold ${scaffold.id}: ${data.day} ${data.time}, ${data.courts} courts`
       )
+      const owner = await this.participantRepository.findByTelegramId(String(source.user.id))
       void this.transport.logEvent({
         type: 'scaffold_created',
-        scaffoldId: scaffold.id,
-        day: data.day,
-        time: data.time,
-        courts: data.courts,
-        isActive: scaffold.isActive,
-        isPrivate: scaffold.isPrivate,
-        ownerLabel: source.user.username ? `@${source.user.username}` : undefined,
+        scaffold,
+        owner: owner ?? undefined,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -216,6 +212,10 @@ export class ScaffoldBusiness {
         break
       case 'toggle':
         await this.scaffoldRepository.setActive(entityId, !scaffold.isActive)
+        void this.transport.logEvent({
+          type: 'scaffold_toggled',
+          scaffold: { ...scaffold, isActive: !scaffold.isActive },
+        })
         break
       case 'privacy':
         await this.scaffoldRepository.updateFields(entityId, { isPrivate: !scaffold.isPrivate })
@@ -388,7 +388,7 @@ export class ScaffoldBusiness {
         `✅ Scaffold ${code(data.scaffoldId)} deleted`
       )
       await this.logger.log(`User ${source.user.id} deleted scaffold ${data.scaffoldId}`)
-      void this.transport.logEvent({ type: 'scaffold_deleted', scaffoldId: data.scaffoldId })
+      void this.transport.logEvent({ type: 'scaffold_deleted', scaffold })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
@@ -428,6 +428,7 @@ export class ScaffoldBusiness {
         `✅ Scaffold ${code(data.scaffoldId)} restored`
       )
       await this.logger.log(`User ${source.user.id} restored scaffold ${data.scaffoldId}`)
+      void this.transport.logEvent({ type: 'scaffold_restored', scaffold })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
@@ -477,6 +478,16 @@ export class ScaffoldBusiness {
       await this.logger.log(
         `User ${source.user.id} transferred scaffold ${scaffold.id} to @${data.targetUsername}`
       )
+      const from = scaffold.ownerId
+        ? await this.participantRepository.findByTelegramId(scaffold.ownerId)
+        : undefined
+      if (from) {
+        void this.transport.logEvent({ type: 'scaffold_transferred', scaffold, from, to: target })
+      } else {
+        void this.logger.warn(
+          `Cannot find owner participant for scaffold ${scaffold.id} during transfer`
+        )
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       await this.transport.sendMessage(source.chat.id, `❌ Error: ${errorMessage}`)
