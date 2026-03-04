@@ -14,7 +14,8 @@ All commands run on the server unless noted otherwise.
 | Manual deploy | `cd /opt/squash-bot && docker compose pull && docker compose up -d` |
 | Health check | `curl http://localhost:3010/health` |
 | DB console | `docker exec -it squash-bot-postgres psql -U postgres -d squash_bot` |
-| DB backup | `docker exec squash-bot-postgres pg_dump -U postgres squash_bot > backup.sql` |
+| DB backup | `scripts/backup-db.sh` |
+| DB restore | `scripts/restore-db.sh <file.dump>` |
 
 ## Architecture
 
@@ -230,14 +231,36 @@ cd /opt/squash-bot
 docker compose run --rm db-init
 ```
 
-### Database backup and restore
+### Database Backups
+
+Backups use `scripts/backup-db.sh` — creates `pg_dump` in custom format, logs to `backup.log`, rotates files older than 7 days.
 
 ```bash
-# Backup
-docker exec squash-bot-postgres pg_dump -U postgres squash_bot > backup-$(date +%Y%m%d).sql
+# Manual backup (default dir: /opt/backups/squash-bot/)
+/opt/squash-bot/scripts/backup-db.sh
+
+# Custom backup directory
+/opt/squash-bot/scripts/backup-db.sh /path/to/backups
+```
+
+**Cron setup** (daily at 3:00 AM):
+
+```bash
+mkdir -p /opt/backups/squash-bot
+
+# Add to crontab
+crontab -e
+0 3 * * * /opt/squash-bot/scripts/backup-db.sh
+```
+
+**Restore** from backup (stops bot, restores, restarts bot):
+
+```bash
+# List available backups
+ls -lh /opt/backups/squash-bot/
 
 # Restore
-cat backup-20260225.sql | docker exec -i squash-bot-postgres psql -U postgres squash_bot
+/opt/squash-bot/scripts/restore-db.sh /opt/backups/squash-bot/backup_20260304_030000.dump
 ```
 
 ## Troubleshooting
@@ -306,3 +329,6 @@ docker image prune -a --filter "until=168h"
 | `scripts/docker-entrypoint.sh` | Container entrypoint (repo) |
 | `scripts/setup-env.sh` | Interactive env file generator (repo) |
 | `scripts/renew-certs.sh` | SSL certificate renewal (repo) |
+| `scripts/backup-db.sh` | Database backup with rotation (repo) |
+| `scripts/restore-db.sh` | Database restore from backup (repo) |
+| `/opt/backups/squash-bot/` | Backup files and log (server) |
