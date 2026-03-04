@@ -44,5 +44,18 @@ services:
       retries: 3
       start_period: 40s
 
+  scheduler:
+    build: ./scheduler
+    container_name: squash-bot-scheduler
+    restart: unless-stopped
+    environment:
+      - BOT_URL=http://bot:3010
+      - API_KEY=${API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
+    depends_on:
+      bot:
+        condition: service_healthy
+
 volumes:
   postgres-data:
