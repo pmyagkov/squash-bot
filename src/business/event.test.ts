@@ -1,4 +1,4 @@
-import { test, describe, expect } from '@tests/setup'
+import { test, describe, expect, vi } from '@tests/setup'
 import {
   buildEvent,
   buildScaffold,
@@ -1745,15 +1745,22 @@ describe('EventBusiness', () => {
       const settingsRepo = container.resolve('settingsRepository')
       const transport = container.resolve('transport')
 
-      // Event today at 21:00, status=created — deadline (-1d 12:00) is yesterday, already past
-      const today = new Date()
-      today.setHours(21, 0, 0, 0)
+      // Fix time to 15:00 UTC so the test is deterministic
+      // Event tomorrow at 21:00, deadline (-1d 12:00) = today 12:00 → 15:00 > 12:00 → triggers
+      const now = new Date()
+      now.setHours(15, 0, 0, 0)
+      vi.useFakeTimers()
+      vi.setSystemTime(now)
+
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(21, 0, 0, 0)
 
       const event = buildEvent({
         id: 'ev_manual1',
         status: 'created',
         scaffoldId: undefined,
-        datetime: today,
+        datetime: tomorrow,
         ownerId: '111',
         telegramMessageId: undefined,
       })
@@ -1779,6 +1786,8 @@ describe('EventBusiness', () => {
 
       expect(count).toBe(1)
       expect(transport.sendMessage).toHaveBeenCalled()
+
+      vi.useRealTimers()
     })
 
     test('skips already announced events', async ({ container }) => {
