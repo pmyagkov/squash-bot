@@ -67,6 +67,8 @@ export function formatLogEvent(event: LogEvent): string {
       return `💸 Payment cancelled: ${formatParticipantLabel(event.participant)} in ${code(event.event.id)}`
     case 'payment_check_completed':
       return `🔍 Payment check completed: ${event.eventsChecked} events checked`
+    case 'info_payment_updated':
+      return `💳 Payment info updated: ${formatParticipantLabel(event.participant)} → ${event.paymentInfo}`
     case 'scaffold_created':
       return `📋 Scaffold created\n\n${event.scaffold.dayOfWeek}, ${event.scaffold.time}${ownerSuffix(event.owner)}\n${formatCourts(event.scaffold.defaultCourts)} | ${formatActiveStatus(event.scaffold.isActive)} | ${formatPrivacy(event.scaffold.isPrivate)} | ${code(event.scaffold.id)}`
     case 'scaffold_toggled':

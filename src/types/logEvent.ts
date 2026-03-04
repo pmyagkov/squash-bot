@@ -30,6 +30,7 @@ export type BusinessEvent =
   | { type: 'payment_received'; event: Event; participant: Participant; amount: number }
   | { type: 'payment_cancelled'; event: Event; participant: Participant }
   | { type: 'payment_check_completed'; eventsChecked: number }
+  | { type: 'info_payment_updated'; participant: Participant; paymentInfo: string }
 
   // Scaffolds
   | { type: 'scaffold_created'; scaffold: Scaffold; owner?: Participant }

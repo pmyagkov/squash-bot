@@ -225,7 +225,7 @@ Use /help to see available commands.`
       } else {
         await this.transport.sendMessage(
           source.chat.id,
-          'ℹ️ No payment info set. Use: /info payment <text>'
+          'ℹ️ No payment info set. Use: <code>/info payment &lt;text&gt;</code>'
         )
       }
       return
@@ -233,6 +233,11 @@ Use /help to see available commands.`
 
     await this.participantRepository.updatePaymentInfo(participant.id, data.paymentInfo)
     await this.transport.sendMessage(source.chat.id, `✅ Payment info saved: ${data.paymentInfo}`)
+    await this.transport.logEvent({
+      type: 'info_payment_updated',
+      participant,
+      paymentInfo: data.paymentInfo,
+    })
   }
 
   private async handleSay(data: SayData, source: SourceContext): Promise<void> {

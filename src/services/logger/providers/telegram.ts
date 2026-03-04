@@ -36,7 +36,7 @@ export class TelegramProvider implements LogProvider {
     const logMessage = `[${emoji[level]} ${level.toUpperCase()}] ${timestamp}\n${message}`
 
     try {
-      await this.bot.api.sendMessage(this.logChatId, logMessage)
+      await this.bot.api.sendMessage(this.logChatId, logMessage, { parse_mode: undefined })
     } catch (error) {
       console.error('Failed to send log to Telegram:', error)
     }
