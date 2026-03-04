@@ -38,6 +38,12 @@ describe('info-payment', () => {
     const participant = await container.resolve('participantRepository')
       .findByTelegramId(String(ADMIN_ID))
     expect(participant?.paymentInfo).toBe('1234-5678-9012-3456')
+
+    // Verify logEvent
+    const logEventCall = api.sendMessage.mock.calls.find(
+      ([, text]) => typeof text === 'string' && text.includes('Payment info updated')
+    )
+    expect(logEventCall).toBeDefined()
   })
 
   it('should show current payment info when called without args', async () => {
