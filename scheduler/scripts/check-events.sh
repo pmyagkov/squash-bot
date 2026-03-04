@@ -16,8 +16,10 @@ RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 \
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
-# Check for HTTP error or error field in response
-if [ "$HTTP_CODE" != "200" ] || echo "$BODY" | grep -q '"error"'; then
+if [ "$HTTP_CODE" = "200" ]; then
+  echo "[check-events] OK (200) ${BODY}"
+else
+  echo "[check-events] FAIL (${HTTP_CODE}) ${BODY}"
   TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   ERROR_MSG=$(echo "$BODY" | grep -o '"error":"[^"]*"' | head -1 | sed 's/"error":"//;s/"//')
   [ -z "$ERROR_MSG" ] && ERROR_MSG="HTTP ${HTTP_CODE}"
@@ -26,4 +28,5 @@ if [ "$HTTP_CODE" != "200" ] || echo "$BODY" | grep -q '"error"'; then
     -d "chat_id=${ADMIN_CHAT_ID}" \
     -d "text=${TEXT}" \
     > /dev/null 2>&1
+  echo "[check-events] Alert sent to ${ADMIN_CHAT_ID}"
 fi
