@@ -1,3 +1,0 @@
-*/5  * * * *  /scripts/health-check.sh >> /proc/1/fd/1 2>&1
-*/15 * * * *  /scripts/check-events.sh >> /proc/1/fd/1 2>&1
-0   12 * * *  /scripts/check-payments.sh >> /proc/1/fd/1 2>&1
