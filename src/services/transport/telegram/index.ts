@@ -252,8 +252,14 @@ export class TelegramTransport {
         this.wizardService.cancel(userId)
         return
       }
-      this.wizardService.handleInput(ctx, text)
-      return
+      // If user sends a new command, cancel the active wizard and dispatch normally
+      if (text.startsWith('/')) {
+        this.wizardService.cancel(userId)
+        // Fall through to normal command dispatch below
+      } else {
+        this.wizardService.handleInput(ctx, text)
+        return
+      }
     }
 
     const args = ctx.message?.text?.split(/\s+/).slice(1) ?? []
