@@ -22,10 +22,10 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                         n8n                                  │
-│  [Schedule: */15 min] → [HTTP: POST /bot/check-events]      │
-│  [Schedule: once a day] → [HTTP: POST /bot/check-payments]  │
-│  [Schedule: */5 min] → [HTTP: GET /bot/health] → [Alert]    │
+│                   Scheduler (Alpine + supercronic)            │
+│  [HEALTH_SCHEDULE]         → [HTTP: GET /bot/health]→[Alert]│
+│  [CHECK_EVENTS_SCHEDULE]   → [HTTP: POST /bot/check-events] │
+│  [CHECK_PAYMENTS_SCHEDULE] → [HTTP: POST /bot/check-payments]│
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -35,9 +35,9 @@ Telegram bot for managing squash court payments in a community. Automates sessio
 ```
 
 **Separation of responsibilities:**
-- **n8n:** Only scheduler — triggers bot on schedule, monitors health
+- **Scheduler:** Lightweight cron container (Alpine + supercronic + curl) — triggers bot on schedule, monitors health, sends Telegram alerts on failure. Schedules configurable via env vars.
 - **Bot:** All logic + only one who writes to Telegram
-- If bot is dead → n8n sends alert to admin
+- If bot is dead → scheduler sends alert to admin via Telegram Bot API
 
 ### Internal Architecture
 
@@ -57,7 +57,7 @@ src/
 │   │   │   ├── types.ts           # CallbackTypes, CommandTypes definitions
 │   │   │   └── parsers.ts         # Context parsers (grammY Context → typed data)
 │   │   └── api/
-│   │       └── index.ts           # REST API server (Fastify) for n8n webhooks
+│   │       └── index.ts           # REST API server (Fastify) for scheduler webhooks
 │   └── logger/
 │       ├── logger.ts              # Logger class — log(), warn(), error()
 │       └── providers/             # ConsoleProvider (JSON stdout), TelegramProvider (errors)
@@ -141,7 +141,7 @@ transport/api → business → repo + logger + formatter → transport/telegram
 |-------|----------------|
 | **business/** | Business logic, orchestration, and handler registration via `init()` |
 | **services/transport/telegram/** | Unified Telegram I/O — parses input, routes to handlers, sends output |
-| **services/transport/api/** | REST API server for n8n webhooks |
+| **services/transport/api/** | REST API server for scheduler webhooks |
 | **storage/repo/** | Database operations only — CRUD, queries, toDomain() transformations |
 | **services/formatters/** | UI formatting — transform domain objects to formatted strings and keyboards |
 | **services/logger/** | Structured JSON logging to stdout. Per-level methods: `log()`, `warn()`, `error()`. TelegramProvider sends errors to log chat as safety net |
@@ -373,7 +373,7 @@ Record of participant's payment for a specific session.
 
 ## Scenario 2: Generate Event from Scaffold
 
-**Trigger:** n8n calls `POST /check-events` every 15 minutes
+**Trigger:** Scheduler calls `POST /check-events` on CHECK_EVENTS_SCHEDULE
 
 **Logic:**
 1. Bot gets all active scaffolds
@@ -623,7 +623,7 @@ Court cost: 2000
 
 ## Scenario 9: Reminder to Debtors
 
-**Trigger:** n8n calls `POST /check-payments` once a day (at 12:00)
+**Trigger:** Scheduler calls `POST /check-payments` on CHECK_PAYMENTS_SCHEDULE
 
 **Logic:**
 1. Find all events in `finalized` status with unpaid participants
@@ -796,7 +796,7 @@ You can mark payment in corresponding messages in chat.
 ## Scenario 13: Court Capacity Overflow
 
 **Trigger:**
-- n8n calls `POST /check-events` every 15 minutes
+- Scheduler calls `POST /check-events` on CHECK_EVENTS_SCHEDULE
 - Immediately after participant registration (+/-) or court change (+🎾/-🎾)
 
 **Goal:** Notify admin when more participants registered than courts can accommodate
@@ -835,7 +835,7 @@ Please book additional courts or manage registrations.
 ## Scenario 14: Excess Courts Notification
 
 **Trigger:**
-- n8n calls `POST /check-events` every 15 minutes
+- Scheduler calls `POST /check-events` on CHECK_EVENTS_SCHEDULE
 - Immediately after participant registration (+/-) or court change (+🎾/-🎾)
 
 **Goal:** Notify admin when too few participants for booked courts
@@ -874,7 +874,7 @@ Consider canceling extra courts to save costs.
 ## Scenario 15: No Participants — Event Cancellation
 
 **Trigger:**
-- n8n calls `POST /check-events` every 15 minutes
+- Scheduler calls `POST /check-events` on CHECK_EVENTS_SCHEDULE
 - Immediately after participant unregisters (I'm out)
 
 **Goal:** Notify admin when nobody registered for event, so they can cancel it
@@ -1065,9 +1065,9 @@ Bot selects table set by chat_id:
 
 | Endpoint | Method | Description | Called from |
 |----------|--------|-------------|-------------|
-| /health | GET | Healthcheck | n8n (every 5 min) |
-| /check-events | POST | Create scaffold events, auto-announce created events (see Scenario 2), check unfinalized | n8n (every 15 min) |
-| /check-payments | POST | Check debtors, send reminders | n8n (once a day) |
+| /health | GET | Healthcheck | Scheduler (HEALTH_SCHEDULE) |
+| /check-events | POST | Create scaffold events, auto-announce created events (see Scenario 2), check unfinalized | Scheduler (CHECK_EVENTS_SCHEDULE) |
+| /check-payments | POST | Check debtors, send reminders | Scheduler (CHECK_PAYMENTS_SCHEDULE) |
 
 ---
 

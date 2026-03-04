@@ -60,6 +60,22 @@ services:
       retries: 3
       start_period: 30s
 
+  scheduler:
+    build: ./scheduler
+    container_name: squash-bot-scheduler-test
+    env_file:
+      - .env.test
+    environment:
+      - BOT_URL=http://bot:3010
+    depends_on:
+      bot:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   db_init_node_modules:
   bot_node_modules:
