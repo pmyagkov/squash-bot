@@ -6,6 +6,7 @@ import type { AppContainer } from '~/container'
 
 const dummyInput = (args: string[]): ParserInput => ({
   args,
+  argsString: args.join(' '),
   ctx: {} as never,
   container: {} as never,
 })
@@ -47,6 +48,7 @@ describe('scaffoldCreateDef parser', () => {
   it('returns error for invalid day', () => {
     const result = scaffoldCreateDef.parser({
       args: ['Xyz', '21:00', '2'],
+      argsString: 'Xyz 21:00 2',
       ctx: {} as Context,
       container: {} as AppContainer,
     })
@@ -60,6 +62,7 @@ describe('scaffoldCreateDef parser', () => {
   it('returns error for invalid time', () => {
     const result = scaffoldCreateDef.parser({
       args: ['Tue', '25:00', '2'],
+      argsString: 'Tue 25:00 2',
       ctx: {} as Context,
       container: {} as AppContainer,
     })
@@ -73,6 +76,7 @@ describe('scaffoldCreateDef parser', () => {
   it('returns error for invalid courts', () => {
     const result = scaffoldCreateDef.parser({
       args: ['Tue', '21:00', '0'],
+      argsString: 'Tue 21:00 0',
       ctx: {} as Context,
       container: {} as AppContainer,
     })

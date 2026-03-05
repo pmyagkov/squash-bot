@@ -9,6 +9,7 @@ import { WizardCancelledError } from '~/services/wizard/types'
 export interface RunInput {
   registered: RegisteredCommand
   args: string[]
+  argsString?: string
   ctx: Context
   sudo?: boolean
 }
@@ -19,10 +20,15 @@ export class CommandService {
     private wizardService: WizardService
   ) {}
 
-  async run({ registered, args, ctx, sudo }: RunInput): Promise<void> {
+  async run({ registered, args, argsString, ctx, sudo }: RunInput): Promise<void> {
     try {
       // 1. Parse
-      const input = { args, ctx, container: this.container }
+      const input = {
+        args,
+        argsString: argsString ?? args.join(' '),
+        ctx,
+        container: this.container,
+      }
       const result = await registered.parser(input)
 
       // 2. Check for parse error

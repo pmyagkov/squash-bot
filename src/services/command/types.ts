@@ -5,6 +5,7 @@ import type { WizardStep } from '~/services/wizard/types'
 // What the parser receives
 export interface ParserInput {
   args: string[]
+  argsString: string
   ctx: Context
   container: AppContainer
 }

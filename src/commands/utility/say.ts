@@ -6,7 +6,7 @@ export interface SayData {
 }
 
 export const sayDef: CommandDef<SayData> = {
-  parser: ({ args }) => {
+  parser: ({ args, argsString }) => {
     if (args.length === 0) {
       return {
         parsed: {},
@@ -17,14 +17,14 @@ export const sayDef: CommandDef<SayData> = {
 
     const firstArg = args[0]
     if (firstArg.startsWith('@')) {
-      const message = args.slice(1).join(' ')
-      if (!message) {
+      const message = argsString.replace(/^\S+\s?/, '')
+      if (!message.trim()) {
         return { parsed: {}, missing: [], error: 'Usage: /admin say @username [text]' }
       }
       return { parsed: { target: firstArg, message }, missing: [] }
     }
 
-    return { parsed: { message: args.join(' ') }, missing: [] }
+    return { parsed: { message: argsString }, missing: [] }
   },
   steps: [],
 }

@@ -11,6 +11,7 @@ import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { CommandService } from '~/services/command/commandService'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantBusiness } from '~/business/participant'
+import { stripWords } from '~/helpers/format'
 
 export class TelegramTransport {
   private callbackHandlers = new Map<
@@ -262,7 +263,8 @@ export class TelegramTransport {
       }
     }
 
-    const args = ctx.message?.text?.split(/\s+/).slice(1) ?? []
+    const rawText = ctx.message?.text ?? ''
+    const args = rawText.split(/\s+/).slice(1)
 
     // Admin routing: /admin <base> <sub> <args...> → check admin, re-route
     if (baseCommand === 'admin') {
@@ -285,11 +287,13 @@ export class TelegramTransport {
       let registered =
         this.commandRegistry.get(`admin:${innerKey}`) ?? this.commandRegistry.get(innerKey)
       let commandArgs = innerArgs.slice(1)
+      let argsString = stripWords(rawText, 3)
 
       // Fallback: try base-only key for commands with freeform args (e.g. "admin:say")
       if (!registered) {
         registered = this.commandRegistry.get(`admin:${innerBase}`)
         commandArgs = innerArgs // don't strip first arg — it's part of the args, not a subcommand
+        argsString = stripWords(rawText, 2)
       }
 
       if (registered) {
@@ -297,6 +301,7 @@ export class TelegramTransport {
           .run({
             registered,
             args: commandArgs,
+            argsString,
             ctx,
             sudo: true,
           })
@@ -322,12 +327,15 @@ export class TelegramTransport {
       // Fire-and-forget: don't await to avoid deadlock with Grammy's sequential update processing.
       // Wizard steps block on collect() waiting for callbacks, but Grammy won't deliver
       // those callbacks until the current update handler returns.
-      this.commandService.run({ registered, args: args.slice(1), ctx }).catch(async (error) => {
-        await this.logger.error(
-          `Command error: ${error instanceof Error ? error.message : String(error)}`
-        )
-        await ctx.reply('An error occurred')
-      })
+      const argsString = stripWords(rawText, 2)
+      this.commandService
+        .run({ registered, args: args.slice(1), argsString, ctx })
+        .catch(async (error) => {
+          await this.logger.error(
+            `Command error: ${error instanceof Error ? error.message : String(error)}`
+          )
+          await ctx.reply('An error occurred')
+        })
       return
     }
 
