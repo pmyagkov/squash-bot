@@ -4,6 +4,8 @@ import { formatParticipantLabel } from '~/services/formatters/participant'
 import type { DayOfWeek } from '~/types'
 import { parseDayOfWeek } from '~/helpers/dateTime'
 
+export { participantSelectStep as usernameStep } from '~/commands/shared/participantSelectStep'
+
 const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export const scaffoldSelectStep: WizardStep<string> = {
@@ -28,19 +30,6 @@ export const scaffoldSelectStep: WizardStep<string> = {
         return { value: s.id, label }
       })
     )
-  },
-}
-
-export const usernameStep: WizardStep<string> = {
-  param: 'targetUsername',
-  type: 'text',
-  prompt: 'Enter target username (e.g. @username):',
-  parse: (input: string): string => {
-    const trimmed = input.trim()
-    if (!trimmed) {
-      throw new ParseError('Username cannot be empty')
-    }
-    return trimmed.startsWith('@') ? trimmed.substring(1) : trimmed
   },
 }
 
