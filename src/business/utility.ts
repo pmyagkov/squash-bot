@@ -9,6 +9,7 @@ import type { ParticipantBusiness } from './participant'
 import type { AppContainer } from '../container'
 import { startDef, helpDef, myidDef, getchatidDef } from '~/commands/utility/defs'
 import { sayDef, type SayData } from '~/commands/utility/say'
+import { infoMenuDef, infoPaymentDef, type InfoPaymentData } from '~/commands/info/defs'
 import {
   formatFallbackNotificationText,
   formatPersonalPaymentText,
@@ -65,8 +66,14 @@ export class UtilityBusiness {
       await this.handleSay(data as SayData, source)
     })
 
+    this.commandRegistry.registerMenu('info', infoMenuDef, (data) => `info:${data.subcommand}`)
+    this.commandRegistry.register('info:payment', infoPaymentDef, async (data, source) => {
+      await this.handleInfoPayment(data as InfoPaymentData, source)
+    })
+
     this.transport.ensureBaseCommand('start')
     this.transport.ensureBaseCommand('help')
+    this.transport.ensureBaseCommand('info')
   }
 
   // === Command Handlers ===
@@ -197,6 +204,40 @@ Use /help to see available commands.`
     }
 
     await this.transport.sendMessage(source.chat.id, message)
+  }
+
+  private async handleInfoPayment(data: InfoPaymentData, source: SourceContext): Promise<void> {
+    const participant = await this.participantRepository.findByTelegramId(String(source.user.id))
+    if (!participant) {
+      await this.transport.sendMessage(
+        source.chat.id,
+        'You are not registered yet. Send /start first.'
+      )
+      return
+    }
+
+    if (!data.paymentInfo) {
+      if (participant.paymentInfo) {
+        await this.transport.sendMessage(
+          source.chat.id,
+          `💳 Your payment info: ${participant.paymentInfo}`
+        )
+      } else {
+        await this.transport.sendMessage(
+          source.chat.id,
+          'ℹ️ No payment info set. Use: <code>/info payment &lt;text&gt;</code>'
+        )
+      }
+      return
+    }
+
+    await this.participantRepository.updatePaymentInfo(participant.id, data.paymentInfo)
+    await this.transport.sendMessage(source.chat.id, `✅ Payment info saved: ${data.paymentInfo}`)
+    await this.transport.logEvent({
+      type: 'info_payment_updated',
+      participant,
+      paymentInfo: data.paymentInfo,
+    })
   }
 
   private async handleSay(data: SayData, source: SourceContext): Promise<void> {

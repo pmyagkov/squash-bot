@@ -79,6 +79,10 @@ export class ParticipantRepo {
     return { participant: this.toDomain(participant), isNew: true }
   }
 
+  async updatePaymentInfo(participantId: string, paymentInfo: string): Promise<void> {
+    await db.update(participants).set({ paymentInfo }).where(eq(participants.id, participantId))
+  }
+
   private toDomain(row: typeof participants.$inferSelect): Participant {
     return {
       id: row.id,

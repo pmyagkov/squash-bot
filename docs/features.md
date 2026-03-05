@@ -807,6 +807,30 @@ Total: 3 unpaid payments
 
 ---
 
+## User Profile
+
+### info-payment ✅
+
+Save or view personal payment info.
+
+**Actor:** Any user
+**Chat:** Private
+
+**Flow (save):**
+1. User sends `/info payment 1234-5678-9012-3456`
+2. Bot saves text as participant's `paymentInfo`
+3. Bot confirms: `✅ Payment info saved: 1234-5678-9012-3456`
+
+**Flow (view):**
+1. User sends `/info payment` (no args)
+2. Bot shows current value: `💳 Your payment info: 1234-5678-9012-3456`
+3. If not set: `ℹ️ No payment info set. Use: /info payment <text>`
+
+**Menu:**
+- `/info` shows menu wizard with `💳 Payment info` option
+
+---
+
 ## Admin
 
 ### admin ✅
@@ -1268,6 +1292,7 @@ Interactive parameter collection for commands. When a command is called without 
 **Cancel:**
 - User clicks [Cancel] button on any step → wizard cancelled, handler not called
 - User sends `/cancel` during wizard → wizard cancelled
+- User sends any command (starts with `/`) during wizard → wizard silently cancelled, new command executes
 
 **Validation:**
 - Invalid input → bot shows error and re-prompts same step
