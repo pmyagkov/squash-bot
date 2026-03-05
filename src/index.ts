@@ -49,15 +49,12 @@ async function main() {
     })
 
     if (adminId) {
-      await bot.api.setMyCommands(
-        [...commonCommands, { command: 'admin', description: 'Admin commands' }],
-        {
-          scope: {
-            type: 'chat',
-            chat_id: Number(adminId),
-          },
-        }
-      )
+      await bot.api.setMyCommands(commonCommands, {
+        scope: {
+          type: 'chat',
+          chat_id: Number(adminId),
+        },
+      })
     }
 
     // 6. Global error handler for bot middleware

@@ -1,4 +1,5 @@
 import type { CommandDef } from '~/services/command/types'
+import { createPaymentMenuStep } from './menuStep'
 
 export interface PaymentDebtData {
   targetUsername?: string
@@ -13,4 +14,9 @@ export const paymentDebtDef: CommandDef<PaymentDebtData> = {
     return { parsed: { targetUsername: target }, missing: [] }
   },
   steps: [],
+}
+
+export const paymentMenuDef: CommandDef<{ subcommand: string }> = {
+  parser: () => ({ parsed: {}, missing: ['subcommand'] }),
+  steps: [createPaymentMenuStep()],
 }

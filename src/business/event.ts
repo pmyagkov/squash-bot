@@ -58,7 +58,7 @@ import {
   eventMenuDef,
 } from '~/commands/event/defs'
 import { adminPaymentMarkPaidDef, adminPaymentUndoMarkPaidDef } from '~/commands/event/adminDefs'
-import { paymentDebtDef, type PaymentDebtData } from '~/commands/payment/defs'
+import { paymentDebtDef, paymentMenuDef, type PaymentDebtData } from '~/commands/payment/defs'
 import { eventDateStep, eventTimeStep } from '~/commands/event/steps'
 import { formatEventEditMenu, buildEventEditKeyboard } from '~/services/formatters/editMenu'
 
@@ -338,6 +338,11 @@ export class EventBusiness {
       await this.handleEventEditMenu(data, source)
     })
 
+    this.commandRegistry.registerMenu(
+      'payment',
+      paymentMenuDef,
+      (data) => `payment:${data.subcommand}`
+    )
     this.commandRegistry.register('payment:debt', paymentDebtDef, async (data, source) => {
       await this.handlePaymentDebt(data as PaymentDebtData, source)
     })
