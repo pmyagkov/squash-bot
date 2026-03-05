@@ -7,8 +7,8 @@ const SEEDS: Record<string, Record<string, string>> = {
     admin_id: '2201118091',
   },
   production: {
-    main_chat_id: 'REPLACE_WITH_PRODUCTION_CHAT_ID',
-    admin_id: 'REPLACE_WITH_PRODUCTION_ADMIN_ID',
+    main_chat_id: '-1001797061265',
+    admin_id: '652751380',
   },
 }
 

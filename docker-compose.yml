@@ -24,7 +24,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: node dist/storage/db/migrate.js
+    command: sh -c "node dist/storage/db/migrate.js && node dist/storage/db/seed.js"
     restart: "no"
 
   bot:
