@@ -8,6 +8,7 @@ function mockParserInput(
 ) {
   return {
     args,
+    argsString: args.join(' '),
     ctx: { callbackQuery } as never,
     container: {
       resolve: (name: string) => {

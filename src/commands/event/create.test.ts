@@ -4,6 +4,7 @@ import type { ParserInput } from '~/services/command/types'
 
 const dummyInput = (args: string[]): ParserInput => ({
   args,
+  argsString: args.join(' '),
   ctx: {} as never,
   container: {} as never,
 })
