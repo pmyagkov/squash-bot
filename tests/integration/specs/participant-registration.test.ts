@@ -151,7 +151,7 @@ describe('participant-registration', () => {
 
       const logCalls = getRegistrationLogCalls()
       expect(logCalls).toHaveLength(1)
-      expect(logCalls[0][1]).toContain('Fresh User')
+      expect(logCalls[0][1]).toContain('@freshuser')
     })
 
     it('does not fire participant_registered on subsequent interaction', async () => {
@@ -201,7 +201,7 @@ describe('participant-registration', () => {
 
       const logCalls = getRegistrationLogCalls()
       expect(logCalls).toHaveLength(1)
-      expect(logCalls[0][1]).toContain('Once Only')
+      expect(logCalls[0][1]).toContain('@onceonly')
     })
   })
 

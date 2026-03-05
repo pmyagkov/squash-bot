@@ -56,7 +56,7 @@ export function formatLogEvent(event: LogEvent): string {
     case 'participant_left':
       return `👋 ${formatParticipantLabel(event.participant)} left ${code(event.event.id)}`
     case 'participant_registered':
-      return `👤 New participant: ${event.participant.displayName} (${code(event.participant.id)})`
+      return `👤 New participant: ${formatParticipantLabel(event.participant)} (${code(event.participant.id)})`
     case 'court_added':
       return `➕ Court added: ${code(event.event.id)} (now ${event.event.courts})`
     case 'court_removed':

@@ -225,7 +225,15 @@ describe('formatLogEvent', () => {
       expect(formatLogEvent(event)).toBe('👋 @alice left <code>ev_123</code>')
     })
 
-    it('should format participant_registered', () => {
+    it('should format participant_registered with username', () => {
+      const event: BusinessEvent = {
+        type: 'participant_registered',
+        participant: testParticipant,
+      }
+      expect(formatLogEvent(event)).toBe('👤 New participant: @alice (<code>p_alice</code>)')
+    })
+
+    it('should format participant_registered without username', () => {
       const event: BusinessEvent = {
         type: 'participant_registered',
         participant: testParticipantNoUsername,
