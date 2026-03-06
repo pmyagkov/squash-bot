@@ -15,7 +15,7 @@ export const participantSelectStep: WizardStep<string> = {
       .filter((p) => p.telegramUsername)
       .map((p) => ({
         value: p.telegramUsername!,
-        label: formatParticipantLabel(p),
+        label: formatParticipantLabel(p, { full: true }),
       }))
   },
   parse: (input: string): string => {
