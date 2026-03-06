@@ -93,6 +93,34 @@ Interactive edit menu for scaffolds. Replaces the old toggle command.
 
 ---
 
+### scaffold-edit-announcement ✅
+
+Edit announcement deadline per scaffold via inline button wizard.
+
+**Actor:** Any user
+**Chat:** Test or Main
+
+**Flow:**
+1. User opens scaffold edit menu (`/scaffold update sc_1`)
+2. User clicks [📣 Announcement] button
+3. Bot shows day selection keyboard (1–3 days before scaffold day)
+4. User picks a day (e.g., Fri for a Sat scaffold)
+5. Bot shows time selection: [10:00] [18:00] [✏️ Custom]
+6. User picks preset time or enters custom HH:MM
+7. Bot saves announcement deadline and re-renders edit menu
+
+**Display format:** `📣 Announcement: a day before, 10:00` or `📣 Announcement: 2 days before, 18:00`
+
+**Callback data:**
+- `edit:scaffold:ann:{id}` — open day selection
+- `edit:scaffold:ann-date:-1d:{id}` — select day offset, show time selection
+- `edit:scaffold:ann-time:-1d-10-00:{id}` — save preset time
+- `edit:scaffold:ann-custom:-1d:{id}` — collect custom time via wizard text input
+
+**Default:** Falls back to global `announcement_deadline` setting from database when scaffold has no override.
+
+---
+
 ### scaffold-delete ✅
 
 Soft-delete scaffold (can be restored with undo-delete).
@@ -490,6 +518,126 @@ Participants (3):
 
 ---
 
+### event-skipping
+
+Show who declined ("I'm out") in a separate "😢 Skipping" section in announcements. Anyone can decline, even without being registered first.
+
+**Actor:** Any user
+**Chat:** Main (under announcement message) or Private (private event DM)
+
+#### Skip (not registered)
+
+**Flow:**
+1. User who is NOT in participants clicks [😢 I'm out]
+2. Bot creates EventParticipant with `status = 'out'`, `participations = 0`
+3. Bot updates announcement — user appears in "😢 Skipping" section
+4. Bot answers callback: "Noted, you're skipping 😢"
+5. Bot logs `participant_left` to Technical chat
+
+**Message update:**
+```
+✋ Playing — 2:
+@pasha, @vasya
+
+😢 Skipping — 1:
+<code>@kolya</code>
+```
+
+#### Skip (was registered)
+
+**Flow:**
+1. User who IS in participants clicks [😢 I'm out]
+2. Bot changes EventParticipant: `status = 'out'`, `participations = 0`
+3. Bot updates announcement — user moves from Playing to Skipping
+4. Bot answers callback: "You're out 😢"
+
+#### Rejoin after skip
+
+**Flow:**
+1. User in Skipping section clicks [✋ I'm in]
+2. Bot changes EventParticipant: `status = 'in'`, `participations = 1`
+3. Bot updates announcement — user moves from Skipping to Playing
+4. Bot answers callback: "Welcome back! ✋"
+
+#### Already skipping
+
+**Flow:**
+1. User already in Skipping clicks [😢 I'm out] again
+2. No change
+3. Bot answers callback: "You're already skipping"
+
+**Announcement format rules:**
+- "✋ Playing" shown only if at least one `status = 'in'`
+- "😢 Skipping" shown only if at least one `status = 'out'`
+- If both empty — nothing shown
+- Skipping names in `<code>` tags (no Telegram mention/ping)
+
+**Finalization:** only `status = 'in'` participants → payments. Skipping participants ignored.
+
+---
+
+### event-always-in-out
+
+Subscribe to a scaffold as "always in" or "always out". Future events from this scaffold auto-register or auto-decline.
+
+**Actor:** Any user
+**Chat:** Main (under announcement message) or Private (private event DM)
+
+**Depends on:** event-skipping
+
+#### Subscribe always in
+
+**Flow:**
+1. User clicks [🦾 I'm always in] under event announcement
+2. Bot adds user to scaffold_participants with `role = 'always_in'`
+3. Bot also registers user on current event (`status = 'in'`, if not already)
+4. Bot answers callback: "You're now always in for Tuesday squash 🦾"
+
+**Next event:**
+1. Event auto-created from scaffold
+2. User auto-added to event_participants with `status = 'in'`, `participations = 1`
+3. For private events: personal DM sent automatically
+
+#### Subscribe always out
+
+**Flow:**
+1. User clicks [😭 I'm always out] under event announcement
+2. Bot adds user to scaffold_participants with `role = 'always_out'`
+3. Bot also marks user on current event (`status = 'out'`)
+4. Bot answers callback: "You're now always out for Tuesday squash 😭"
+
+**Next event:**
+1. Event auto-created from scaffold
+2. User auto-added to event_participants with `status = 'out'`, `participations = 0`
+3. For private events: no DM sent
+
+#### Switch subscription
+
+**Flow:**
+1. User with `always_out` clicks [🦾 I'm always in]
+2. Bot updates scaffold_participants `role` to `'always_in'`
+3. Bot registers user on current event
+4. Bot answers callback: "Switched to always in for Tuesday squash 🦾"
+
+#### Override on event level
+
+**Flow:**
+1. User with `always_out` clicks [✋ I'm in] on a specific event
+2. Bot changes event_participants `status = 'in'` for this event only
+3. Scaffold-level `role` is NOT changed
+4. Bot answers callback: "You're in! ✋" (same as regular join)
+
+#### Ad-hoc event (no scaffold)
+
+**Flow:**
+1. User clicks [🦾 I'm always in] on an ad-hoc event (no scaffold)
+2. Bot answers callback: "This event has no recurring schedule"
+3. No action taken
+
+**Idempotent:** pressing same button again → no-op with "You're already always in/out" response.
+
+---
+
 ## Session Management
 
 ### event-courts ✅
@@ -745,7 +893,7 @@ Check own unpaid debts with collector payment info.
 ```
 💰 Your unpaid debts:
 
-📅 Tue, 21 Jan, 21:00
+���� Tue, 21 Jan, 21:00
    Amount: 1000 din
    💳 Card: 1234-5678-9012-3456
 

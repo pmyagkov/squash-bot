@@ -981,6 +981,15 @@ Templates for regular sessions. Generate Events automatically.
 | collector_id | Relation → Participants | Participant who collects payments (their paymentInfo shown in DMs) |
 | min_participants | Number | Minimum participants required (0 = solo training allowed) |
 
+### Table: ScaffoldParticipants
+Link between scaffolds and participants. Used for private event auto-population and always-in/always-out subscriptions.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| scaffold_id | Relation → Scaffolds | Link to scaffold |
+| participant_id | Relation → Participants | Link to participant |
+| role | Select | 'default' (legacy), 'always_in' (auto-register), 'always_out' (auto-decline) |
+
 ### Table: Events
 Specific sessions — created from scaffold or manually.
 
@@ -998,6 +1007,16 @@ Specific sessions — created from scaffold or manually.
 | collector_id | Relation → Participants | Payment collector (inherited from scaffold or default_collector_id setting) |
 | min_participants | Number | Minimum participants required (inherited from scaffold, 0 = solo allowed) |
 | overcapacity_notified | Checkbox | Whether admin was notified about participant/court imbalance (reset on any change) |
+
+### Table: EventAnnouncements
+Stores Telegram message IDs for event announcements. Replaces telegram_message_id on Events. Public events have one row (group message). Private events have one row per participant (personal DM).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | Serial | Auto-generated PK |
+| event_id | Relation → Events | Link to event |
+| telegram_message_id | BigInt | Telegram message ID |
+| telegram_chat_id | BigInt | Telegram chat ID (group for public, DM for private) |
 
 ### Table: Participants
 Directory of community participants.
@@ -1018,6 +1037,7 @@ Link between participants and sessions (many-to-many).
 | event_id | Relation → Events | Link to session |
 | participant_id | Relation → Participants | Link to participant |
 | participations | Number | Number of participations (default 1, can be 2, 3... for paying for others) |
+| status | Select | 'in' (registered) or 'out' (declined/skipping). Default: 'in' |
 
 ### Table: Payments
 Records of payments for sessions.
