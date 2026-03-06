@@ -31,11 +31,7 @@ import {
   formatScaffoldParticipantsMenu,
   buildScaffoldParticipantsKeyboard,
 } from '~/services/formatters/editMenu'
-import {
-  buildAnnouncementDayKeyboard,
-  buildAnnouncementTimeKeyboard,
-  parseAnnTimeCallback,
-} from '~/services/formatters/announcement'
+import { dayNameBefore } from '~/services/formatters/announcement'
 
 /**
  * Business logic orchestrator for scaffolds
@@ -196,18 +192,6 @@ export class ScaffoldBusiness {
   }
 
   private async handleEditAction(action: string, entityId: string, ctx: Context): Promise<void> {
-    // Handle ann-date, ann-time, ann-custom which carry extra data before the scaffold ID
-    if (action === 'ann-date' || action === 'ann-time' || action === 'ann-custom') {
-      const scIndex = entityId.indexOf('sc_')
-      if (scIndex === -1) {
-        return
-      }
-      const value = entityId.slice(0, scIndex - 1) // e.g., "-1d" or "-1d-10-00"
-      const scaffoldId = entityId.slice(scIndex) // e.g., "sc_xxx"
-      await this.handleAnnouncementAction(action, value, scaffoldId, ctx)
-      return
-    }
-
     const scaffold = await this.scaffoldRepository.findById(entityId)
     if (!scaffold) {
       return
@@ -361,13 +345,64 @@ export class ScaffoldBusiness {
         return
       }
       case 'ann': {
-        await this.transport.editMessage(
-          chatId,
-          messageId,
-          '📣 Choose announcement day:',
-          buildAnnouncementDayKeyboard(scaffold.dayOfWeek, entityId)
-        )
-        return
+        const daySelectStep: HydratedStep<string> = {
+          param: 'day',
+          type: 'select',
+          prompt: `📣 Announcement for ${scaffold.dayOfWeek}, ${scaffold.time}\nChoose a day of the announcement:`,
+          columns: 3,
+          load: async () =>
+            [1, 2, 3].map((i) => ({
+              value: `-${i}d`,
+              label: dayNameBefore(scaffold.dayOfWeek, i),
+            })),
+        }
+
+        let dayOffset: string
+        try {
+          dayOffset = await this.wizardService.collect(daySelectStep, ctx)
+        } catch (e) {
+          if (e instanceof WizardCancelledError) {
+            break
+          }
+          throw e
+        }
+
+        const timeSelectStep: HydratedStep<string> = {
+          param: 'time',
+          type: 'select',
+          prompt: 'Choose announcement time or type HH:MM:',
+          columns: 2,
+          load: async () => [
+            { value: '10:00', label: '10:00' },
+            { value: '18:00', label: '18:00' },
+          ],
+          parse: (input: string) => {
+            const match = input.match(/^(\d{1,2}):(\d{2})$/)
+            if (!match) {
+              throw new ParseError('Invalid time format. Use HH:MM (e.g., 14:30)')
+            }
+            const h = parseInt(match[1], 10)
+            const m = parseInt(match[2], 10)
+            if (h < 0 || h > 23 || m < 0 || m > 59) {
+              throw new ParseError('Invalid time. Hours 0-23, minutes 0-59')
+            }
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+          },
+        }
+
+        let time: string
+        try {
+          time = await this.wizardService.collect(timeSelectStep, ctx)
+        } catch (e) {
+          if (e instanceof WizardCancelledError) {
+            break
+          }
+          throw e
+        }
+
+        const notation = `${dayOffset} ${time}`
+        await this.scaffoldRepository.updateFields(entityId, { announcementDeadline: notation })
+        break
       }
       case 'done': {
         const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
@@ -390,90 +425,6 @@ export class ScaffoldBusiness {
         formatScaffoldEditMenu(updated, defaultDeadline),
         buildScaffoldEditKeyboard(entityId, updated.isActive, updated.isPrivate)
       )
-    }
-  }
-
-  private async handleAnnouncementAction(
-    action: string,
-    value: string,
-    scaffoldId: string,
-    ctx: Context
-  ): Promise<void> {
-    const chatId = ctx.chat!.id
-    const messageId = ctx.callbackQuery!.message!.message_id
-
-    switch (action) {
-      case 'ann-date': {
-        // value is "-1d", "-2d", "-3d" — show time selection
-        await this.transport.editMessage(
-          chatId,
-          messageId,
-          '📣 Choose announcement time:',
-          buildAnnouncementTimeKeyboard(value, scaffoldId)
-        )
-        return
-      }
-      case 'ann-time': {
-        // value is "-1d-10-00" — parse and save
-        const notation = parseAnnTimeCallback(value)
-        await this.scaffoldRepository.updateFields(scaffoldId, { announcementDeadline: notation })
-
-        // Re-render edit menu
-        const updated = await this.scaffoldRepository.findById(scaffoldId)
-        if (updated) {
-          const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
-          await this.transport.editMessage(
-            chatId,
-            messageId,
-            formatScaffoldEditMenu(updated, defaultDeadline),
-            buildScaffoldEditKeyboard(scaffoldId, updated.isActive, updated.isPrivate)
-          )
-        }
-        return
-      }
-      case 'ann-custom': {
-        // value is "-1d" — collect custom time via wizard
-        const step: HydratedStep<string> = {
-          param: 'time',
-          type: 'text',
-          prompt: 'Enter announcement time (HH:MM):',
-          parse: (input: string) => {
-            const match = input.match(/^(\d{1,2}):(\d{2})$/)
-            if (!match) {
-              throw new ParseError('Invalid time format. Use HH:MM (e.g., 14:30)')
-            }
-            const h = parseInt(match[1], 10)
-            const m = parseInt(match[2], 10)
-            if (h < 0 || h > 23 || m < 0 || m > 59) {
-              throw new ParseError('Invalid time. Hours 0-23, minutes 0-59')
-            }
-            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-          },
-        }
-        try {
-          const time = await this.wizardService.collect(step, ctx)
-          const notation = `${value} ${time}`
-          await this.scaffoldRepository.updateFields(scaffoldId, { announcementDeadline: notation })
-        } catch (e) {
-          if (e instanceof WizardCancelledError) {
-            break
-          }
-          throw e
-        }
-
-        // Re-render edit menu
-        const updated = await this.scaffoldRepository.findById(scaffoldId)
-        if (updated) {
-          const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
-          await this.transport.editMessage(
-            chatId,
-            messageId,
-            formatScaffoldEditMenu(updated, defaultDeadline),
-            buildScaffoldEditKeyboard(scaffoldId, updated.isActive, updated.isPrivate)
-          )
-        }
-        return
-      }
     }
   }
 

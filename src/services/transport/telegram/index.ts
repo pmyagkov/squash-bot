@@ -166,7 +166,6 @@ export class TelegramTransport {
       if (userId) {
         this.wizardService.cancel(userId)
       }
-      await ctx.deleteMessage().catch(() => {})
       await ctx.answerCallbackQuery()
       return
     }
@@ -176,7 +175,6 @@ export class TelegramTransport {
         const value = rawAction.slice('wizard:select:'.length)
         this.wizardService.handleInput(ctx, value)
       }
-      await ctx.deleteMessage().catch(() => {})
       await ctx.answerCallbackQuery()
       return
     }

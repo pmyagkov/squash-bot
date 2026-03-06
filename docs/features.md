@@ -95,7 +95,7 @@ Interactive edit menu for scaffolds. Replaces the old toggle command.
 
 ### scaffold-edit-announcement ✅
 
-Edit announcement deadline per scaffold via inline button wizard.
+Edit announcement deadline per scaffold via wizard (new message, not edit).
 
 **Actor:** Any user
 **Chat:** Test or Main
@@ -103,19 +103,17 @@ Edit announcement deadline per scaffold via inline button wizard.
 **Flow:**
 1. User opens scaffold edit menu (`/scaffold update sc_1`)
 2. User clicks [📣 Announcement] button
-3. Bot shows day selection keyboard (1–3 days before scaffold day)
-4. User picks a day (e.g., Fri for a Sat scaffold)
-5. Bot shows time selection: [10:00] [18:00] [✏️ Custom]
-6. User picks preset time or enters custom HH:MM
+3. Bot sends NEW message with day selection (1–3 days before scaffold day), showing scaffold day and time for context
+4. User picks a day button (e.g., Fri for a Sat scaffold)
+5. Bot sends NEW message with time selection: [10:00] [18:00] — user can also type custom HH:MM
+6. User picks preset time or types custom HH:MM
 7. Bot saves announcement deadline and re-renders edit menu
 
 **Display format:** `📣 Announcement: a day before, 10:00` or `📣 Announcement: 2 days before, 18:00`
 
-**Callback data:**
-- `edit:scaffold:ann:{id}` — open day selection
-- `edit:scaffold:ann-date:-1d:{id}` — select day offset, show time selection
-- `edit:scaffold:ann-time:-1d-10-00:{id}` — save preset time
-- `edit:scaffold:ann-custom:-1d:{id}` — collect custom time via wizard text input
+**Wizard steps:**
+- Step 1 (select): day offset — buttons for 1–3 days before scaffold day
+- Step 2 (select + text): time — preset buttons (10:00, 18:00) or free text HH:MM
 
 **Default:** Falls back to global `announcement_deadline` setting from database when scaffold has no override.
 

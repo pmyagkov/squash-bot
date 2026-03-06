@@ -52,13 +52,12 @@ export function buildScaffoldEditKeyboard(
     .text(isActive ? BTN_TURN_OFF : BTN_TURN_ON, `edit:scaffold:toggle:${scaffoldId}`)
     .row()
     .text(isPrivate ? BTN_MAKE_PUBLIC : BTN_MAKE_PRIVATE, `edit:scaffold:privacy:${scaffoldId}`)
-    .row()
-
-  keyboard.text(BTN_ANNOUNCEMENT, `edit:scaffold:ann:${scaffoldId}`).row()
 
   if (isPrivate) {
-    keyboard.text(BTN_PARTICIPANTS, `edit:scaffold:participants:${scaffoldId}`).row()
+    keyboard.text(BTN_PARTICIPANTS, `edit:scaffold:participants:${scaffoldId}`)
   }
+
+  keyboard.row().text(BTN_ANNOUNCEMENT, `edit:scaffold:ann:${scaffoldId}`).row()
 
   keyboard.text(BTN_DONE, `edit:scaffold:done:${scaffoldId}`)
   return keyboard
