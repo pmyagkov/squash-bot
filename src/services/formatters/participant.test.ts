@@ -20,4 +20,29 @@ describe('formatParticipantLabel', () => {
     })
     expect(result).toBe('Ivan Ivanov')
   })
+
+  it('returns full label with displayName and username when full option is set', () => {
+    const result = formatParticipantLabel(
+      {
+        id: 'pt_1',
+        telegramId: '123',
+        telegramUsername: 'pasha',
+        displayName: 'Pavel Durov',
+      },
+      { full: true }
+    )
+    expect(result).toBe('Pavel Durov · @pasha')
+  })
+
+  it('returns displayName when full option is set but no username', () => {
+    const result = formatParticipantLabel(
+      {
+        id: 'pt_2',
+        telegramId: '456',
+        displayName: 'Ivan Ivanov',
+      },
+      { full: true }
+    )
+    expect(result).toBe('Ivan Ivanov')
+  })
 })

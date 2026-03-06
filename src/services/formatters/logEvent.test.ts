@@ -107,7 +107,7 @@ describe('formatLogEvent', () => {
         owner: testOwner,
       }
       expect(formatLogEvent(event)).toBe(
-        `📅 Event created\n\n${expectedDate(testEventPrivate.datetime)} | 👑 <code>@charlie</code>\n🏟 Courts: 2 | 📝 Created | 🔒 Private | <code>ev_123</code>`
+        `📅 Event created\n\n${expectedDate(testEventPrivate.datetime)} | 👑 <code>Charlie · @charlie</code>\n🏟 Courts: 2 | 📝 Created | 🔒 Private | <code>ev_123</code>`
       )
     })
 
@@ -128,7 +128,7 @@ describe('formatLogEvent', () => {
         owner: testOwner,
       }
       expect(formatLogEvent(event)).toBe(
-        `📢 Event announced\n\n${expectedDate(testEventPrivate.datetime)} | 👑 <code>@charlie</code>\n🏟 Courts: 3 | 🔒 Private | <code>ev_123</code>`
+        `📢 Event announced\n\n${expectedDate(testEventPrivate.datetime)} | 👑 <code>Charlie · @charlie</code>\n🏟 Courts: 3 | 🔒 Private | <code>ev_123</code>`
       )
     })
 
@@ -193,7 +193,9 @@ describe('formatLogEvent', () => {
         from: testParticipant,
         to: testParticipantNoUsername,
       }
-      expect(formatLogEvent(event)).toBe('🔄 Event <code>ev_123</code> transferred: @alice → Bob')
+      expect(formatLogEvent(event)).toBe(
+        '🔄 Event <code>ev_123</code> transferred: Alice · @alice → Bob'
+      )
     })
 
     // --- Participants ---
@@ -204,7 +206,7 @@ describe('formatLogEvent', () => {
         event: testEvent,
         participant: testParticipant,
       }
-      expect(formatLogEvent(event)).toBe('👋 @alice joined <code>ev_123</code>')
+      expect(formatLogEvent(event)).toBe('👋 Alice · @alice joined <code>ev_123</code>')
     })
 
     it('should format participant_joined without username', () => {
@@ -222,10 +224,20 @@ describe('formatLogEvent', () => {
         event: testEvent,
         participant: testParticipant,
       }
-      expect(formatLogEvent(event)).toBe('👋 @alice left <code>ev_123</code>')
+      expect(formatLogEvent(event)).toBe('👋 Alice · @alice left <code>ev_123</code>')
     })
 
-    it('should format participant_registered', () => {
+    it('should format participant_registered with username', () => {
+      const event: BusinessEvent = {
+        type: 'participant_registered',
+        participant: testParticipant,
+      }
+      expect(formatLogEvent(event)).toBe(
+        '👤 New participant: Alice · @alice (<code>p_alice</code>)'
+      )
+    })
+
+    it('should format participant_registered without username', () => {
       const event: BusinessEvent = {
         type: 'participant_registered',
         participant: testParticipantNoUsername,
@@ -260,7 +272,7 @@ describe('formatLogEvent', () => {
         participant: testParticipant,
         amount: 2000,
       }
-      expect(formatLogEvent(event)).toBe('💰 Payment received: 2000 din from @alice')
+      expect(formatLogEvent(event)).toBe('💰 Payment received: 2000 din from Alice · @alice')
     })
 
     it('should format payment_cancelled', () => {
@@ -269,7 +281,9 @@ describe('formatLogEvent', () => {
         event: testEvent,
         participant: testParticipant,
       }
-      expect(formatLogEvent(event)).toBe('💸 Payment cancelled: @alice in <code>ev_123</code>')
+      expect(formatLogEvent(event)).toBe(
+        '💸 Payment cancelled: Alice · @alice in <code>ev_123</code>'
+      )
     })
 
     it('should format payment_check_completed', () => {
@@ -296,7 +310,7 @@ describe('formatLogEvent', () => {
         owner: testOwner,
       }
       expect(formatLogEvent(event)).toBe(
-        '📋 Scaffold created\n\nWed, 19:00 | 👑 <code>@charlie</code>\n🏟 Courts: 3 | ⏸ Paused | 🔒 Private | <code>sc_456</code>'
+        '📋 Scaffold created\n\nWed, 19:00 | 👑 <code>Charlie · @charlie</code>\n🏟 Courts: 3 | ⏸ Paused | 🔒 Private | <code>sc_456</code>'
       )
     })
 
@@ -340,7 +354,7 @@ describe('formatLogEvent', () => {
         to: testParticipantNoUsername,
       }
       expect(formatLogEvent(event)).toBe(
-        '🔄 Scaffold <code>sc_123</code> transferred: @alice → Bob'
+        '🔄 Scaffold <code>sc_123</code> transferred: Alice · @alice → Bob'
       )
     })
 
