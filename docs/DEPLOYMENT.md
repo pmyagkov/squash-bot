@@ -6,7 +6,7 @@ All commands run on the server unless noted otherwise.
 
 | Action | Command |
 |--------|---------|
-| SSH to server | `ssh <user>@<host>` |
+| SSH to server | `ssh root@puelle.me` |
 | Container status | `cd /opt/squash-bot && docker compose ps` |
 | Bot logs | `docker logs squash-bot-app --tail 100 -f` |
 | DB logs | `docker logs squash-bot-postgres --tail 50` |

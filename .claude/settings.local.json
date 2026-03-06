@@ -33,7 +33,9 @@
       "Bash(docker rm:*)",
       "Bash(curl:*)",
       "Bash(docker run:*)",
-      "Bash(ENVIRONMENT=test npx playwright test:*)"
+      "Bash(* npx playwright test:*)",
+      "Bash(ssh puelle.me *)",
+      "Bash(ssh root@puelle.me *)"
     ]
   }
 }

@@ -67,6 +67,7 @@ Before starting work, check these documents for context:
 | [docs/features.md](docs/features.md) | Feature list (integration/e2e tests reference this) |
 | [docs/testing.md](docs/testing.md) | Testing strategy and requirements |
 | [docs/plans/](docs/plans/) | Design documents for features |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment, server access, Docker commands |
 
 ### Design Documents
 
