@@ -33,6 +33,7 @@ export const BTN_MAKE_PRIVATE = '🔒 Make private'
 export const BTN_MAKE_PUBLIC = '📢 Make public'
 export const BTN_PARTICIPANTS = '👥 Participants'
 export const BTN_BACK = '⬅️ Back'
+export const BTN_ANNOUNCEMENT = '📣 Announcement'
 
 // Wizard buttons
 export const BTN_WIZARD_CANCEL = '❌ Cancel'

@@ -56,18 +56,31 @@ describe('list formatters', () => {
       expect(result).not.toContain('🟢 Active')
     })
 
+    it('should show announcement deadline when set', () => {
+      const scaffold: Scaffold = { ...baseScaffold, announcementDeadline: '-1d 10:00' }
+      const result = formatScaffoldListItem(scaffold)
+      expect(result).toContain('📣 Announcement: a day before, 10:00')
+    })
+
+    it('should show default announcement when not set', () => {
+      const result = formatScaffoldListItem(baseScaffold)
+      expect(result).toContain('📣 Announcement: a day before, 12:00')
+    })
+
     it('should use pipe separators between all fields', () => {
       const result = formatScaffoldListItem(baseScaffold)
-      const [line1, line2] = result.split('\n')
+      const lines = result.split('\n')
 
-      expect(line1).toBe('Wed, 19:00')
+      expect(lines[0]).toBe('Wed, 19:00')
 
-      const parts = line2.split(' | ')
+      const parts = lines[1].split(' | ')
       expect(parts).toHaveLength(4)
       expect(parts[0]).toBe('🏟 Courts: 2')
       expect(parts[1]).toBe('🟢 Active')
       expect(parts[2]).toBe('📢 Public')
       expect(parts[3]).toBe('<code>sc_abc123</code>')
+
+      expect(lines[2]).toBe('📣 Announcement: a day before, 12:00')
     })
   })
 

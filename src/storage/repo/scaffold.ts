@@ -97,6 +97,7 @@ export class ScaffoldRepo {
       defaultCourts: number
       isActive: boolean
       isPrivate: boolean
+      announcementDeadline: string
     }>
   ): Promise<Scaffold> {
     const [scaffold] = await db
