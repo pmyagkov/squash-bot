@@ -3,15 +3,13 @@ import { InlineKeyboard } from 'grammy'
 import type { DayOfWeek } from '~/types'
 import { parseOffsetNotation } from '~/utils/timeOffset'
 
-const DEFAULT_DEADLINE = '-1d 12:00'
-
 const DAYS: DayOfWeek[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export function formatAnnouncementDeadline(
   notation: string | null | undefined,
-  defaultNotation: string = DEFAULT_DEADLINE
+  defaultNotation?: string
 ): string {
-  const effective = notation ?? defaultNotation
+  const effective = notation ?? defaultNotation ?? ''
   const parsed = parseOffsetNotation(effective)
 
   const days = parsed.offset?.days ? Math.abs(parsed.offset.days) : 0

@@ -8,7 +8,7 @@ import type { ScaffoldRepo } from '~/storage/repo/scaffold'
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-describe('scaffold-announcement (announcement deadline editing)', () => {
+describe('scaffold-edit-announcement (announcement deadline editing)', () => {
   let bot: Bot
   let api: BotApiMock
   let container: TestContainer

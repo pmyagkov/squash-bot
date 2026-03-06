@@ -25,11 +25,13 @@ describe('announcement formatters', () => {
       expect(formatAnnouncementDeadline('-3d 12:00')).toBe('📣 Announcement: 3 days before, 12:00')
     })
 
-    it('uses default when null', () => {
-      expect(formatAnnouncementDeadline(null)).toBe('📣 Announcement: a day before, 12:00')
+    it('uses provided default when null', () => {
+      expect(formatAnnouncementDeadline(null, '-1d 12:00')).toBe(
+        '📣 Announcement: a day before, 12:00'
+      )
     })
 
-    it('uses provided default when null', () => {
+    it('uses provided custom default when null', () => {
       expect(formatAnnouncementDeadline(null, '-2d 10:00')).toBe(
         '📣 Announcement: 2 days before, 10:00'
       )

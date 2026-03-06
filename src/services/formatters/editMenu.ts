@@ -24,7 +24,7 @@ import {
 } from '~/ui/constants'
 import { formatAnnouncementDeadline } from './announcement'
 
-export function formatScaffoldEditMenu(scaffold: Scaffold): string {
+export function formatScaffoldEditMenu(scaffold: Scaffold, defaultDeadline?: string): string {
   const lines = [
     `✏️ Scaffold ${code(scaffold.id)}`,
     '',
@@ -33,7 +33,7 @@ export function formatScaffoldEditMenu(scaffold: Scaffold): string {
     `${formatActiveStatus(scaffold.isActive)}`,
   ]
   lines.push(scaffold.isPrivate ? '🔒 Private' : '📢 Public')
-  lines.push(formatAnnouncementDeadline(scaffold.announcementDeadline))
+  lines.push(formatAnnouncementDeadline(scaffold.announcementDeadline, defaultDeadline))
   return lines.join('\n')
 }
 

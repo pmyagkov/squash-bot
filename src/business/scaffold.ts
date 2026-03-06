@@ -127,7 +127,8 @@ export class ScaffoldBusiness {
         data.isPrivate
       )
 
-      const entityText = formatScaffoldListItem(scaffold)
+      const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
+      const entityText = formatScaffoldListItem(scaffold, undefined, defaultDeadline)
       await this.transport.sendMessage(source.chat.id, `📋 Scaffold created\n\n${entityText}`)
 
       await this.logger.log(
@@ -155,6 +156,7 @@ export class ScaffoldBusiness {
         return
       }
 
+      const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
       const list = await Promise.all(
         scaffolds.map(async (s: Scaffold) => {
           let ownerLabel: string | undefined
@@ -162,7 +164,7 @@ export class ScaffoldBusiness {
             const owner = await this.participantRepository.findByTelegramId(s.ownerId)
             ownerLabel = owner ? formatParticipantLabel(owner) : undefined
           }
-          return formatScaffoldListItem(s, ownerLabel)
+          return formatScaffoldListItem(s, ownerLabel, defaultDeadline)
         })
       )
 
@@ -185,9 +187,10 @@ export class ScaffoldBusiness {
       )
       return
     }
+    const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
     await this.transport.sendMessage(
       source.chat.id,
-      formatScaffoldEditMenu(scaffold),
+      formatScaffoldEditMenu(scaffold, defaultDeadline),
       buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive, scaffold.isPrivate)
     )
   }
@@ -201,7 +204,7 @@ export class ScaffoldBusiness {
       }
       const value = entityId.slice(0, scIndex - 1) // e.g., "-1d" or "-1d-10-00"
       const scaffoldId = entityId.slice(scIndex) // e.g., "sc_xxx"
-      await this.handleAnnAction(action, value, scaffoldId, ctx)
+      await this.handleAnnouncementAction(action, value, scaffoldId, ctx)
       return
     }
 
@@ -366,24 +369,31 @@ export class ScaffoldBusiness {
         )
         return
       }
-      case 'done':
-        await this.transport.editMessage(chatId, messageId, formatScaffoldEditMenu(scaffold))
+      case 'done': {
+        const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
+        await this.transport.editMessage(
+          chatId,
+          messageId,
+          formatScaffoldEditMenu(scaffold, defaultDeadline)
+        )
         return // Don't re-render with keyboard
+      }
     }
 
     // Re-render edit menu with updated data
     const updated = await this.scaffoldRepository.findById(entityId)
     if (updated) {
+      const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
       await this.transport.editMessage(
         chatId,
         messageId,
-        formatScaffoldEditMenu(updated),
+        formatScaffoldEditMenu(updated, defaultDeadline),
         buildScaffoldEditKeyboard(entityId, updated.isActive, updated.isPrivate)
       )
     }
   }
 
-  private async handleAnnAction(
+  private async handleAnnouncementAction(
     action: string,
     value: string,
     scaffoldId: string,
@@ -411,10 +421,11 @@ export class ScaffoldBusiness {
         // Re-render edit menu
         const updated = await this.scaffoldRepository.findById(scaffoldId)
         if (updated) {
+          const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
           await this.transport.editMessage(
             chatId,
             messageId,
-            formatScaffoldEditMenu(updated),
+            formatScaffoldEditMenu(updated, defaultDeadline),
             buildScaffoldEditKeyboard(scaffoldId, updated.isActive, updated.isPrivate)
           )
         }
@@ -453,10 +464,11 @@ export class ScaffoldBusiness {
         // Re-render edit menu
         const updated = await this.scaffoldRepository.findById(scaffoldId)
         if (updated) {
+          const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
           await this.transport.editMessage(
             chatId,
             messageId,
-            formatScaffoldEditMenu(updated),
+            formatScaffoldEditMenu(updated, defaultDeadline),
             buildScaffoldEditKeyboard(scaffoldId, updated.isActive, updated.isPrivate)
           )
         }

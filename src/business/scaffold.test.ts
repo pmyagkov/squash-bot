@@ -40,8 +40,10 @@ describe('ScaffoldBusiness', () => {
   describe('handleCreateFromDef', () => {
     test('happy path: creates scaffold, sends success message', async ({ container }) => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
+      const settingsRepo = container.resolve('settingsRepository')
       const transport = container.resolve('transport')
 
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
       const scaffold = buildScaffold({ id: 'sc_new123' })
       scaffoldRepo.createScaffold.mockResolvedValue(scaffold)
 
@@ -67,8 +69,10 @@ describe('ScaffoldBusiness', () => {
 
     test('any user can create scaffold (no admin check)', async ({ container }) => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
+      const settingsRepo = container.resolve('settingsRepository')
       const transport = container.resolve('transport')
 
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
       const scaffold = buildScaffold({ id: 'sc_new456' })
       scaffoldRepo.createScaffold.mockResolvedValue(scaffold)
 
@@ -104,6 +108,7 @@ describe('ScaffoldBusiness', () => {
     test('with scaffolds → sends formatted list', async ({ container }) => {
       const settingsRepo = container.resolve('settingsRepository')
       settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -145,6 +150,7 @@ describe('ScaffoldBusiness', () => {
     test('empty → sends "no scaffolds" message', async ({ container }) => {
       const settingsRepo = container.resolve('settingsRepository')
       settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 
@@ -189,8 +195,10 @@ describe('ScaffoldBusiness', () => {
   describe('handleEditMenu', () => {
     test('happy path → sends edit menu with keyboard', async ({ container }) => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
+      const settingsRepo = container.resolve('settingsRepository')
       const transport = container.resolve('transport')
 
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
       const scaffold = buildScaffold({ id: 'sc_edit', isActive: true })
       scaffoldRepo.findById.mockResolvedValue(scaffold)
 
@@ -232,6 +240,7 @@ describe('ScaffoldBusiness', () => {
     test('happy path → removes, sends confirmation', async ({ container }) => {
       const settingsRepo = container.resolve('settingsRepository')
       settingsRepo.getAdminId.mockResolvedValue(String(TEST_CONFIG.adminId))
+      settingsRepo.getAnnouncementDeadline.mockResolvedValue('-1d 12:00')
       const scaffoldRepo = container.resolve('scaffoldRepository')
       const transport = container.resolve('transport')
 

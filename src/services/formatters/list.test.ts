@@ -24,7 +24,7 @@ const baseEvent: Event = {
 describe('list formatters', () => {
   describe('formatScaffoldListItem', () => {
     it('should format basic scaffold without owner', () => {
-      const result = formatScaffoldListItem(baseScaffold)
+      const result = formatScaffoldListItem(baseScaffold, undefined, '-1d 12:00')
 
       expect(result).toContain('<code>sc_abc123</code>')
       expect(result).toContain('Wed, 19:00')
@@ -35,14 +35,14 @@ describe('list formatters', () => {
     })
 
     it('should include owner label when provided', () => {
-      const result = formatScaffoldListItem(baseScaffold, '@johndoe')
+      const result = formatScaffoldListItem(baseScaffold, '@johndoe', '-1d 12:00')
 
       expect(result).toContain(' | 👑 @johndoe')
     })
 
     it('should show Private for private scaffold', () => {
       const privateScaffold: Scaffold = { ...baseScaffold, isPrivate: true }
-      const result = formatScaffoldListItem(privateScaffold)
+      const result = formatScaffoldListItem(privateScaffold, undefined, '-1d 12:00')
 
       expect(result).toContain('🔒 Private')
       expect(result).not.toContain('📢 Public')
@@ -50,7 +50,7 @@ describe('list formatters', () => {
 
     it('should show Paused for inactive scaffold', () => {
       const pausedScaffold: Scaffold = { ...baseScaffold, isActive: false }
-      const result = formatScaffoldListItem(pausedScaffold)
+      const result = formatScaffoldListItem(pausedScaffold, undefined, '-1d 12:00')
 
       expect(result).toContain('⏸ Paused')
       expect(result).not.toContain('🟢 Active')
@@ -58,17 +58,17 @@ describe('list formatters', () => {
 
     it('should show announcement deadline when set', () => {
       const scaffold: Scaffold = { ...baseScaffold, announcementDeadline: '-1d 10:00' }
-      const result = formatScaffoldListItem(scaffold)
+      const result = formatScaffoldListItem(scaffold, undefined, '-1d 12:00')
       expect(result).toContain('📣 Announcement: a day before, 10:00')
     })
 
     it('should show default announcement when not set', () => {
-      const result = formatScaffoldListItem(baseScaffold)
+      const result = formatScaffoldListItem(baseScaffold, undefined, '-1d 12:00')
       expect(result).toContain('📣 Announcement: a day before, 12:00')
     })
 
     it('should use pipe separators between all fields', () => {
-      const result = formatScaffoldListItem(baseScaffold)
+      const result = formatScaffoldListItem(baseScaffold, undefined, '-1d 12:00')
       const lines = result.split('\n')
 
       expect(lines[0]).toBe('Wed, 19:00')
