@@ -17,12 +17,14 @@ import {
   BTN_ADD_PARTICIPANT,
   BTN_REMOVE_PARTICIPANT,
   BTN_BACK,
+  BTN_ANNOUNCEMENT,
   formatDate,
   formatCourts,
   formatActiveStatus,
 } from '~/ui/constants'
+import { formatAnnouncementDeadline } from './announcement'
 
-export function formatScaffoldEditMenu(scaffold: Scaffold): string {
+export function formatScaffoldEditMenu(scaffold: Scaffold, defaultDeadline?: string): string {
   const lines = [
     `✏️ Scaffold ${code(scaffold.id)}`,
     '',
@@ -31,6 +33,7 @@ export function formatScaffoldEditMenu(scaffold: Scaffold): string {
     `${formatActiveStatus(scaffold.isActive)}`,
   ]
   lines.push(scaffold.isPrivate ? '🔒 Private' : '📢 Public')
+  lines.push(formatAnnouncementDeadline(scaffold.announcementDeadline, defaultDeadline))
   return lines.join('\n')
 }
 
@@ -49,11 +52,12 @@ export function buildScaffoldEditKeyboard(
     .text(isActive ? BTN_TURN_OFF : BTN_TURN_ON, `edit:scaffold:toggle:${scaffoldId}`)
     .row()
     .text(isPrivate ? BTN_MAKE_PUBLIC : BTN_MAKE_PRIVATE, `edit:scaffold:privacy:${scaffoldId}`)
-    .row()
 
   if (isPrivate) {
-    keyboard.text(BTN_PARTICIPANTS, `edit:scaffold:participants:${scaffoldId}`).row()
+    keyboard.text(BTN_PARTICIPANTS, `edit:scaffold:participants:${scaffoldId}`)
   }
+
+  keyboard.row().text(BTN_ANNOUNCEMENT, `edit:scaffold:ann:${scaffoldId}`).row()
 
   keyboard.text(BTN_DONE, `edit:scaffold:done:${scaffoldId}`)
   return keyboard

@@ -3,11 +3,18 @@ import type { HydratedStep } from './types'
 import { ParseError, WizardCancelledError } from './types'
 import { renderStep } from '~/services/formatters/wizard'
 
+interface MessageRef {
+  chatId: number
+  messageId: number
+}
+
 interface PendingWizard {
   step: HydratedStep<unknown>
   resolve: (value: unknown) => void
   reject: (error: Error) => void
   timer: ReturnType<typeof setTimeout>
+  messagesToDelete: MessageRef[]
+  deleteMessage: (chatId: number, messageId: number) => Promise<unknown>
 }
 
 const WIZARD_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
@@ -24,11 +31,22 @@ export class WizardService {
 
     const promise = new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
+        const entry = this.pending.get(userId)
+        if (entry) {
+          this.deleteTrackedMessages(entry)
+        }
         this.pending.delete(userId)
         reject(new WizardCancelledError())
       }, WIZARD_TIMEOUT_MS)
 
-      this.pending.set(userId, { step, resolve, reject, timer })
+      this.pending.set(userId, {
+        step,
+        resolve,
+        reject,
+        timer,
+        messagesToDelete: [],
+        deleteMessage: ctx.api.deleteMessage.bind(ctx.api),
+      })
     })
 
     // Send prompt asynchronously (fire-and-forget within collect)
@@ -47,7 +65,11 @@ export class WizardService {
       }
 
       const rendered = renderStep(step, options)
-      await ctx.reply(rendered.text, { reply_markup: rendered.keyboard })
+      const sent = await ctx.reply(rendered.text, { reply_markup: rendered.keyboard })
+      const entry = this.pending.get(userId)
+      if (entry) {
+        entry.messagesToDelete.push({ chatId: sent.chat.id, messageId: sent.message_id })
+      }
     }
     sendPrompt()
 
@@ -61,19 +83,36 @@ export class WizardService {
       return
     }
 
-    const { step, resolve } = entry
+    // Track user's text message (not callback — those are tracked as wizard prompts)
+    if (ctx.message) {
+      entry.messagesToDelete.push({
+        chatId: ctx.message.chat.id,
+        messageId: ctx.message.message_id,
+      })
+    }
 
     try {
-      const value = step.parse ? step.parse(input) : input
+      const value = entry.step.parse ? entry.step.parse(input) : input
+      this.deleteTrackedMessages(entry)
       this.cleanup(userId)
-      resolve(value)
+      entry.resolve(value)
     } catch (error) {
       if (error instanceof ParseError) {
-        // Re-prompt with error via NEW ctx
-        const rendered = renderStep(step)
-        ctx.reply(`❌ ${error.message}\n\n${rendered.text}`, {
-          reply_markup: rendered.keyboard,
-        })
+        // Re-prompt with error — track the new message too
+        const rendered = renderStep(entry.step)
+        ctx
+          .reply(`❌ ${error.message}\n\n${rendered.text}`, {
+            reply_markup: rendered.keyboard,
+          })
+          .then((sent) => {
+            const current = this.pending.get(userId)
+            if (current) {
+              current.messagesToDelete.push({
+                chatId: sent.chat.id,
+                messageId: sent.message_id,
+              })
+            }
+          })
         return
       }
       throw error
@@ -86,8 +125,16 @@ export class WizardService {
       return
     }
 
+    this.deleteTrackedMessages(entry)
     this.cleanup(userId)
     entry.reject(new WizardCancelledError())
+  }
+
+  private deleteTrackedMessages(entry: PendingWizard): void {
+    for (const msg of entry.messagesToDelete) {
+      entry.deleteMessage(msg.chatId, msg.messageId).catch(() => {})
+    }
+    entry.messagesToDelete = []
   }
 
   private cleanup(userId: number): void {

@@ -11,7 +11,7 @@ import type { SourceContext } from '~/services/command/types'
 import type { WizardService } from '~/services/wizard/wizardService'
 import type { WizardStep } from '~/services/wizard/types'
 import type { HydratedStep } from '~/services/wizard/types'
-import { WizardCancelledError } from '~/services/wizard/types'
+import { WizardCancelledError, ParseError } from '~/services/wizard/types'
 import { code } from '~/helpers/format'
 import { isOwnerOrAdmin } from '~/utils/environment'
 import { formatScaffoldListItem } from '~/services/formatters/list'
@@ -31,6 +31,7 @@ import {
   formatScaffoldParticipantsMenu,
   buildScaffoldParticipantsKeyboard,
 } from '~/services/formatters/editMenu'
+import { dayNameBefore } from '~/services/formatters/announcement'
 
 /**
  * Business logic orchestrator for scaffolds
@@ -122,7 +123,8 @@ export class ScaffoldBusiness {
         data.isPrivate
       )
 
-      const entityText = formatScaffoldListItem(scaffold)
+      const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
+      const entityText = formatScaffoldListItem(scaffold, undefined, defaultDeadline)
       await this.transport.sendMessage(source.chat.id, `📋 Scaffold created\n\n${entityText}`)
 
       await this.logger.log(
@@ -150,6 +152,7 @@ export class ScaffoldBusiness {
         return
       }
 
+      const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
       const list = await Promise.all(
         scaffolds.map(async (s: Scaffold) => {
           let ownerLabel: string | undefined
@@ -157,7 +160,7 @@ export class ScaffoldBusiness {
             const owner = await this.participantRepository.findByTelegramId(s.ownerId)
             ownerLabel = owner ? formatParticipantLabel(owner) : undefined
           }
-          return formatScaffoldListItem(s, ownerLabel)
+          return formatScaffoldListItem(s, ownerLabel, defaultDeadline)
         })
       )
 
@@ -180,9 +183,10 @@ export class ScaffoldBusiness {
       )
       return
     }
+    const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
     await this.transport.sendMessage(
       source.chat.id,
-      formatScaffoldEditMenu(scaffold),
+      formatScaffoldEditMenu(scaffold, defaultDeadline),
       buildScaffoldEditKeyboard(data.scaffoldId, scaffold.isActive, scaffold.isPrivate)
     )
   }
@@ -340,18 +344,85 @@ export class ScaffoldBusiness {
         }
         return
       }
-      case 'done':
-        await this.transport.editMessage(chatId, messageId, formatScaffoldEditMenu(scaffold))
+      case 'ann': {
+        const daySelectStep: HydratedStep<string> = {
+          param: 'day',
+          type: 'select',
+          prompt: `📣 Announcement for ${scaffold.dayOfWeek}, ${scaffold.time}\nChoose a day of the announcement:`,
+          columns: 3,
+          load: async () =>
+            [1, 2, 3].map((i) => ({
+              value: `-${i}d`,
+              label: dayNameBefore(scaffold.dayOfWeek, i),
+            })),
+        }
+
+        let dayOffset: string
+        try {
+          dayOffset = await this.wizardService.collect(daySelectStep, ctx)
+        } catch (e) {
+          if (e instanceof WizardCancelledError) {
+            break
+          }
+          throw e
+        }
+
+        const timeSelectStep: HydratedStep<string> = {
+          param: 'time',
+          type: 'select',
+          prompt: 'Choose announcement time or type HH:MM:',
+          columns: 2,
+          load: async () => [
+            { value: '10:00', label: '10:00' },
+            { value: '18:00', label: '18:00' },
+          ],
+          parse: (input: string) => {
+            const match = input.match(/^(\d{1,2}):(\d{2})$/)
+            if (!match) {
+              throw new ParseError('Invalid time format. Use HH:MM (e.g., 14:30)')
+            }
+            const h = parseInt(match[1], 10)
+            const m = parseInt(match[2], 10)
+            if (h < 0 || h > 23 || m < 0 || m > 59) {
+              throw new ParseError('Invalid time. Hours 0-23, minutes 0-59')
+            }
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+          },
+        }
+
+        let time: string
+        try {
+          time = await this.wizardService.collect(timeSelectStep, ctx)
+        } catch (e) {
+          if (e instanceof WizardCancelledError) {
+            break
+          }
+          throw e
+        }
+
+        const notation = `${dayOffset} ${time}`
+        await this.scaffoldRepository.updateFields(entityId, { announcementDeadline: notation })
+        break
+      }
+      case 'done': {
+        const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
+        await this.transport.editMessage(
+          chatId,
+          messageId,
+          formatScaffoldEditMenu(scaffold, defaultDeadline)
+        )
         return // Don't re-render with keyboard
+      }
     }
 
     // Re-render edit menu with updated data
     const updated = await this.scaffoldRepository.findById(entityId)
     if (updated) {
+      const defaultDeadline = await this.settingsRepository.getAnnouncementDeadline()
       await this.transport.editMessage(
         chatId,
         messageId,
-        formatScaffoldEditMenu(updated),
+        formatScaffoldEditMenu(updated, defaultDeadline),
         buildScaffoldEditKeyboard(entityId, updated.isActive, updated.isPrivate)
       )
     }

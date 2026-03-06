@@ -4,11 +4,15 @@ import { WizardService } from './wizardService'
 import { ParseError, WizardCancelledError } from './types'
 import type { HydratedStep } from './types'
 
+const mockDeleteMessage = vi.fn().mockResolvedValue(true)
+
 // Minimal mock ctx factory
-function mockCtx(userId: number) {
+function mockCtx(userId: number, chatId = 100) {
   return {
     from: { id: userId },
-    reply: vi.fn().mockResolvedValue({ message_id: 1 }),
+    message: { chat: { id: chatId }, message_id: Math.floor(Math.random() * 1000) },
+    reply: vi.fn().mockResolvedValue({ chat: { id: chatId }, message_id: 1 }),
+    api: { deleteMessage: mockDeleteMessage },
   } as unknown as Context & { reply: ReturnType<typeof vi.fn> }
 }
 

@@ -52,7 +52,7 @@ services:
         condition: service_completed_successfully
     ports:
       - "3010:3010"
-    command: sh -c "npm ci --ignore-scripts && npx tsx watch src/index.ts"
+    command: sh -c "npm ci --ignore-scripts && npx nodemon --legacy-watch --watch src --ext ts --exec 'npx tsx src/index.ts'"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3010/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));\""]
       interval: 10s
