@@ -68,25 +68,23 @@ else
   exit 1
 fi
 
-# Step 2: Start postgres (local only)
-if [[ "$IS_CI" == "false" ]]; then
-  if ! docker ps --format '{{.Names}}' | grep -q "$CONTAINER_NAME"; then
-    step "Starting migration test database..."
-    docker compose -f "$COMPOSE_FILE" up -d
-  fi
-
-  info "Waiting for PostgreSQL..."
-  RETRIES=30
-  until docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; do
-    RETRIES=$((RETRIES - 1))
-    if [[ $RETRIES -le 0 ]]; then
-      error "PostgreSQL did not become ready in time"
-      exit 1
-    fi
-    sleep 1
-  done
-  success "PostgreSQL is ready"
+# Step 2: Start postgres
+if ! docker ps --format '{{.Names}}' | grep -q "$CONTAINER_NAME"; then
+  step "Starting migration test database..."
+  docker compose -f "$COMPOSE_FILE" up -d
 fi
+
+info "Waiting for PostgreSQL..."
+RETRIES=30
+until docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; do
+  RETRIES=$((RETRIES - 1))
+  if [[ $RETRIES -le 0 ]]; then
+    error "PostgreSQL did not become ready in time"
+    exit 1
+  fi
+  sleep 1
+done
+success "PostgreSQL is ready"
 
 # Step 3: Run tests
 step "Running migration tests..."
