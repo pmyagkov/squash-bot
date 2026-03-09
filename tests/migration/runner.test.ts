@@ -32,8 +32,13 @@ describe('migration testing', () => {
         expect(testTags, `Missing migration "${tag}" in test journal`).toContain(tag)
       }
 
-      const prodInTest = testTags.filter((t) => prodTags.includes(t))
-      expect(prodInTest).toEqual(prodTags)
+      // Verify production migrations appear in the same relative order in the test journal
+      let lastIndex = -1
+      for (const tag of prodTags) {
+        const index = testTags.indexOf(tag)
+        expect(index, `"${tag}" appears before previous production migration in test journal`).toBeGreaterThan(lastIndex)
+        lastIndex = index
+      }
     })
   })
 
