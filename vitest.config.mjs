@@ -19,7 +19,7 @@ export default defineConfig({
       'tests/**/*.test.{js,ts}',
       'src/**/*.test.{js,ts}',
     ],
-    exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
+    exclude: ['tests/e2e/**', 'tests/migration/**', 'node_modules/**', 'dist/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
