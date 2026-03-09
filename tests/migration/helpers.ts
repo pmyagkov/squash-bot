@@ -1,3 +1,4 @@
+import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import postgres from 'postgres'
@@ -38,11 +39,6 @@ export function hasMigrationFile(tag: string): boolean {
   return fs.existsSync(path.join(MIGRATIONS_DIR, `${tag}.sql`))
 }
 
-/** Read the production dump SQL file. */
-export function getProdDumpSql(): string {
-  return fs.readFileSync(DUMP_FILE, 'utf-8')
-}
-
 /**
  * Execute a SQL file against a postgres connection.
  * Splits by drizzle's `--> statement-breakpoint` delimiter.
@@ -66,6 +62,7 @@ export async function executeMigrationSql(db: postgres.Sql, tag: string): Promis
 export async function createTestDatabase(baseUrl: string): Promise<{
   db: postgres.Sql
   url: string
+  dbName: string
   cleanup: () => Promise<void>
 }> {
   const dbName = `migration_test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -84,7 +81,7 @@ export async function createTestDatabase(baseUrl: string): Promise<{
     await adminDb2.end()
   }
 
-  return { db, url: testUrl, cleanup }
+  return { db, url: testUrl, dbName, cleanup }
 }
 
 /** Run all entries from the test journal sequentially as plain SQL. */
@@ -103,10 +100,18 @@ export async function runProductionMigrations(connectionString: string): Promise
   await client.end()
 }
 
-/** Restore a production dump (plain SQL format) into a database. */
-export async function restoreProdDump(db: postgres.Sql): Promise<void> {
-  const dump = getProdDumpSql()
-  await db.unsafe(dump)
+/**
+ * Restore a production dump into a database via psql in the Docker container.
+ * Uses psql CLI because pg_dump output contains backslash meta-commands
+ * that the postgres npm client cannot handle.
+ */
+export function restoreProdDump(dbName: string): void {
+  const containerName = 'squash-bot-postgres-migration'
+  execSync(`docker cp "${DUMP_FILE}" ${containerName}:/tmp/prod_dump.sql`)
+  execSync(
+    `docker exec ${containerName} psql -U postgres -d "${dbName}" -f /tmp/prod_dump.sql`,
+    { stdio: 'pipe' }
+  )
 }
 
 /**

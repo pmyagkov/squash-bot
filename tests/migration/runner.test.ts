@@ -111,7 +111,7 @@ describe('migration testing', () => {
       url = result.url
       cleanup = result.cleanup
 
-      await restoreProdDump(db)
+      restoreProdDump(result.dbName)
       newMigrations = await getNewMigrations(db)
 
       if (newMigrations.length > 0) {

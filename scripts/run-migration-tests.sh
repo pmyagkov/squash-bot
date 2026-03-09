@@ -58,7 +58,7 @@ step "Downloading production database dump..."
 mkdir -p "$(dirname "$DUMP_FILE")"
 
 if ssh -o ConnectTimeout=10 -o BatchMode=yes "$SERVER_HOST" \
-  'docker exec squash-bot-postgres pg_dump -U postgres -d squash_bot --format=plain' \
+  'source /opt/squash-bot/.env && docker exec squash-bot-postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=plain' \
   > "$DUMP_FILE" 2>/dev/null; then
   success "Dump saved to $DUMP_FILE ($(du -h "$DUMP_FILE" | cut -f1))"
 else
