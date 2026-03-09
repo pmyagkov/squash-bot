@@ -81,6 +81,7 @@ export const eventParticipants = pgTable(
       .references(() => participants.id)
       .notNull(),
     participations: integer('participations').default(1).notNull(),
+    status: varchar('status', { length: 10 }).default('in').notNull(),
   },
   (table) => [unique().on(table.eventId, table.participantId)]
 )
