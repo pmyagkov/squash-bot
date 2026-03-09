@@ -6,7 +6,7 @@ export const formatDate = (d: Dayjs): string => d.format(DATE_FORMAT)
 
 // Announcement buttons
 export const BTN_JOIN = "✋ I'm in"
-export const BTN_LEAVE = "👋 I'm out"
+export const BTN_LEAVE = "😢 I'm out"
 export const BTN_ADD_COURT = '➕ Court'
 export const BTN_REMOVE_COURT = '➖ Court'
 export const BTN_FINALIZE = '✅ Finalize'
