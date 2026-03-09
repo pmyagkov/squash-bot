@@ -103,27 +103,11 @@ describe('EventParticipantRepo', () => {
   })
 
   describe('removeFromEvent', () => {
-    it('should remove participant from event', async () => {
-      // Add participant first
-      await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
-
-      // Verify it was added via DB
-      const beforeRemove = await db
-        .select()
-        .from(eventParticipants)
-        .where(
-          and(
-            eq(eventParticipants.eventId, testEventId),
-            eq(eventParticipants.participantId, testParticipantId)
-          )
-        )
-      expect(beforeRemove).toHaveLength(1)
-
-      // Remove participant
+    it('should set status to out when participations reach 0', async () => {
+      await eventParticipantRepo.addToEvent(testEventId, testParticipantId, 1)
       await eventParticipantRepo.removeFromEvent(testEventId, testParticipantId)
 
-      // Verify via direct DB query
-      const afterRemove = await db
+      const dbResult = await db
         .select()
         .from(eventParticipants)
         .where(
@@ -132,7 +116,10 @@ describe('EventParticipantRepo', () => {
             eq(eventParticipants.participantId, testParticipantId)
           )
         )
-      expect(afterRemove).toHaveLength(0)
+
+      expect(dbResult).toHaveLength(1)
+      expect(dbResult[0].status).toBe('out')
+      expect(dbResult[0].participations).toBe(0)
     })
 
     it('should not affect other participants', async () => {
@@ -149,7 +136,7 @@ describe('EventParticipantRepo', () => {
       // Remove first participant
       await eventParticipantRepo.removeFromEvent(testEventId, testParticipantId)
 
-      // Verify first is gone via DB
+      // Verify first is out
       const dbResult1 = await db
         .select()
         .from(eventParticipants)
@@ -159,9 +146,10 @@ describe('EventParticipantRepo', () => {
             eq(eventParticipants.participantId, testParticipantId)
           )
         )
-      expect(dbResult1).toHaveLength(0)
+      expect(dbResult1).toHaveLength(1)
+      expect(dbResult1[0].status).toBe('out')
 
-      // Verify second is still there via DB
+      // Verify second is still in
       const dbResult2 = await db
         .select()
         .from(eventParticipants)
@@ -172,6 +160,7 @@ describe('EventParticipantRepo', () => {
           )
         )
       expect(dbResult2).toHaveLength(1)
+      expect(dbResult2[0].status).toBe('in')
     })
   })
 
@@ -251,6 +240,122 @@ describe('EventParticipantRepo', () => {
       const participants = await eventParticipantRepo.getEventParticipants(testEventId)
       expect(participants).toHaveLength(1)
       expect(participants[0].eventId).toBe(testEventId)
+    })
+  })
+
+  describe('status support', () => {
+    it('addToEvent should create with status "in"', async () => {
+      await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
+
+      const dbResult = await db
+        .select()
+        .from(eventParticipants)
+        .where(
+          and(
+            eq(eventParticipants.eventId, testEventId),
+            eq(eventParticipants.participantId, testParticipantId)
+          )
+        )
+
+      expect(dbResult[0].status).toBe('in')
+    })
+
+    it('addToEvent should switch status from "out" to "in"', async () => {
+      // First mark as out
+      await eventParticipantRepo.markAsOut(testEventId, testParticipantId)
+
+      // Then join — should switch back to "in"
+      await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
+
+      const dbResult = await db
+        .select()
+        .from(eventParticipants)
+        .where(
+          and(
+            eq(eventParticipants.eventId, testEventId),
+            eq(eventParticipants.participantId, testParticipantId)
+          )
+        )
+
+      expect(dbResult[0].status).toBe('in')
+      expect(dbResult[0].participations).toBe(1)
+    })
+
+    it('markAsOut should create new participant with status "out" and participations 0', async () => {
+      await eventParticipantRepo.markAsOut(testEventId, testParticipantId)
+
+      const dbResult = await db
+        .select()
+        .from(eventParticipants)
+        .where(
+          and(
+            eq(eventParticipants.eventId, testEventId),
+            eq(eventParticipants.participantId, testParticipantId)
+          )
+        )
+
+      expect(dbResult).toHaveLength(1)
+      expect(dbResult[0].status).toBe('out')
+      expect(dbResult[0].participations).toBe(0)
+    })
+
+    it('markAsOut should update existing "in" participant to "out"', async () => {
+      await eventParticipantRepo.addToEvent(testEventId, testParticipantId, 2)
+      await eventParticipantRepo.markAsOut(testEventId, testParticipantId)
+
+      const dbResult = await db
+        .select()
+        .from(eventParticipants)
+        .where(
+          and(
+            eq(eventParticipants.eventId, testEventId),
+            eq(eventParticipants.participantId, testParticipantId)
+          )
+        )
+
+      expect(dbResult[0].status).toBe('out')
+      expect(dbResult[0].participations).toBe(0)
+    })
+
+    it('getEventParticipants should return status field', async () => {
+      await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
+
+      const participants = await eventParticipantRepo.getEventParticipants(testEventId)
+      expect(participants[0].status).toBe('in')
+    })
+
+    it('getEventParticipants should return both "in" and "out" participants', async () => {
+      const { participant: p2 } = await participantRepo.findOrCreateParticipant(
+        '456', 'user2', 'User Two'
+      )
+
+      await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
+      await eventParticipantRepo.markAsOut(testEventId, p2.id)
+
+      const participants = await eventParticipantRepo.getEventParticipants(testEventId)
+      expect(participants).toHaveLength(2)
+
+      const inP = participants.find(p => p.status === 'in')
+      const outP = participants.find(p => p.status === 'out')
+      expect(inP).toBeDefined()
+      expect(outP).toBeDefined()
+      expect(outP!.participations).toBe(0)
+    })
+  })
+
+  describe('findEventParticipant', () => {
+    it('should return participant with status', async () => {
+      await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
+
+      const ep = await eventParticipantRepo.findEventParticipant(testEventId, testParticipantId)
+      expect(ep).toBeDefined()
+      expect(ep!.status).toBe('in')
+      expect(ep!.participant.displayName).toBe('Test User')
+    })
+
+    it('should return null when not found', async () => {
+      const ep = await eventParticipantRepo.findEventParticipant(testEventId, 'nonexistent')
+      expect(ep).toBeNull()
     })
   })
 
