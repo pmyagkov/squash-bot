@@ -47,3 +47,6 @@ playwright-report/
 .worktrees/
 
 .playwright-mcp/
+
+# Migration test production dump
+tests/migration/prod_dump.sql

@@ -31,7 +31,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npm ci --ignore-scripts && npx tsx src/storage/db/migrate.ts && npx tsx src/storage/db/seed.ts"
+    command: sh -c "npm ci --ignore-scripts && npx tsx src/storage/db/migrate.ts && npx tsx src/storage/db/override-test-settings.ts"
     restart: "no"
 
   bot:

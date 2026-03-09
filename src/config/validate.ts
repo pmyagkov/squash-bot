@@ -38,7 +38,7 @@ export async function validateDbSettings(settingsRepo: SettingsRepo): Promise<vo
 
   if (missing.length > 0) {
     throw new Error(
-      `Missing required database settings: ${missing.join(', ')}. Run 'npm run db:seed' to initialize.`
+      `Missing required database settings: ${missing.join(', ')}. Run migrations to initialize.`
     )
   }
 }
