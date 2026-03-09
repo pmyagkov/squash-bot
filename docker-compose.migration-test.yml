@@ -1,0 +1,17 @@
+# PostgreSQL for migration tests only
+# Usage: docker compose -f docker-compose.migration-test.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: squash-bot-postgres-migration
+    environment:
+      - POSTGRES_DB=squash_bot_migration
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=test
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d squash_bot_migration"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
