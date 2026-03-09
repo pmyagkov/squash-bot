@@ -204,6 +204,12 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Backup database before deploy
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
+            /opt/squash-bot/scripts/backup-db.sh
+          ENDSSH
+
       - name: Sync docker-compose.yml to server
         run: |
           scp docker-compose.yml ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/opt/squash-bot/docker-compose.yml
