@@ -282,6 +282,47 @@ npm run test:e2e:ui        # Headed mode (visible browser)
 
 ---
 
+## Migration Tests
+
+Test database migrations against real PostgreSQL (Docker) and production data.
+
+### Three Test Levels
+
+1. **Smoke test** — applies all migrations from scratch on clean DB, verifies schema matches `schema.ts`
+2. **Production dump test** — downloads fresh `pg_dump` from production, restores it, applies new migrations, runs `.expected.sql` assertions
+3. **Data tests (optional)** — controlled test data via `_test_journal.json` with `.seed.sql` files
+
+### Running
+
+```bash
+npm run test:migration           # Download dump, start PostgreSQL, run tests
+npm run test:migration:stop-db   # Stop test PostgreSQL container
+```
+
+Requires SSH access to production server (for `pg_dump`). If SSH is unavailable, tests fail.
+
+### Adding Assertions for a New Migration
+
+1. Generate migration: `drizzle-kit generate`
+2. Write `NNNN_name.expected.sql` — PL/pgSQL `DO $$ BEGIN ASSERT ...; END $$;`
+3. Run `npm run test:migration`
+
+Assertions should be **invariants** that work on any data: count comparisons, NULL checks, FK integrity via JOINs — not hardcoded values. See design doc for examples: `docs/plans/2026-03-06-migration-testing/design.md`.
+
+### File Convention
+
+```
+src/storage/db/migrations/
+├── 0001_feature.sql              ← migration (drizzle-kit generated)
+├── 0001_feature.seed.sql         ← optional: test data for edge cases
+├── 0001_feature.expected.sql     ← PL/pgSQL ASSERT invariants
+└── meta/
+    ├── _journal.json             ← production journal
+    └── _test_journal.json        ← test journal (migrations + optional seed + expected)
+```
+
+---
+
 ## Naming Conventions
 
 - **No suffixes** — files named by entity (`event.ts`), context from folder
