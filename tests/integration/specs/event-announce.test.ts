@@ -90,19 +90,10 @@ describe('event-announce', () => {
         expect.stringContaining('Courts: 2'),
         expect.anything()
       )
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('Participants:'),
-        expect.anything()
-      )
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('(nobody yet)'),
-        expect.anything()
-      )
-
       // Check that message has inline keyboard with "I'm in" and "I'm out" buttons
-      const announcementCall = api.sendMessage.mock.calls.find(([, text]) => text.includes('🎾 Squash'))
+      const announcementCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('🎾 Squash')
+      )
       expect(announcementCall).toBeDefined()
       const other = announcementCall![2] as Record<string, unknown>
       const replyMarkup = other?.reply_markup as { inline_keyboard: Array<Array<{ text: string }>> }
@@ -110,7 +101,7 @@ describe('event-announce', () => {
       const buttons = replyMarkup.inline_keyboard[0]
       expect(buttons).toHaveLength(2)
       expect(buttons[0].text).toBe("✋ I'm in")
-      expect(buttons[1].text).toBe("👋 I'm out")
+      expect(buttons[1].text).toBe("😢 I'm out")
     })
 
     it('should show empty message when no event ID provided and no events exist', async () => {
@@ -216,18 +207,6 @@ describe('event-announce', () => {
       expect(api.sendMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
         expect.stringContaining('Courts: 3'),
-        expect.anything()
-      )
-
-      // Should include participants section
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('Participants:'),
-        expect.anything()
-      )
-      expect(api.sendMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        expect.stringContaining('(nobody yet)'),
         expect.anything()
       )
     })

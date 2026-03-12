@@ -2132,7 +2132,8 @@ export class EventBusiness {
       }
 
       const messageText = formatAnnouncementText(
-        event, participants,
+        event,
+        participants,
         event.status === 'finalized',
         event.status === 'cancelled',
         paidParticipantIds
@@ -2140,7 +2141,12 @@ export class EventBusiness {
       const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
 
       try {
-        await this.transport.editMessage(chatId, parseInt(event.telegramMessageId, 10), messageText, keyboard)
+        await this.transport.editMessage(
+          chatId,
+          parseInt(event.telegramMessageId, 10),
+          messageText,
+          keyboard
+        )
       } catch (error) {
         await this.logger.error(
           `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
@@ -2161,7 +2167,8 @@ export class EventBusiness {
     }
 
     const messageText = formatAnnouncementText(
-      event, participants,
+      event,
+      participants,
       event.status === 'finalized',
       event.status === 'cancelled',
       paidParticipantIds
@@ -2170,9 +2177,7 @@ export class EventBusiness {
     for (const ann of announcements) {
       const chatId = parseInt(ann.telegramChatId, 10)
       const messageId = parseInt(ann.telegramMessageId, 10)
-      const keyboard = buildInlineKeyboard(
-        event.status as EventStatus, event.isPrivate, event.id
-      )
+      const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
       try {
         await this.transport.editMessage(chatId, messageId, messageText, keyboard)
       } catch (error) {

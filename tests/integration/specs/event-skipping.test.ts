@@ -49,7 +49,7 @@ describe('event-skipping', () => {
     return { event: announcedEvent!, messageId }
   }
 
-  it('user not in event clicks I\'m out → appears in Skipping', async () => {
+  it("user not in event clicks I'm out → appears in Skipping", async () => {
     const { event, messageId } = await setupAnnouncedEvent()
 
     const leaveUpdate = createCallbackQueryUpdate({
@@ -76,15 +76,13 @@ describe('event-skipping', () => {
     expect(lastAnswer?.[1]?.text).toBe("Noted, you're skipping 😢")
 
     // Verify announcement shows Skipping section
-    const editCalls = api.editMessageText.mock.calls.filter(
-      ([, msgId]) => msgId === messageId
-    )
+    const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
     const lastEdit = editCalls[editCalls.length - 1]
     expect(lastEdit?.[2]).toContain('😢 Skipping')
     expect(lastEdit?.[2]).toContain('@testuser')
   })
 
-  it('registered user clicks I\'m out → moves to Skipping', async () => {
+  it("registered user clicks I'm out → moves to Skipping", async () => {
     const { event, messageId } = await setupAnnouncedEvent()
 
     // First join
@@ -121,14 +119,12 @@ describe('event-skipping', () => {
     expect(lastAnswer?.[1]?.text).toBe("You're out 😢")
 
     // Verify announcement shows Skipping section
-    const editCalls = api.editMessageText.mock.calls.filter(
-      ([, msgId]) => msgId === messageId
-    )
+    const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
     const lastEdit = editCalls[editCalls.length - 1]
     expect(lastEdit?.[2]).toContain('😢 Skipping')
   })
 
-  it('skipping user clicks I\'m in → moves to Playing', async () => {
+  it("skipping user clicks I'm in → moves to Playing", async () => {
     const { event, messageId } = await setupAnnouncedEvent()
 
     // First mark as out
@@ -166,16 +162,14 @@ describe('event-skipping', () => {
     expect(lastAnswer?.[1]?.text).toBe('Welcome back! ✋')
 
     // Verify announcement shows Playing section
-    const editCalls = api.editMessageText.mock.calls.filter(
-      ([, msgId]) => msgId === messageId
-    )
+    const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
     const lastEdit = editCalls[editCalls.length - 1]
     expect(lastEdit?.[2]).toContain('✋ Playing')
     expect(lastEdit?.[2]).not.toContain('😢 Skipping')
   })
 
-  it('already skipping user clicks I\'m out → no-op', async () => {
-    const { event, messageId } = await setupAnnouncedEvent()
+  it("already skipping user clicks I'm out → no-op", async () => {
+    const { messageId } = await setupAnnouncedEvent()
 
     const leaveUpdate = createCallbackQueryUpdate({
       userId: 123456,
@@ -202,9 +196,7 @@ describe('event-skipping', () => {
     expect(answerCalls[0]?.[1]?.text).toBe("You're already skipping")
 
     // Verify no edit happened (announcement not updated for no-op)
-    const editCalls = api.editMessageText.mock.calls.filter(
-      ([, msgId]) => msgId === messageId
-    )
+    const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
     expect(editCalls).toHaveLength(0)
   })
 })
