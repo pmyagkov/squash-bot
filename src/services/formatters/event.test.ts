@@ -98,11 +98,21 @@ describe('event formatters', () => {
       )
     })
 
-    it('should show +/- Participant for private announced event', () => {
-      const keyboard = buildInlineKeyboard('announced', true, 'ev_test')
+    it('should show join/leave for non-owner private announced event', () => {
+      const keyboard = buildInlineKeyboard('announced', true, 'ev_test', false)
       const buttons = keyboard.inline_keyboard
-      expect(buttons[0][0].text).toBe(BTN_ADD_PARTICIPANT)
-      expect(buttons[0][1].text).toBe(BTN_REMOVE_PARTICIPANT)
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0][0].text).toBe(BTN_JOIN)
+      expect(buttons[0][1].text).toBe(BTN_LEAVE)
+    })
+
+    it('should show full management buttons for owner private announced event', () => {
+      const keyboard = buildInlineKeyboard('announced', true, 'ev_test', true)
+      const buttons = keyboard.inline_keyboard
+      expect(buttons[0][0].text).toBe(BTN_JOIN)
+      expect(buttons[0][1].text).toBe(BTN_LEAVE)
+      expect(buttons[1][0].text).toBe(BTN_ADD_PARTICIPANT)
+      expect(buttons[1][1].text).toBe(BTN_REMOVE_PARTICIPANT)
     })
 
     it('should show full button set for created status', () => {
@@ -285,10 +295,7 @@ describe('event formatters', () => {
     })
 
     it('should show Playing section with count', () => {
-      const participants = [
-        makeDisplay('Alice', 'alice', 'in', 2),
-        makeDisplay('Bob', 'bob', 'in'),
-      ]
+      const participants = [makeDisplay('Alice', 'alice', 'in', 2), makeDisplay('Bob', 'bob', 'in')]
       const text = formatAnnouncementText(baseEvent, participants)
       expect(text).toContain('✋ Playing — 3:')
       expect(text).toContain('@alice (×2), @bob')
@@ -646,8 +653,16 @@ describe('event formatters', () => {
         isPrivate: false,
       }
       const participants: EventParticipantDisplay[] = [
-        { participant: { telegramUsername: 'alice', displayName: 'Alice' }, participations: 1, status: 'in' },
-        { participant: { telegramUsername: 'bob', displayName: 'Bob' }, participations: 1, status: 'in' },
+        {
+          participant: { telegramUsername: 'alice', displayName: 'Alice' },
+          participations: 1,
+          status: 'in',
+        },
+        {
+          participant: { telegramUsername: 'bob', displayName: 'Bob' },
+          participations: 1,
+          status: 'in',
+        },
       ]
       const result = formatNotFinalizedReminder(event, participants)
       expect(result).toContain('not finalized')

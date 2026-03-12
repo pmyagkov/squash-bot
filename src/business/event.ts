@@ -367,7 +367,9 @@ export class EventBusiness {
     const eventId = await this.eventAnnouncementRepository.findEventByMessageId(String(messageId))
     if (eventId) {
       const event = await this.eventRepository.findById(eventId)
-      if (event) return event
+      if (event) {
+        return event
+      }
     }
     // Fallback to legacy field on event
     const event = await this.eventRepository.findByMessageId(String(messageId))
@@ -2119,10 +2121,14 @@ export class EventBusiness {
     // Fallback to legacy fields if no announcement rows exist
     if (announcements.length === 0) {
       const event = await this.eventRepository.findById(eventId)
-      if (!event?.telegramMessageId) return
+      if (!event?.telegramMessageId) {
+        return
+      }
 
       const chatId = await this.getAnnouncementChatId(event)
-      if (!chatId) return
+      if (!chatId) {
+        return
+      }
 
       const participants = await this.participantRepository.getEventParticipants(eventId)
       let paidParticipantIds: Set<string> | undefined
@@ -2156,7 +2162,9 @@ export class EventBusiness {
     }
 
     const event = await this.eventRepository.findById(eventId)
-    if (!event) return
+    if (!event) {
+      return
+    }
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
 
@@ -2177,7 +2185,13 @@ export class EventBusiness {
     for (const ann of announcements) {
       const chatId = parseInt(ann.telegramChatId, 10)
       const messageId = parseInt(ann.telegramMessageId, 10)
-      const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
+      const isOwner = ann.telegramChatId === event.ownerId
+      const keyboard = buildInlineKeyboard(
+        event.status as EventStatus,
+        event.isPrivate,
+        event.id,
+        isOwner
+      )
       try {
         await this.transport.editMessage(chatId, messageId, messageText, keyboard)
       } catch (error) {
@@ -2197,29 +2211,101 @@ export class EventBusiness {
       throw new Error(`Event ${id} not found`)
     }
 
-    let chatId: number
     if (event.isPrivate) {
-      chatId = parseInt(event.ownerId, 10)
-    } else {
-      const mainChatId = await this.settingsRepository.getMainChatId()
-      if (!mainChatId) {
-        throw new Error('Chat ID not configured')
+      // Private event: send personal DM to each participant + owner
+      const messageText = formatEventMessage(event)
+      const eventParticipants = await this.participantRepository.getEventParticipants(event.id)
+      const playingParticipants = eventParticipants.filter((ep) => ep.status === 'in')
+
+      let firstMessageId: number | undefined
+      let firstChatId: number | undefined
+
+      for (const ep of playingParticipants) {
+        if (!ep.participant.telegramId) {
+          continue
+        }
+        const participantChatId = parseInt(ep.participant.telegramId, 10)
+        const isOwner = ep.participant.telegramId === event.ownerId
+        const keyboard = buildInlineKeyboard('announced', true, event.id, isOwner)
+        try {
+          const msgId = await this.transport.sendMessage(participantChatId, messageText, keyboard)
+          await this.eventAnnouncementRepository.create(
+            event.id,
+            String(msgId),
+            String(participantChatId)
+          )
+          if (!firstMessageId) {
+            firstMessageId = msgId
+            firstChatId = participantChatId
+          }
+        } catch (error) {
+          await this.logger.error(
+            `Failed to send private announcement to ${ep.participant.displayName}: ${error}`
+          )
+        }
       }
-      chatId = mainChatId
+
+      // Also send to owner if not already a participant
+      const ownerIsParticipant = playingParticipants.some(
+        (ep) => ep.participant.telegramId === event.ownerId
+      )
+      if (!ownerIsParticipant) {
+        const ownerChatId = parseInt(event.ownerId, 10)
+        const keyboard = buildInlineKeyboard('announced', true, event.id, true)
+        try {
+          const msgId = await this.transport.sendMessage(ownerChatId, messageText, keyboard)
+          await this.eventAnnouncementRepository.create(
+            event.id,
+            String(msgId),
+            String(ownerChatId)
+          )
+          if (!firstMessageId) {
+            firstMessageId = msgId
+            firstChatId = ownerChatId
+          }
+        } catch (error) {
+          await this.logger.error(`Failed to send private announcement to owner: ${error}`)
+        }
+      }
+
+      // Update event status (keep legacy fields for backward compatibility)
+      const updatedEvent = await this.eventRepository.updateEvent(id, {
+        telegramMessageId: firstMessageId ? String(firstMessageId) : undefined,
+        telegramChatId: firstChatId ? String(firstChatId) : undefined,
+        status: 'announced',
+      })
+
+      const owner = await this.participantRepository.findByTelegramId(event.ownerId)
+      void this.transport.logEvent({
+        type: 'event_announced',
+        event: updatedEvent,
+        owner: owner ?? undefined,
+      })
+
+      void this.notifyOwner(updatedEvent, 'event-announced', undefined, {
+        actorUserId,
+      })
+
+      return updatedEvent
     }
+
+    // Public event
+    const mainChatId = await this.settingsRepository.getMainChatId()
+    if (!mainChatId) {
+      throw new Error('Chat ID not configured')
+    }
+    const chatId = mainChatId
 
     // Send announcement via transport layer
     const messageText = formatEventMessage(event)
     const keyboard = buildInlineKeyboard('announced', event.isPrivate, event.id)
     const messageId = await this.transport.sendMessage(chatId, messageText, keyboard)
 
-    // Pin the message (only for public events in group chat)
-    if (!event.isPrivate) {
-      try {
-        await this.transport.pinMessage(chatId, messageId)
-      } catch {
-        // Ignore pin errors
-      }
+    // Pin the message
+    try {
+      await this.transport.pinMessage(chatId, messageId)
+    } catch {
+      // Ignore pin errors
     }
 
     // Store announcement in event_announcements table
@@ -2618,6 +2704,31 @@ export class EventBusiness {
         try {
           const participantId = await this.wizardService.collect(addStep, ctx)
           await this.participantRepository.addToEvent(entityId, participantId)
+
+          // For private events, send a personal DM to the newly added participant
+          if (event.isPrivate) {
+            const newParticipant = await this.participantRepository.findById(participantId)
+            if (newParticipant?.telegramId) {
+              const participants = await this.participantRepository.getEventParticipants(entityId)
+              const messageText = formatAnnouncementText(event, participants)
+              const keyboard = buildInlineKeyboard('announced', true, entityId, false)
+              try {
+                const participantChatId = parseInt(newParticipant.telegramId, 10)
+                const msgId = await this.transport.sendMessage(
+                  participantChatId,
+                  messageText,
+                  keyboard
+                )
+                await this.eventAnnouncementRepository.create(
+                  entityId,
+                  String(msgId),
+                  String(participantChatId)
+                )
+              } catch {
+                await this.logger.error(`Failed to send DM to ${newParticipant.displayName}`)
+              }
+            }
+          }
         } catch (e) {
           if (!(e instanceof WizardCancelledError)) {
             throw e

@@ -42,7 +42,8 @@ export interface EventParticipantDisplay {
 export function buildInlineKeyboard(
   status: EventStatus,
   isPrivate?: boolean,
-  eventId?: string
+  eventId?: string,
+  isOwner?: boolean
 ): InlineKeyboard {
   if (status === 'cancelled') {
     return new InlineKeyboard().text(BTN_RESTORE, 'event:undo-cancel')
@@ -52,17 +53,23 @@ export function buildInlineKeyboard(
     return new InlineKeyboard().text(BTN_UNFINALIZE, 'event:undo-finalize')
   }
 
-  // Private event — owner manages participants manually
+  // Private event — owner gets management buttons, participants get join/leave
   if (isPrivate && eventId) {
-    return new InlineKeyboard()
-      .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
-      .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
-      .row()
-      .text(BTN_ADD_COURT, 'event:add-court')
-      .text(BTN_REMOVE_COURT, 'event:delete-court')
-      .row()
-      .text(BTN_FINALIZE, 'event:finalize')
-      .text(BTN_CANCEL_EVENT, 'event:cancel')
+    const kb = new InlineKeyboard().text(BTN_JOIN, 'event:join').text(BTN_LEAVE, 'event:leave')
+
+    if (isOwner) {
+      kb.row()
+        .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
+        .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
+        .row()
+        .text(BTN_ADD_COURT, 'event:add-court')
+        .text(BTN_REMOVE_COURT, 'event:delete-court')
+        .row()
+        .text(BTN_FINALIZE, 'event:finalize')
+        .text(BTN_CANCEL_EVENT, 'event:cancel')
+    }
+
+    return kb
   }
 
   // Public event — self-serve join/leave

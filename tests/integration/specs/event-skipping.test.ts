@@ -6,6 +6,7 @@ import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
 import type { ParticipantRepo } from '~/storage/repo/participant'
+import type { EventAnnouncementRepo } from '~/storage/repo/eventAnnouncement'
 import type { EventBusiness } from '~/business/event'
 
 describe('event-skipping', () => {
@@ -198,5 +199,103 @@ describe('event-skipping', () => {
     // Verify no edit happened (announcement not updated for no-op)
     const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
     expect(editCalls).toHaveLength(0)
+  })
+
+  describe('private event DM flow', () => {
+    let eventAnnouncementRepository: EventAnnouncementRepo
+
+    beforeEach(() => {
+      eventAnnouncementRepository = container.resolve('eventAnnouncementRepository')
+    })
+
+    async function setupPrivateAnnouncedEvent(courts = 2) {
+      const { participant: alice } = await participantRepository.findOrCreateParticipant(
+        '555555555',
+        'alice',
+        'Alice'
+      )
+      const { participant: bob } = await participantRepository.findOrCreateParticipant(
+        '666666666',
+        'bob',
+        'Bob'
+      )
+
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00Z'),
+        courts,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+        isPrivate: true,
+      })
+
+      // Add participants before announcing
+      await participantRepository.addToEvent(event.id, alice.id)
+      await participantRepository.addToEvent(event.id, bob.id)
+
+      await eventBusiness.announceEvent(event.id)
+
+      const announced = await eventRepository.findById(event.id)
+
+      return { event: announced!, alice, bob }
+    }
+
+    it('announce sends DM to each participant + owner', async () => {
+      const { event } = await setupPrivateAnnouncedEvent()
+
+      // Should have sent DMs to alice (555555555), bob (666666666), and owner (ADMIN_ID)
+      const sendCalls = api.sendMessage.mock.calls
+      const dmChatIds = sendCalls
+        .filter(([, text]) => typeof text === 'string' && text.includes('🔒 Squash'))
+        .map(([chatId]) => chatId)
+
+      expect(dmChatIds).toContain(555555555)
+      expect(dmChatIds).toContain(666666666)
+      expect(dmChatIds).toContain(ADMIN_ID)
+
+      // Verify event_announcements rows were created
+      const announcements = await eventAnnouncementRepository.getByEventId(event.id)
+      expect(announcements.length).toBeGreaterThanOrEqual(3)
+    })
+
+    it("participant clicks I'm out on DM → all DMs updated with Skipping", async () => {
+      const { event } = await setupPrivateAnnouncedEvent()
+
+      // Find alice's announcement message ID
+      const announcements = await eventAnnouncementRepository.getByEventId(event.id)
+      const aliceAnn = announcements.find((a) => a.telegramChatId === '555555555')
+      expect(aliceAnn).toBeDefined()
+      const aliceMessageId = parseInt(aliceAnn!.telegramMessageId, 10)
+
+      // Clear mocks from announcement phase
+      api.editMessageText.mockClear()
+
+      // Alice clicks "I'm out" on her DM
+      const leaveUpdate = createCallbackQueryUpdate({
+        userId: 555555555,
+        chatId: 555555555,
+        messageId: aliceMessageId,
+        data: 'event:leave',
+        username: 'alice',
+        firstName: 'Alice',
+      })
+      await bot.handleUpdate(leaveUpdate)
+
+      // Verify alice is now 'out'
+      const participants = await participantRepository.getEventParticipants(event.id)
+      const aliceEp = participants.find((p) => p.participant.telegramUsername === 'alice')
+      expect(aliceEp).toBeDefined()
+      expect(aliceEp!.status).toBe('out')
+
+      // Verify all DM announcement messages were updated (editMessageText called for each)
+      const editCalls = api.editMessageText.mock.calls
+      expect(editCalls.length).toBeGreaterThanOrEqual(announcements.length)
+
+      // At least one edit should contain the Skipping section
+      const skippingEdits = editCalls.filter(
+        ([, , text]) => typeof text === 'string' && text.includes('😢 Skipping')
+      )
+      expect(skippingEdits.length).toBeGreaterThanOrEqual(1)
+      expect(skippingEdits[0][2]).toContain('@alice')
+    })
   })
 })
