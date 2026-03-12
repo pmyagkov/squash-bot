@@ -26,6 +26,7 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { PaymentRepo } from '~/storage/repo/payment'
 import type { NotificationRepo } from '~/storage/repo/notification'
+import type { EventAnnouncementRepo } from '~/storage/repo/eventAnnouncement'
 import type { Logger } from '~/services/logger'
 import type { Notification } from '~/types'
 import { EventLock } from '~/utils/eventLock'
@@ -203,6 +204,7 @@ export class EventBusiness {
   private participantRepository: ParticipantRepo
   private paymentRepository: PaymentRepo
   private notificationRepository: NotificationRepo
+  private eventAnnouncementRepository: EventAnnouncementRepo
   private transport: TelegramTransport
   private logger: Logger
   private participantBusiness: ParticipantBusiness
@@ -218,6 +220,7 @@ export class EventBusiness {
     this.participantRepository = container.resolve('participantRepository')
     this.paymentRepository = container.resolve('paymentRepository')
     this.notificationRepository = container.resolve('notificationRepository')
+    this.eventAnnouncementRepository = container.resolve('eventAnnouncementRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
     this.participantBusiness = container.resolve('participantBusiness')
@@ -360,14 +363,22 @@ export class EventBusiness {
    * Resolve event by message ID — checks announcement first, then notification.
    */
   private async resolveEventByMessageId(messageId: number): Promise<Event | undefined> {
+    // Try event_announcements first (new table)
+    const eventId = await this.eventAnnouncementRepository.findEventByMessageId(String(messageId))
+    if (eventId) {
+      const event = await this.eventRepository.findById(eventId)
+      if (event) return event
+    }
+    // Fallback to legacy field on event
     const event = await this.eventRepository.findByMessageId(String(messageId))
     if (event) {
       return event
     }
+    // Fallback to notification
     const notification = await this.notificationRepository.findByMessageId(String(messageId))
     if (notification) {
-      const eventId = notification.params.eventId as string
-      return this.eventRepository.findById(eventId)
+      const notifEventId = notification.params.eventId as string
+      return this.eventRepository.findById(notifEventId)
     }
     return undefined
   }
@@ -389,7 +400,7 @@ export class EventBusiness {
   // === Callback Handlers ===
 
   private async handleJoin(data: CallbackTypes['event:join']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -440,7 +451,7 @@ export class EventBusiness {
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -636,7 +647,7 @@ export class EventBusiness {
   }
 
   private async handleCancel(data: CallbackTypes['event:cancel']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -663,7 +674,7 @@ export class EventBusiness {
   }
 
   private async handleRestore(data: CallbackTypes['event:undo-cancel']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -685,7 +696,7 @@ export class EventBusiness {
   }
 
   private async handleUnfinalize(data: CallbackTypes['event:undo-finalize']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -1882,6 +1893,13 @@ export class EventBusiness {
       return
     }
 
+    if (event.isPrivate) {
+      // Private events: update ALL announcement messages via refreshAnnouncement
+      await this.refreshAnnouncement(eventId)
+      return
+    }
+
+    // Public event: update single group message
     const participants = await this.participantRepository.getEventParticipants(eventId)
     const messageText = formatAnnouncementText(event, participants, finalized, cancelled)
     const status =
@@ -2096,15 +2114,43 @@ export class EventBusiness {
   }
 
   private async refreshAnnouncement(eventId: string): Promise<void> {
-    const event = await this.eventRepository.findById(eventId)
-    if (!event?.telegramMessageId) {
+    const announcements = await this.eventAnnouncementRepository.getByEventId(eventId)
+
+    // Fallback to legacy fields if no announcement rows exist
+    if (announcements.length === 0) {
+      const event = await this.eventRepository.findById(eventId)
+      if (!event?.telegramMessageId) return
+
+      const chatId = await this.getAnnouncementChatId(event)
+      if (!chatId) return
+
+      const participants = await this.participantRepository.getEventParticipants(eventId)
+      let paidParticipantIds: Set<string> | undefined
+      if (event.status === 'finalized') {
+        const payments = await this.paymentRepository.getPaymentsByEvent(eventId)
+        paidParticipantIds = new Set(payments.filter((p) => p.isPaid).map((p) => p.participantId))
+      }
+
+      const messageText = formatAnnouncementText(
+        event, participants,
+        event.status === 'finalized',
+        event.status === 'cancelled',
+        paidParticipantIds
+      )
+      const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
+
+      try {
+        await this.transport.editMessage(chatId, parseInt(event.telegramMessageId, 10), messageText, keyboard)
+      } catch (error) {
+        await this.logger.error(
+          `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
       return
     }
 
-    const chatId = await this.getAnnouncementChatId(event)
-    if (!chatId) {
-      return
-    }
+    const event = await this.eventRepository.findById(eventId)
+    if (!event) return
 
     const participants = await this.participantRepository.getEventParticipants(eventId)
 
@@ -2115,25 +2161,25 @@ export class EventBusiness {
     }
 
     const messageText = formatAnnouncementText(
-      event,
-      participants,
+      event, participants,
       event.status === 'finalized',
       event.status === 'cancelled',
       paidParticipantIds
     )
-    const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
 
-    try {
-      await this.transport.editMessage(
-        chatId,
-        parseInt(event.telegramMessageId, 10),
-        messageText,
-        keyboard
+    for (const ann of announcements) {
+      const chatId = parseInt(ann.telegramChatId, 10)
+      const messageId = parseInt(ann.telegramMessageId, 10)
+      const keyboard = buildInlineKeyboard(
+        event.status as EventStatus, event.isPrivate, event.id
       )
-    } catch (error) {
-      await this.logger.error(
-        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
-      )
+      try {
+        await this.transport.editMessage(chatId, messageId, messageText, keyboard)
+      } catch (error) {
+        await this.logger.error(
+          `Error updating announcement ${ann.id}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
     }
   }
 
@@ -2171,7 +2217,10 @@ export class EventBusiness {
       }
     }
 
-    // Update event with telegram_message_id, telegramChatId and status
+    // Store announcement in event_announcements table
+    await this.eventAnnouncementRepository.create(event.id, String(messageId), String(chatId))
+
+    // Update event status (keep legacy fields for backward compatibility)
     const updatedEvent = await this.eventRepository.updateEvent(id, {
       telegramMessageId: String(messageId),
       telegramChatId: String(chatId),
@@ -2725,6 +2774,7 @@ export class EventBusiness {
           displayName: ep.participant.displayName,
         },
         participations: ep.participations,
+        status: ep.status,
       }))
       const message = formatNotFinalizedReminder(event, participants)
 
@@ -2769,6 +2819,7 @@ export class EventBusiness {
           displayName: ep.participant.displayName,
         },
         participations: ep.participations,
+        status: ep.status,
       }))
       const message = formatNotFinalizedReminder(event, participants)
 
