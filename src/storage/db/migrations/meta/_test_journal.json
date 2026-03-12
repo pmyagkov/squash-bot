@@ -29,6 +29,20 @@
       "when": 1741305600001,
       "tag": "0002_add_event_participant_status.expected",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1741305600002,
+      "tag": "0003_add_event_announcements",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1741305600003,
+      "tag": "0003_add_event_announcements.expected",
+      "breakpoints": true
     }
   ]
 }

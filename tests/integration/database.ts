@@ -21,6 +21,7 @@ export async function clearTestDb() {
   const db = getTestDb()
   // Delete in FK order (children first)
   await db.delete(schema.payments)
+  await db.delete(schema.eventAnnouncements)
   await db.delete(schema.eventParticipants)
   await db.delete(schema.scaffoldParticipants)
   await db.delete(schema.events)
@@ -79,6 +80,16 @@ function createTables(db: ReturnType<typeof drizzle>) {
       deleted_at TEXT,
       FOREIGN KEY (scaffold_id) REFERENCES scaffolds(id),
       FOREIGN KEY (collector_id) REFERENCES participants(id)
+    )
+  `)
+
+  db.run(sql`
+    CREATE TABLE event_announcements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id TEXT NOT NULL,
+      telegram_message_id TEXT NOT NULL,
+      telegram_chat_id TEXT NOT NULL,
+      FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
     )
   `)
 

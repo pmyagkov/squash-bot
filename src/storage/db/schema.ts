@@ -60,6 +60,16 @@ export const events = pgTable('events', {
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 })
 
+// Event announcements table
+export const eventAnnouncements = pgTable('event_announcements', {
+  id: serial('id').primaryKey(),
+  eventId: text('event_id')
+    .references(() => events.id, { onDelete: 'cascade' })
+    .notNull(),
+  telegramMessageId: text('telegram_message_id').notNull(),
+  telegramChatId: text('telegram_chat_id').notNull(),
+})
+
 // Participants table
 export const participants = pgTable('participants', {
   id: text('id').primaryKey(),
@@ -155,6 +165,14 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   }),
   eventParticipants: many(eventParticipants),
   payments: many(payments),
+  announcements: many(eventAnnouncements),
+}))
+
+export const eventAnnouncementsRelations = relations(eventAnnouncements, ({ one }) => ({
+  event: one(events, {
+    fields: [eventAnnouncements.eventId],
+    references: [events.id],
+  }),
 }))
 
 export const participantsRelations = relations(participants, ({ many }) => ({
