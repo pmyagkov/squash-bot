@@ -189,7 +189,9 @@ export class EventCommands extends ChatPage {
   } | null {
     // Parse courts: "Courts: 2"
     const courtsMatch = announcement.match(/Courts:\s*(\d+)/)
-    if (!courtsMatch) return null
+    if (!courtsMatch) {
+      return null
+    }
 
     // Parse participants
     const participantsSection = announcement.split(/Participants(?:\s*\(\d+\))?:/)[1]

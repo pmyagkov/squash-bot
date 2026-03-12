@@ -35,7 +35,8 @@ describe('info-payment', () => {
     )
 
     // Verify in database
-    const participant = await container.resolve('participantRepository')
+    const participant = await container
+      .resolve('participantRepository')
       .findByTelegramId(String(ADMIN_ID))
     expect(participant?.paymentInfo).toBe('1234-5678-9012-3456')
 
@@ -50,7 +51,9 @@ describe('info-payment', () => {
     // First save some info
     const participantRepo = container.resolve('participantRepository')
     const { participant } = await participantRepo.findOrCreateParticipant(
-      String(ADMIN_ID), 'admin', 'Admin'
+      String(ADMIN_ID),
+      'admin',
+      'Admin'
     )
     await participantRepo.updatePaymentInfo(participant.id, 'My card 1234')
 

@@ -96,7 +96,7 @@ describe('event-announce', () => {
       )
       expect(announcementCall).toBeDefined()
       const other = announcementCall![2] as Record<string, unknown>
-      const replyMarkup = other?.reply_markup as { inline_keyboard: Array<Array<{ text: string }>> }
+      const replyMarkup = other?.reply_markup as { inline_keyboard: { text: string }[][] }
       expect(replyMarkup?.inline_keyboard).toBeDefined()
       const buttons = replyMarkup.inline_keyboard[0]
       expect(buttons).toHaveLength(2)

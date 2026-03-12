@@ -502,7 +502,9 @@ describe('event-create', () => {
         expect(successCall![1]).toContain('📅 Event created')
         expect(successCall![1]).toContain('🏟 Courts: 2')
         expect(successCall![1]).toContain(`<code>${createdEvent.id}</code>`)
-        expect(successCall![1]).toContain(`To announce: <code>/event announce ${createdEvent.id}</code>`)
+        expect(successCall![1]).toContain(
+          `To announce: <code>/event announce ${createdEvent.id}</code>`
+        )
 
         // Check full message format matches expected pattern
         // Format: "📅 Event created\n\nDay, DD Mon, HH:mm\n🏟 Courts: N | STATUS | PRIVACY | <code>ev_xxx</code>\nTo announce: <code>/event announce ev_xxx</code>"
@@ -1100,7 +1102,10 @@ describe('event-create', () => {
           reply_markup: expect.objectContaining({
             inline_keyboard: expect.arrayContaining([
               expect.arrayContaining([
-                expect.objectContaining({ text: '🎾 Create', callback_data: 'wizard:select:create' }),
+                expect.objectContaining({
+                  text: '🎾 Create',
+                  callback_data: 'wizard:select:create',
+                }),
               ]),
             ]),
           }),

@@ -216,7 +216,9 @@ test.describe('Scaffold Commands', () => {
 
     // Cleanup
     const scaffoldId = scaffoldCommands.parseScaffoldId(confirmation)
-    if (scaffoldId) await scaffoldCommands.removeScaffold(scaffoldId)
+    if (scaffoldId) {
+      await scaffoldCommands.removeScaffold(scaffoldId)
+    }
     console.log('✅ Re-prompt validation test completed')
   })
 

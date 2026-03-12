@@ -28,19 +28,35 @@ describe('participant-registration', () => {
   describe('findOrCreateParticipant update behavior', () => {
     it('updates username when it changes', async () => {
       await participantRepository.findOrCreateParticipant('123', 'old_name', 'Test User')
-      const { participant: updated } = await participantRepository.findOrCreateParticipant('123', 'new_name', 'Test User')
+      const { participant: updated } = await participantRepository.findOrCreateParticipant(
+        '123',
+        'new_name',
+        'Test User'
+      )
       expect(updated.telegramUsername).toBe('new_name')
     })
 
     it('updates displayName when it changes', async () => {
       await participantRepository.findOrCreateParticipant('123', 'user', 'Old Name')
-      const { participant: updated } = await participantRepository.findOrCreateParticipant('123', 'user', 'New Name')
+      const { participant: updated } = await participantRepository.findOrCreateParticipant(
+        '123',
+        'user',
+        'New Name'
+      )
       expect(updated.displayName).toBe('New Name')
     })
 
     it('does not update when nothing changed', async () => {
-      const { participant: original } = await participantRepository.findOrCreateParticipant('123', 'user', 'Name')
-      const { participant: same } = await participantRepository.findOrCreateParticipant('123', 'user', 'Name')
+      const { participant: original } = await participantRepository.findOrCreateParticipant(
+        '123',
+        'user',
+        'Name'
+      )
+      const { participant: same } = await participantRepository.findOrCreateParticipant(
+        '123',
+        'user',
+        'Name'
+      )
       expect(same.id).toBe(original.id)
       expect(same.telegramUsername).toBe('user')
     })

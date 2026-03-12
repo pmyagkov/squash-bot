@@ -47,7 +47,10 @@ async function inspect() {
       const msg = lastMessages[i]
       const msgId = await msg.getAttribute('data-mid')
       const msgPeerId = await msg.getAttribute('data-peer-id')
-      const text = await msg.locator('.translatable-message').textContent().catch(() => '[no text]')
+      const text = await msg
+        .locator('.translatable-message')
+        .textContent()
+        .catch(() => '[no text]')
 
       console.log(`Message ${i + 1}:`)
       console.log(`  ID (data-mid): ${msgId}`)

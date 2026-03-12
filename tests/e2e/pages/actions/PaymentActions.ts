@@ -59,14 +59,16 @@ export class PaymentActions extends TelegramWebPage {
   parsePaymentMessage(message: string): {
     courts: number
     courtCost: number
-    participants: Array<{ username: string; amount: number; paid: boolean }>
+    participants: { username: string; amount: number; paid: boolean }[]
   } | null {
     // Parse courts and cost from "Courts: 3 × 2000 din = 6000 din"
     const courtsMatch = message.match(/Courts:\s*(\d+)\s*×\s*(\d+)\s*din/)
-    if (!courtsMatch) return null
+    if (!courtsMatch) {
+      return null
+    }
 
     // Parse participants and their payments
-    const participants: Array<{ username: string; amount: number; paid: boolean }> = []
+    const participants: { username: string; amount: number; paid: boolean }[] = []
 
     // Match pattern: @username — amount din (×count) [✓]
     const regex = /@(\w+)\s*—\s*(\d+)\s*din(?:\s*\(×\d+\))?\s*(✓)?/g
@@ -95,7 +97,9 @@ export class PaymentActions extends TelegramWebPage {
    */
   hasUserPaid(message: string, username: string): boolean {
     const payment = this.parsePaymentMessage(message)
-    if (!payment) return false
+    if (!payment) {
+      return false
+    }
 
     const participant = payment.participants.find((p) => p.username === username)
     return participant ? participant.paid : false
@@ -109,7 +113,9 @@ export class PaymentActions extends TelegramWebPage {
    */
   getUserPaymentAmount(message: string, username: string): number | null {
     const payment = this.parsePaymentMessage(message)
-    if (!payment) return null
+    if (!payment) {
+      return null
+    }
 
     const participant = payment.participants.find((p) => p.username === username)
     return participant ? participant.amount : null
@@ -122,7 +128,9 @@ export class PaymentActions extends TelegramWebPage {
    */
   areAllPaid(message: string): boolean {
     const payment = this.parsePaymentMessage(message)
-    if (!payment) return false
+    if (!payment) {
+      return false
+    }
 
     return payment.participants.every((p) => p.paid)
   }
@@ -134,7 +142,9 @@ export class PaymentActions extends TelegramWebPage {
    */
   getUnpaidParticipants(message: string): string[] {
     const payment = this.parsePaymentMessage(message)
-    if (!payment) return []
+    if (!payment) {
+      return []
+    }
 
     return payment.participants.filter((p) => !p.paid).map((p) => p.username)
   }
@@ -146,7 +156,9 @@ export class PaymentActions extends TelegramWebPage {
    */
   getTotalAmount(message: string): number {
     const payment = this.parsePaymentMessage(message)
-    if (!payment) return 0
+    if (!payment) {
+      return 0
+    }
 
     return payment.participants.reduce((sum, p) => sum + p.amount, 0)
   }
@@ -164,7 +176,9 @@ export class PaymentActions extends TelegramWebPage {
     participations: { [username: string]: number }
   ): boolean {
     const payment = this.parsePaymentMessage(message)
-    if (!payment) return false
+    if (!payment) {
+      return false
+    }
 
     const totalParticipations = Object.values(participations).reduce((sum, count) => sum + count, 0)
     const expectedTotal = payment.courtCost * payment.courts

@@ -121,7 +121,8 @@ export class ScaffoldCommands extends ChatPage {
     // Match 2-line pattern:
     // Line 1: Tue, 21:00 | 👑 @owner
     // Line 2: 🏟 Courts: 2 | 🟢 Active | 📢 Public | sc_1
-    const regex = /(\w+),\s+([\d:]+)\s+\|.*\n🏟 Courts:\s+(\d+)\s+\|\s+(🟢 Active|⏸ Paused)\s+\|.*?\|\s+(sc_[\w-]+)/g
+    const regex =
+      /(\w+),\s+([\d:]+)\s+\|.*\n🏟 Courts:\s+(\d+)\s+\|\s+(🟢 Active|⏸ Paused)\s+\|.*?\|\s+(sc_[\w-]+)/g
     let match
 
     while ((match = regex.exec(response)) !== null) {

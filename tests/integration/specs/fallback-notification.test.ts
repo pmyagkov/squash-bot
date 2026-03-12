@@ -86,14 +86,20 @@ describe('fallback-notification', () => {
     const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
     // Add participants via repo (private events don't use join button)
-    const { participant: alice } = await participantRepo.findOrCreateParticipant('111', 'alice', 'Alice')
+    const { participant: alice } = await participantRepo.findOrCreateParticipant(
+      '111',
+      'alice',
+      'Alice'
+    )
     const { participant: bob } = await participantRepo.findOrCreateParticipant('222', 'bob', 'Bob')
     await participantRepo.addToEvent(event.id, alice.id)
     await participantRepo.addToEvent(event.id, bob.id)
 
     // Make DM to user 222 (bob) fail
     api.sendMessage.mockImplementation(async (chatId: number | string) => {
-      if (chatId === 222) throw new Error("Forbidden: bot can't initiate conversation")
+      if (chatId === 222) {
+        throw new Error("Forbidden: bot can't initiate conversation")
+      }
       return {
         message_id: Math.floor(Math.random() * 1000000),
         chat: { id: chatId, type: 'group', title: 'Test Chat' },
@@ -129,7 +135,9 @@ describe('fallback-notification', () => {
 
     // Make DM to user 222 fail
     api.sendMessage.mockImplementation(async (chatId: number | string) => {
-      if (chatId === 222) throw new Error("Forbidden: bot can't initiate conversation")
+      if (chatId === 222) {
+        throw new Error("Forbidden: bot can't initiate conversation")
+      }
       return {
         message_id: Math.floor(Math.random() * 1000000),
         chat: { id: chatId, type: 'group', title: 'Test Chat' },

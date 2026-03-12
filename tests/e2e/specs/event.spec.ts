@@ -170,7 +170,9 @@ test.describe('Event Lifecycle Flow', () => {
     console.log(`Created event via wizard: ${eventId}`)
 
     // Cleanup
-    if (eventId) await eventCommands.cancelEvent(eventId)
+    if (eventId) {
+      await eventCommands.cancelEvent(eventId)
+    }
     console.log('✅ Event create wizard completed')
   })
 

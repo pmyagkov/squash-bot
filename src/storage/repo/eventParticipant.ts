@@ -125,7 +125,9 @@ export class EventParticipantRepo {
         )
       )
 
-    if (results.length === 0) return null
+    if (results.length === 0) {
+      return null
+    }
 
     const row = results[0]
     return {

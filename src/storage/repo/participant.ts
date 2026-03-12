@@ -97,7 +97,10 @@ export class ParticipantRepo {
     return this.eventParticipantRepository.markAsOut(eventId, participantId)
   }
 
-  async findEventParticipant(eventId: string, participantId: string): Promise<EventParticipant | null> {
+  async findEventParticipant(
+    eventId: string,
+    participantId: string
+  ): Promise<EventParticipant | null> {
     return this.eventParticipantRepository.findEventParticipant(eventId, participantId)
   }
 

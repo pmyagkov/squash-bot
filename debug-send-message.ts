@@ -105,7 +105,9 @@ ${participantsList}`
 
     // Обработчик callback для кнопок
     bot.callbackQuery('event_join', async (ctx) => {
-      if (!ctx.from) return
+      if (!ctx.from) {
+        return
+      }
 
       const userId = ctx.from.id
       const username = ctx.from.username
@@ -131,7 +133,9 @@ ${participantsList}`
     })
 
     bot.callbackQuery('event_leave', async (ctx) => {
-      if (!ctx.from) return
+      if (!ctx.from) {
+        return
+      }
 
       const userId = ctx.from.id
       const participant = eventState.participants.get(userId)

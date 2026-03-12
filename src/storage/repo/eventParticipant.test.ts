@@ -326,7 +326,9 @@ describe('EventParticipantRepo', () => {
 
     it('getEventParticipants should return both "in" and "out" participants', async () => {
       const { participant: p2 } = await participantRepo.findOrCreateParticipant(
-        '456', 'user2', 'User Two'
+        '456',
+        'user2',
+        'User Two'
       )
 
       await eventParticipantRepo.addToEvent(testEventId, testParticipantId)
@@ -335,8 +337,8 @@ describe('EventParticipantRepo', () => {
       const participants = await eventParticipantRepo.getEventParticipants(testEventId)
       expect(participants).toHaveLength(2)
 
-      const inP = participants.find(p => p.status === 'in')
-      const outP = participants.find(p => p.status === 'out')
+      const inP = participants.find((p) => p.status === 'in')
+      const outP = participants.find((p) => p.status === 'out')
       expect(inP).toBeDefined()
       expect(outP).toBeDefined()
       expect(outP!.participations).toBe(0)
