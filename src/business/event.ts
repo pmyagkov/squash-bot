@@ -402,14 +402,22 @@ export class EventBusiness {
       return
     }
 
-    // Add to event
-    await this.participantRepository.addToEvent(event.id, participant.id)
+    // Check current status
+    const existing = await this.participantRepository.findEventParticipant(event.id, participant.id)
+    let callbackText: string | undefined
+
+    if (existing?.status === 'out') {
+      await this.participantRepository.addToEvent(event.id, participant.id)
+      callbackText = 'Welcome back! ✋'
+    } else {
+      await this.participantRepository.addToEvent(event.id, participant.id)
+    }
 
     // Update message and answer callback concurrently (editMessage is slow on test server)
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
       this.refreshReminder(event.id),
-      this.transport.answerCallback(data.callbackId),
+      this.transport.answerCallback(data.callbackId, callbackText),
     ])
 
     void this.logger.log(`User ${data.userId} joined event ${event.id}`)
@@ -421,7 +429,9 @@ export class EventBusiness {
 
     // Notify owner (fire-and-forget)
     const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
-    const joinTotal = joinParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    const joinTotal = joinParticipants
+      .filter((ep) => ep.status === 'in')
+      .reduce((sum, ep) => sum + ep.participations, 0)
     void this.notifyOwner(event, 'participant-joined', participant.displayName, {
       totalParticipations: joinTotal,
       courts: event.courts,
@@ -442,12 +452,26 @@ export class EventBusiness {
       return
     }
 
-    await this.participantRepository.removeFromEvent(event.id, participant.id)
+    // Check current status
+    const existing = await this.participantRepository.findEventParticipant(event.id, participant.id)
+    let callbackText: string
+
+    if (existing?.status === 'out') {
+      await this.transport.answerCallback(data.callbackId, "You're already skipping")
+      return
+    } else if (existing?.status === 'in') {
+      await this.participantRepository.markAsOut(event.id, participant.id)
+      callbackText = "You're out 😢"
+    } else {
+      // Not in event at all — create as 'out'
+      await this.participantRepository.markAsOut(event.id, participant.id)
+      callbackText = "Noted, you're skipping 😢"
+    }
 
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
       this.refreshReminder(event.id),
-      this.transport.answerCallback(data.callbackId),
+      this.transport.answerCallback(data.callbackId, callbackText),
     ])
 
     void this.logger.log(`User ${data.userId} left event ${event.id}`)
@@ -459,7 +483,9 @@ export class EventBusiness {
 
     // Notify owner (fire-and-forget)
     const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
-    const leaveTotal = leaveParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    const leaveTotal = leaveParticipants
+      .filter((ep) => ep.status === 'in')
+      .reduce((sum, ep) => sum + ep.participations, 0)
     void this.notifyOwner(event, 'participant-left', participant.displayName, {
       totalParticipations: leaveTotal,
       courts: event.courts,
@@ -537,7 +563,8 @@ export class EventBusiness {
       return
     }
 
-    const participants = await this.participantRepository.getEventParticipants(event.id)
+    const allParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const participants = allParticipants.filter((ep) => ep.status === 'in')
     if (participants.length === 0) {
       await this.transport.answerCallback(data.callbackId, 'No participants to finalize')
       return
@@ -1017,7 +1044,8 @@ export class EventBusiness {
       return
     }
 
-    const participants = await this.participantRepository.getEventParticipants(event.id)
+    const allFinalizeParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const participants = allFinalizeParticipants.filter((ep) => ep.status === 'in')
     if (participants.length === 0) {
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId, 'No participants to finalize')
