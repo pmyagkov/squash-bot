@@ -35,11 +35,7 @@ describe('admin-say', () => {
     await tick()
 
     // Message sent to main chat
-    expect(api.sendMessage).toHaveBeenCalledWith(
-      TEST_CHAT_ID,
-      'Hello everyone!',
-      expect.anything()
-    )
+    expect(api.sendMessage).toHaveBeenCalledWith(TEST_CHAT_ID, 'Hello everyone!', expect.anything())
     // Confirmation to admin
     expect(api.sendMessage).toHaveBeenCalledWith(
       ADMIN_ID,
@@ -50,11 +46,7 @@ describe('admin-say', () => {
 
   it('should send DM to user', async () => {
     const targetChatId = 777888
-    await participantRepo.findOrCreateParticipant(
-      String(targetChatId),
-      'targetuser',
-      'Target User'
-    )
+    await participantRepo.findOrCreateParticipant(String(targetChatId), 'targetuser', 'Target User')
 
     await bot.handleUpdate(
       createTextMessageUpdate('/admin say @targetuser Hello!', {
@@ -64,11 +56,7 @@ describe('admin-say', () => {
     )
     await tick()
 
-    expect(api.sendMessage).toHaveBeenCalledWith(
-      targetChatId,
-      'Hello!',
-      expect.anything()
-    )
+    expect(api.sendMessage).toHaveBeenCalledWith(targetChatId, 'Hello!', expect.anything())
     expect(api.sendMessage).toHaveBeenCalledWith(
       ADMIN_ID,
       expect.stringContaining('@targetuser'),
@@ -103,7 +91,7 @@ describe('admin-say', () => {
     await participantRepo.findOrCreateParticipant('999', 'failuser', 'Fail User')
     api.sendMessage
       .mockResolvedValueOnce({ message_id: 1 } as Awaited<ReturnType<BotApiMock['sendMessage']>>) // first call is group fallback
-      .mockRejectedValueOnce(new Error('Forbidden: bot can\'t initiate conversation'))
+      .mockRejectedValueOnce(new Error("Forbidden: bot can't initiate conversation"))
 
     await bot.handleUpdate(
       createTextMessageUpdate('/admin say @failuser Hello!', {

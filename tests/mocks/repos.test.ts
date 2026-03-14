@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { mockEventRepo, mockScaffoldRepo, mockEventParticipantRepo, mockPaymentRepo, mockSettingsRepo, mockParticipantRepo } from './repos'
+import {
+  mockEventRepo,
+  mockScaffoldRepo,
+  mockEventParticipantRepo,
+  mockPaymentRepo,
+  mockSettingsRepo,
+  mockParticipantRepo,
+} from './repos'
 
 describe('Repository mocks', () => {
   describe('mockEventRepo', () => {

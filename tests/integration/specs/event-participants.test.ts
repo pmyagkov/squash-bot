@@ -83,12 +83,10 @@ describe('event-participants', () => {
       expect(participants[0].participations).toBe(1)
 
       // Verify announcement message was updated
-      const editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
+      const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants — 1:')
+      expect(lastEdit?.[2]).toContain('✋ Playing — 1:')
       expect(lastEdit?.[2]).toContain('@testuser')
     })
 
@@ -114,13 +112,11 @@ describe('event-participants', () => {
       expect(participants[0].participations).toBe(2)
 
       // Verify announcement message shows counter
-      const editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
+      const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(2) // Two joins = two edits
 
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants — 2:')
+      expect(lastEdit?.[2]).toContain('✋ Playing — 2:')
       expect(lastEdit?.[2]).toContain('@testuser (×2)')
     })
 
@@ -157,18 +153,16 @@ describe('event-participants', () => {
       expect(participants.every((p) => p.participations === 1)).toBe(true)
 
       // Verify announcement message shows both users
-      const editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
+      const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants — 2:')
+      expect(lastEdit?.[2]).toContain('✋ Playing — 2:')
       expect(lastEdit?.[2]).toContain('@alice')
       expect(lastEdit?.[2]).toContain('@bob')
     })
   })
 
   describe('leave (callback)', () => {
-    it('removes participant when participations goes to 0', async () => {
+    it('marks participant as out when leaving', async () => {
       const { event, messageId } = await setupAnnouncedEvent()
 
       // First join
@@ -183,9 +177,10 @@ describe('event-participants', () => {
 
       await bot.handleUpdate(joinUpdate)
 
-      // Verify participant exists
+      // Verify participant exists with status 'in'
       let participants = await participantRepository.getEventParticipants(event.id)
       expect(participants).toHaveLength(1)
+      expect(participants[0].status).toBe('in')
 
       // Leave event
       const leaveUpdate = createCallbackQueryUpdate({
@@ -199,20 +194,19 @@ describe('event-participants', () => {
 
       await bot.handleUpdate(leaveUpdate)
 
-      // Verify participant was removed (participations = 0 means record is removed/filtered)
+      // Verify participant is now status 'out'
       participants = await participantRepository.getEventParticipants(event.id)
-      expect(participants).toHaveLength(0)
+      expect(participants).toHaveLength(1)
+      expect(participants[0].status).toBe('out')
 
-      // Verify announcement message was updated to show no participants
-      const editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
+      // Verify announcement shows Skipping section
+      const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants:')
-      expect(lastEdit?.[2]).toContain('(nobody yet)')
+      expect(lastEdit?.[2]).toContain('😢 Skipping')
+      expect(lastEdit?.[2]).toContain('@testuser')
     })
 
-    it('decrements participations counter when user leaves', async () => {
+    it('leave sets status to out regardless of participations count', async () => {
       const { event, messageId } = await setupAnnouncedEvent()
 
       const joinUpdate = createCallbackQueryUpdate({
@@ -232,7 +226,7 @@ describe('event-participants', () => {
       expect(participants).toHaveLength(1)
       expect(participants[0].participations).toBe(2)
 
-      // Leave once (participations = 1)
+      // Leave → marks as out immediately
       const leaveUpdate = createCallbackQueryUpdate({
         userId: 123456,
         chatId: TEST_CHAT_ID,
@@ -246,32 +240,11 @@ describe('event-participants', () => {
 
       participants = await participantRepository.getEventParticipants(event.id)
       expect(participants).toHaveLength(1)
-      expect(participants[0].participations).toBe(1)
-
-      // Verify message shows decremented counter
-      let editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
-      let afterFirstLeave = editCalls[editCalls.length - 1]
-      expect(afterFirstLeave?.[2]).toContain('Participants — 1:')
-      expect(afterFirstLeave?.[2]).toContain('@testuser')
-      expect(afterFirstLeave?.[2]).not.toContain('×')
-
-      // Leave again (participations = 0, record removed)
-      await bot.handleUpdate(leaveUpdate)
-
-      participants = await participantRepository.getEventParticipants(event.id)
-      expect(participants).toHaveLength(0)
-
-      // Verify message shows no participants
-      editCalls = api.editMessageText.mock.calls.filter(
-        ([, msgId]) => msgId === messageId
-      )
-      const afterSecondLeave = editCalls[editCalls.length - 1]
-      expect(afterSecondLeave?.[2]).toContain('(nobody yet)')
+      expect(participants[0].status).toBe('out')
+      expect(participants[0].participations).toBe(0)
     })
 
-    it('handles leave by unregistered user without crashing', async () => {
+    it('handles leave by unregistered user — creates as skipping', async () => {
       const { event, messageId } = await setupAnnouncedEvent()
 
       // Try to leave without having joined first
@@ -287,9 +260,11 @@ describe('event-participants', () => {
       // Should not throw
       await bot.handleUpdate(leaveUpdate)
 
-      // Verify no participants exist
+      // Verify participant created with status 'out'
       const participants = await participantRepository.getEventParticipants(event.id)
-      expect(participants).toHaveLength(0)
+      expect(participants).toHaveLength(1)
+      expect(participants[0].status).toBe('out')
+      expect(participants[0].participations).toBe(0)
     })
   })
 

@@ -5,7 +5,8 @@ import type { Config } from 'drizzle-kit'
 // Otherwise, default to SQLite for local development
 function getDatabaseConfig(): Config {
   const databaseUrl = process.env.DATABASE_URL || ''
-  const isPostgres = databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://')
+  const isPostgres =
+    databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://')
 
   if (isPostgres) {
     // PostgreSQL configuration for production and e2e tests

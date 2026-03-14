@@ -58,9 +58,7 @@ describe('event-list', () => {
     })
     await bot.handleUpdate(update)
 
-    const listCall = api.sendMessage.mock.calls.find(
-      ([, text]) => text.includes('📋 Event list')
-    )
+    const listCall = api.sendMessage.mock.calls.find(([, text]) => text.includes('📋 Event list'))
     expect(listCall![1]).toContain('👑 @pasha')
   })
 

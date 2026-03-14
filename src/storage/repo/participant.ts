@@ -93,6 +93,17 @@ export class ParticipantRepo {
     }
   }
 
+  async markAsOut(eventId: string, participantId: string): Promise<void> {
+    return this.eventParticipantRepository.markAsOut(eventId, participantId)
+  }
+
+  async findEventParticipant(
+    eventId: string,
+    participantId: string
+  ): Promise<EventParticipant | null> {
+    return this.eventParticipantRepository.findEventParticipant(eventId, participantId)
+  }
+
   // Legacy methods - these delegate to EventParticipantService
   // These will be removed once all code is migrated
   async addToEvent(eventId: string, participantId: string, participations = 1): Promise<void> {

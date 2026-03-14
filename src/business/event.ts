@@ -26,6 +26,7 @@ import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { PaymentRepo } from '~/storage/repo/payment'
 import type { NotificationRepo } from '~/storage/repo/notification'
+import type { EventAnnouncementRepo } from '~/storage/repo/eventAnnouncement'
 import type { Logger } from '~/services/logger'
 import type { Notification } from '~/types'
 import { EventLock } from '~/utils/eventLock'
@@ -203,6 +204,7 @@ export class EventBusiness {
   private participantRepository: ParticipantRepo
   private paymentRepository: PaymentRepo
   private notificationRepository: NotificationRepo
+  private eventAnnouncementRepository: EventAnnouncementRepo
   private transport: TelegramTransport
   private logger: Logger
   private participantBusiness: ParticipantBusiness
@@ -218,6 +220,7 @@ export class EventBusiness {
     this.participantRepository = container.resolve('participantRepository')
     this.paymentRepository = container.resolve('paymentRepository')
     this.notificationRepository = container.resolve('notificationRepository')
+    this.eventAnnouncementRepository = container.resolve('eventAnnouncementRepository')
     this.transport = container.resolve('transport')
     this.logger = container.resolve('logger')
     this.participantBusiness = container.resolve('participantBusiness')
@@ -360,14 +363,24 @@ export class EventBusiness {
    * Resolve event by message ID — checks announcement first, then notification.
    */
   private async resolveEventByMessageId(messageId: number): Promise<Event | undefined> {
+    // Try event_announcements first (new table)
+    const eventId = await this.eventAnnouncementRepository.findEventByMessageId(String(messageId))
+    if (eventId) {
+      const event = await this.eventRepository.findById(eventId)
+      if (event) {
+        return event
+      }
+    }
+    // Fallback to legacy field on event
     const event = await this.eventRepository.findByMessageId(String(messageId))
     if (event) {
       return event
     }
+    // Fallback to notification
     const notification = await this.notificationRepository.findByMessageId(String(messageId))
     if (notification) {
-      const eventId = notification.params.eventId as string
-      return this.eventRepository.findById(eventId)
+      const notifEventId = notification.params.eventId as string
+      return this.eventRepository.findById(notifEventId)
     }
     return undefined
   }
@@ -389,7 +402,7 @@ export class EventBusiness {
   // === Callback Handlers ===
 
   private async handleJoin(data: CallbackTypes['event:join']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -402,14 +415,22 @@ export class EventBusiness {
       return
     }
 
-    // Add to event
-    await this.participantRepository.addToEvent(event.id, participant.id)
+    // Check current status
+    const existing = await this.participantRepository.findEventParticipant(event.id, participant.id)
+    let callbackText: string | undefined
+
+    if (existing?.status === 'out') {
+      await this.participantRepository.addToEvent(event.id, participant.id)
+      callbackText = 'Welcome back! ✋'
+    } else {
+      await this.participantRepository.addToEvent(event.id, participant.id)
+    }
 
     // Update message and answer callback concurrently (editMessage is slow on test server)
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
       this.refreshReminder(event.id),
-      this.transport.answerCallback(data.callbackId),
+      this.transport.answerCallback(data.callbackId, callbackText),
     ])
 
     void this.logger.log(`User ${data.userId} joined event ${event.id}`)
@@ -421,7 +442,9 @@ export class EventBusiness {
 
     // Notify owner (fire-and-forget)
     const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
-    const joinTotal = joinParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    const joinTotal = joinParticipants
+      .filter((ep) => ep.status === 'in')
+      .reduce((sum, ep) => sum + ep.participations, 0)
     void this.notifyOwner(event, 'participant-joined', participant.displayName, {
       totalParticipations: joinTotal,
       courts: event.courts,
@@ -430,7 +453,7 @@ export class EventBusiness {
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -442,12 +465,26 @@ export class EventBusiness {
       return
     }
 
-    await this.participantRepository.removeFromEvent(event.id, participant.id)
+    // Check current status
+    const existing = await this.participantRepository.findEventParticipant(event.id, participant.id)
+    let callbackText: string
+
+    if (existing?.status === 'out') {
+      await this.transport.answerCallback(data.callbackId, "You're already skipping")
+      return
+    } else if (existing?.status === 'in') {
+      await this.participantRepository.markAsOut(event.id, participant.id)
+      callbackText = "You're out 😢"
+    } else {
+      // Not in event at all — create as 'out'
+      await this.participantRepository.markAsOut(event.id, participant.id)
+      callbackText = "Noted, you're skipping 😢"
+    }
 
     await Promise.all([
       this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
       this.refreshReminder(event.id),
-      this.transport.answerCallback(data.callbackId),
+      this.transport.answerCallback(data.callbackId, callbackText),
     ])
 
     void this.logger.log(`User ${data.userId} left event ${event.id}`)
@@ -459,7 +496,9 @@ export class EventBusiness {
 
     // Notify owner (fire-and-forget)
     const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
-    const leaveTotal = leaveParticipants.reduce((sum, ep) => sum + ep.participations, 0)
+    const leaveTotal = leaveParticipants
+      .filter((ep) => ep.status === 'in')
+      .reduce((sum, ep) => sum + ep.participations, 0)
     void this.notifyOwner(event, 'participant-left', participant.displayName, {
       totalParticipations: leaveTotal,
       courts: event.courts,
@@ -537,7 +576,8 @@ export class EventBusiness {
       return
     }
 
-    const participants = await this.participantRepository.getEventParticipants(event.id)
+    const allParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const participants = allParticipants.filter((ep) => ep.status === 'in')
     if (participants.length === 0) {
       await this.transport.answerCallback(data.callbackId, 'No participants to finalize')
       return
@@ -609,7 +649,7 @@ export class EventBusiness {
   }
 
   private async handleCancel(data: CallbackTypes['event:cancel']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -636,7 +676,7 @@ export class EventBusiness {
   }
 
   private async handleRestore(data: CallbackTypes['event:undo-cancel']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -658,7 +698,7 @@ export class EventBusiness {
   }
 
   private async handleUnfinalize(data: CallbackTypes['event:undo-finalize']): Promise<void> {
-    const event = await this.eventRepository.findByMessageId(String(data.messageId))
+    const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
       return
@@ -1017,7 +1057,8 @@ export class EventBusiness {
       return
     }
 
-    const participants = await this.participantRepository.getEventParticipants(event.id)
+    const allFinalizeParticipants = await this.participantRepository.getEventParticipants(event.id)
+    const participants = allFinalizeParticipants.filter((ep) => ep.status === 'in')
     if (participants.length === 0) {
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId, 'No participants to finalize')
@@ -1854,6 +1895,13 @@ export class EventBusiness {
       return
     }
 
+    if (event.isPrivate) {
+      // Private events: update ALL announcement messages via refreshAnnouncement
+      await this.refreshAnnouncement(eventId)
+      return
+    }
+
+    // Public event: update single group message
     const participants = await this.participantRepository.getEventParticipants(eventId)
     const messageText = formatAnnouncementText(event, participants, finalized, cancelled)
     const status =
@@ -2068,13 +2116,53 @@ export class EventBusiness {
   }
 
   private async refreshAnnouncement(eventId: string): Promise<void> {
-    const event = await this.eventRepository.findById(eventId)
-    if (!event?.telegramMessageId) {
+    const announcements = await this.eventAnnouncementRepository.getByEventId(eventId)
+
+    // Fallback to legacy fields if no announcement rows exist
+    if (announcements.length === 0) {
+      const event = await this.eventRepository.findById(eventId)
+      if (!event?.telegramMessageId) {
+        return
+      }
+
+      const chatId = await this.getAnnouncementChatId(event)
+      if (!chatId) {
+        return
+      }
+
+      const participants = await this.participantRepository.getEventParticipants(eventId)
+      let paidParticipantIds: Set<string> | undefined
+      if (event.status === 'finalized') {
+        const payments = await this.paymentRepository.getPaymentsByEvent(eventId)
+        paidParticipantIds = new Set(payments.filter((p) => p.isPaid).map((p) => p.participantId))
+      }
+
+      const messageText = formatAnnouncementText(
+        event,
+        participants,
+        event.status === 'finalized',
+        event.status === 'cancelled',
+        paidParticipantIds
+      )
+      const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
+
+      try {
+        await this.transport.editMessage(
+          chatId,
+          parseInt(event.telegramMessageId, 10),
+          messageText,
+          keyboard
+        )
+      } catch (error) {
+        await this.logger.error(
+          `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
       return
     }
 
-    const chatId = await this.getAnnouncementChatId(event)
-    if (!chatId) {
+    const event = await this.eventRepository.findById(eventId)
+    if (!event) {
       return
     }
 
@@ -2093,19 +2181,24 @@ export class EventBusiness {
       event.status === 'cancelled',
       paidParticipantIds
     )
-    const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
 
-    try {
-      await this.transport.editMessage(
-        chatId,
-        parseInt(event.telegramMessageId, 10),
-        messageText,
-        keyboard
+    for (const ann of announcements) {
+      const chatId = parseInt(ann.telegramChatId, 10)
+      const messageId = parseInt(ann.telegramMessageId, 10)
+      const isOwner = ann.telegramChatId === event.ownerId
+      const keyboard = buildInlineKeyboard(
+        event.status as EventStatus,
+        event.isPrivate,
+        event.id,
+        isOwner
       )
-    } catch (error) {
-      await this.logger.error(
-        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
-      )
+      try {
+        await this.transport.editMessage(chatId, messageId, messageText, keyboard)
+      } catch (error) {
+        await this.logger.error(
+          `Error updating announcement ${ann.id}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
     }
   }
 
@@ -2118,32 +2211,107 @@ export class EventBusiness {
       throw new Error(`Event ${id} not found`)
     }
 
-    let chatId: number
     if (event.isPrivate) {
-      chatId = parseInt(event.ownerId, 10)
-    } else {
-      const mainChatId = await this.settingsRepository.getMainChatId()
-      if (!mainChatId) {
-        throw new Error('Chat ID not configured')
+      // Private event: send personal DM to each participant + owner
+      const messageText = formatEventMessage(event)
+      const eventParticipants = await this.participantRepository.getEventParticipants(event.id)
+      const playingParticipants = eventParticipants.filter((ep) => ep.status === 'in')
+
+      let firstMessageId: number | undefined
+      let firstChatId: number | undefined
+
+      for (const ep of playingParticipants) {
+        if (!ep.participant.telegramId) {
+          continue
+        }
+        const participantChatId = parseInt(ep.participant.telegramId, 10)
+        const isOwner = ep.participant.telegramId === event.ownerId
+        const keyboard = buildInlineKeyboard('announced', true, event.id, isOwner)
+        try {
+          const msgId = await this.transport.sendMessage(participantChatId, messageText, keyboard)
+          await this.eventAnnouncementRepository.create(
+            event.id,
+            String(msgId),
+            String(participantChatId)
+          )
+          if (!firstMessageId) {
+            firstMessageId = msgId
+            firstChatId = participantChatId
+          }
+        } catch (error) {
+          await this.logger.error(
+            `Failed to send private announcement to ${ep.participant.displayName}: ${error}`
+          )
+        }
       }
-      chatId = mainChatId
+
+      // Also send to owner if not already a participant
+      const ownerIsParticipant = playingParticipants.some(
+        (ep) => ep.participant.telegramId === event.ownerId
+      )
+      if (!ownerIsParticipant) {
+        const ownerChatId = parseInt(event.ownerId, 10)
+        const keyboard = buildInlineKeyboard('announced', true, event.id, true)
+        try {
+          const msgId = await this.transport.sendMessage(ownerChatId, messageText, keyboard)
+          await this.eventAnnouncementRepository.create(
+            event.id,
+            String(msgId),
+            String(ownerChatId)
+          )
+          if (!firstMessageId) {
+            firstMessageId = msgId
+            firstChatId = ownerChatId
+          }
+        } catch (error) {
+          await this.logger.error(`Failed to send private announcement to owner: ${error}`)
+        }
+      }
+
+      // Update event status (keep legacy fields for backward compatibility)
+      const updatedEvent = await this.eventRepository.updateEvent(id, {
+        telegramMessageId: firstMessageId ? String(firstMessageId) : undefined,
+        telegramChatId: firstChatId ? String(firstChatId) : undefined,
+        status: 'announced',
+      })
+
+      const owner = await this.participantRepository.findByTelegramId(event.ownerId)
+      void this.transport.logEvent({
+        type: 'event_announced',
+        event: updatedEvent,
+        owner: owner ?? undefined,
+      })
+
+      void this.notifyOwner(updatedEvent, 'event-announced', undefined, {
+        actorUserId,
+      })
+
+      return updatedEvent
     }
+
+    // Public event
+    const mainChatId = await this.settingsRepository.getMainChatId()
+    if (!mainChatId) {
+      throw new Error('Chat ID not configured')
+    }
+    const chatId = mainChatId
 
     // Send announcement via transport layer
     const messageText = formatEventMessage(event)
     const keyboard = buildInlineKeyboard('announced', event.isPrivate, event.id)
     const messageId = await this.transport.sendMessage(chatId, messageText, keyboard)
 
-    // Pin the message (only for public events in group chat)
-    if (!event.isPrivate) {
-      try {
-        await this.transport.pinMessage(chatId, messageId)
-      } catch {
-        // Ignore pin errors
-      }
+    // Pin the message
+    try {
+      await this.transport.pinMessage(chatId, messageId)
+    } catch {
+      // Ignore pin errors
     }
 
-    // Update event with telegram_message_id, telegramChatId and status
+    // Store announcement in event_announcements table
+    await this.eventAnnouncementRepository.create(event.id, String(messageId), String(chatId))
+
+    // Update event status (keep legacy fields for backward compatibility)
     const updatedEvent = await this.eventRepository.updateEvent(id, {
       telegramMessageId: String(messageId),
       telegramChatId: String(chatId),
@@ -2536,6 +2704,31 @@ export class EventBusiness {
         try {
           const participantId = await this.wizardService.collect(addStep, ctx)
           await this.participantRepository.addToEvent(entityId, participantId)
+
+          // For private events, send a personal DM to the newly added participant
+          if (event.isPrivate) {
+            const newParticipant = await this.participantRepository.findById(participantId)
+            if (newParticipant?.telegramId) {
+              const participants = await this.participantRepository.getEventParticipants(entityId)
+              const messageText = formatAnnouncementText(event, participants)
+              const keyboard = buildInlineKeyboard('announced', true, entityId, false)
+              try {
+                const participantChatId = parseInt(newParticipant.telegramId, 10)
+                const msgId = await this.transport.sendMessage(
+                  participantChatId,
+                  messageText,
+                  keyboard
+                )
+                await this.eventAnnouncementRepository.create(
+                  entityId,
+                  String(msgId),
+                  String(participantChatId)
+                )
+              } catch {
+                await this.logger.error(`Failed to send DM to ${newParticipant.displayName}`)
+              }
+            }
+          }
         } catch (e) {
           if (!(e instanceof WizardCancelledError)) {
             throw e
@@ -2697,6 +2890,7 @@ export class EventBusiness {
           displayName: ep.participant.displayName,
         },
         participations: ep.participations,
+        status: ep.status,
       }))
       const message = formatNotFinalizedReminder(event, participants)
 
@@ -2741,6 +2935,7 @@ export class EventBusiness {
           displayName: ep.participant.displayName,
         },
         participations: ep.participations,
+        status: ep.status,
       }))
       const message = formatNotFinalizedReminder(event, participants)
 

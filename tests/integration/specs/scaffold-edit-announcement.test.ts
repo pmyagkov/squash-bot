@@ -126,9 +126,7 @@ describe('scaffold-edit-announcement (announcement deadline editing)', () => {
     expect(updated!.announcementDeadline).toBe('-2d 10:00')
 
     // Verify edit menu was re-rendered with updated value
-    const editCall = api.editMessageText.mock.calls.find(
-      ([chatId]) => chatId === TEST_CHAT_ID
-    )
+    const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
     expect(editCall).toBeDefined()
     expect(editCall![2]).toContain('2 days before, 10:00')
   })
@@ -186,9 +184,7 @@ describe('scaffold-edit-announcement (announcement deadline editing)', () => {
     )
     await tick()
 
-    const editCall = api.editMessageText.mock.calls.find(
-      ([chatId]) => chatId === TEST_CHAT_ID
-    )
+    const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
     expect(editCall).toBeDefined()
     expect(editCall![2]).toContain('a day before, 18:00')
   })

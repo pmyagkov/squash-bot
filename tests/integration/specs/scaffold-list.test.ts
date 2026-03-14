@@ -47,8 +47,8 @@ describe('scaffold-list', () => {
 
       await bot.handleUpdate(update)
 
-      const listCall = api.sendMessage.mock.calls.find(
-        ([, text]) => text.includes('📋 Scaffold list')
+      const listCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('📋 Scaffold list')
       )
       expect(listCall).toBeDefined()
       expect(listCall![1]).toContain('Tue, 21:00')
@@ -86,8 +86,8 @@ describe('scaffold-list', () => {
       })
       await bot.handleUpdate(update)
 
-      const listCall = api.sendMessage.mock.calls.find(
-        ([, text]) => text.includes('📋 Scaffold list')
+      const listCall = api.sendMessage.mock.calls.find(([, text]) =>
+        text.includes('📋 Scaffold list')
       )
       expect(listCall![1]).toContain('👑 @pasha')
     })

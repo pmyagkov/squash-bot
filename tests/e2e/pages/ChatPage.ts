@@ -94,7 +94,9 @@ export class ChatPage extends TelegramWebPage {
       }
       return null
     }, afterMessageId)
-    if (!text) throw new Error('Bot message disappeared after detection')
+    if (!text) {
+      throw new Error('Bot message disappeared after detection')
+    }
     return text
   }
 
@@ -176,7 +178,9 @@ export class ChatPage extends TelegramWebPage {
         const text = await messages[i].innerText()
         if (text && text.includes(expectedText)) {
           matchCount++
-          if (!lastMatch) lastMatch = text
+          if (!lastMatch) {
+            lastMatch = text
+          }
         }
       }
 
@@ -211,7 +215,9 @@ export class ChatPage extends TelegramWebPage {
         const text = await messages[i].innerText()
         if (text && text.includes(expectedText)) {
           matchCount++
-          if (!lastMatch) lastMatch = text
+          if (!lastMatch) {
+            lastMatch = text
+          }
         }
       }
 
@@ -232,7 +238,9 @@ export class ChatPage extends TelegramWebPage {
     let count = 0
     for (const msg of messages) {
       const content = await msg.innerText()
-      if (content && content.includes(text)) count++
+      if (content && content.includes(text)) {
+        count++
+      }
     }
     return count
   }

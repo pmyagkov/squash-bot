@@ -441,7 +441,7 @@ describe('EventBusiness', () => {
 
       expect(participantRepo.findByTelegramId).toHaveBeenCalledWith('555')
       expect(participantRepo.addToEvent).toHaveBeenCalledWith('ev_join', 'p_new')
-      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join')
+      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join', undefined)
     })
 
     test('existing participant → adds to event', async ({ container }) => {
@@ -561,7 +561,7 @@ describe('EventBusiness', () => {
   // ── handleLeave ────────────────────────────────────────────────────
 
   describe('handleLeave', () => {
-    test('decrements participations', async ({ container }) => {
+    test('registered participant leaves → marks as out', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const transport = container.resolve('transport')
@@ -572,7 +572,15 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_leave' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.removeFromEvent.mockResolvedValue(undefined)
+      participantRepo.findEventParticipant.mockResolvedValue(
+        buildEventParticipant({
+          eventId: 'ev_leave',
+          participantId: 'p_leave',
+          status: 'in',
+          participant,
+        })
+      )
+      participantRepo.markAsOut.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([])
 
       const business = new EventBusiness(container)
@@ -587,11 +595,13 @@ describe('EventBusiness', () => {
         callbackId: 'cb_leave',
       })
 
-      expect(participantRepo.removeFromEvent).toHaveBeenCalledWith('ev_leave', 'p_leave')
-      expect(transport.answerCallback).toHaveBeenCalledWith('cb_leave')
+      expect(participantRepo.markAsOut).toHaveBeenCalledWith('ev_leave', 'p_leave')
+      expect(transport.answerCallback).toHaveBeenCalledWith('cb_leave', "You're out 😢")
     })
 
-    test('removes at zero → deletes event_participant', async ({ container }) => {
+    test('unregistered participant leaves → marks as out with noted message', async ({
+      container,
+    }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const transport = container.resolve('transport')
@@ -602,8 +612,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_leave2' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.removeFromEvent.mockResolvedValue(undefined)
-      // After removal, participant list is empty
+      participantRepo.findEventParticipant.mockResolvedValue(null)
+      participantRepo.markAsOut.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([])
 
       const business = new EventBusiness(container)
@@ -618,13 +628,10 @@ describe('EventBusiness', () => {
         callbackId: 'cb_leave2',
       })
 
-      expect(participantRepo.removeFromEvent).toHaveBeenCalledWith('ev_leave2', 'p_leave2')
-      // Message updated to show no participants
-      expect(transport.editMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        201,
-        expect.stringContaining('nobody yet'),
-        expect.anything()
+      expect(participantRepo.markAsOut).toHaveBeenCalledWith('ev_leave2', 'p_leave2')
+      expect(transport.answerCallback).toHaveBeenCalledWith(
+        'cb_leave2',
+        "Noted, you're skipping 😢"
       )
     })
 

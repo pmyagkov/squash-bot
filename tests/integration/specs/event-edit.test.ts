@@ -116,9 +116,7 @@ describe('event-edit (edit menu)', () => {
       )
       await tick()
 
-      const editCall = api.editMessageText.mock.calls.find(
-        ([chatId]) => chatId === TEST_CHAT_ID
-      )
+      const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
       expect(editCall).toBeDefined()
       expect(editCall![2]).toContain('Courts: 3')
 
@@ -143,9 +141,7 @@ describe('event-edit (edit menu)', () => {
       )
       await tick()
 
-      const editCall = api.editMessageText.mock.calls.find(
-        ([chatId]) => chatId === TEST_CHAT_ID
-      )
+      const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
       expect(editCall).toBeDefined()
       expect(editCall![2]).toContain('Courts: 2')
 
@@ -287,9 +283,7 @@ describe('event-edit (edit menu)', () => {
       )
       await tick()
 
-      const editCall = api.editMessageText.mock.calls.find(
-        ([chatId]) => chatId === TEST_CHAT_ID
-      )
+      const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
       expect(editCall).toBeDefined()
       expect(editCall![2]).toContain(`Event <code>${event.id}</code>`)
 
@@ -365,9 +359,7 @@ describe('event-edit (edit menu)', () => {
       await tick()
 
       // Done should still work — edits message to remove keyboard
-      const editCall = api.editMessageText.mock.calls.find(
-        ([chatId]) => chatId === TEST_CHAT_ID
-      )
+      const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
       expect(editCall).toBeDefined()
       expect(editCall![2]).toContain(`Event <code>${event.id}</code>`)
     })

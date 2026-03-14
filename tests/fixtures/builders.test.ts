@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { buildEvent, buildScaffold, buildParticipant, buildEventParticipant, buildPayment } from './builders'
+import {
+  buildEvent,
+  buildScaffold,
+  buildParticipant,
+  buildEventParticipant,
+  buildPayment,
+} from './builders'
 import { TEST_CONFIG } from './config'
 
 describe('Domain object builders', () => {
