@@ -709,10 +709,7 @@ export class EventBusiness {
       const payments = await this.paymentRepository.getPaymentsByEvent(event.id)
       const paidCount = payments.filter((p) => p.paidAt).length
       if (paidCount > 0) {
-        await this.transport.answerCallback(
-          data.callbackId,
-          unfinalizeBlockedMsg(paidCount)
-        )
+        await this.transport.answerCallback(data.callbackId, unfinalizeBlockedMsg(paidCount))
         return
       }
 
@@ -1239,15 +1236,9 @@ export class EventBusiness {
       const paidCount = payments.filter((p) => p.paidAt).length
       if (paidCount > 0) {
         if (source.type === 'callback') {
-          await this.transport.answerCallback(
-            source.callbackId,
-            unfinalizeBlockedMsg(paidCount)
-          )
+          await this.transport.answerCallback(source.callbackId, unfinalizeBlockedMsg(paidCount))
         } else {
-          await this.transport.sendMessage(
-            source.chat.id,
-            `❌ ${unfinalizeBlockedMsg(paidCount)}`
-          )
+          await this.transport.sendMessage(source.chat.id, `❌ ${unfinalizeBlockedMsg(paidCount)}`)
         }
         return
       }
