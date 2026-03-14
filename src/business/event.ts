@@ -474,6 +474,11 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      return
+    }
+
     const newCourts = event.courts + 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
@@ -500,6 +505,11 @@ export class EventBusiness {
     const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
       return
     }
 
@@ -534,6 +544,11 @@ export class EventBusiness {
     const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
       return
     }
 
@@ -615,6 +630,11 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      return
+    }
+
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
     const tasks: Promise<void>[] = [
@@ -642,6 +662,11 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      return
+    }
+
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
 
     const restoreTasks: Promise<void>[] = [
@@ -661,6 +686,11 @@ export class EventBusiness {
     const event = await this.eventRepository.findByMessageId(String(data.messageId))
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
       return
     }
 
@@ -950,6 +980,15 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+      }
+      return
+    }
+
     const newCourts = event.courts + 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
     await this.refreshAnnouncement(event.id)
@@ -975,6 +1014,15 @@ export class EventBusiness {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
       await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+      }
       return
     }
 
@@ -1014,6 +1062,15 @@ export class EventBusiness {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
       await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+      }
       return
     }
 
@@ -1098,6 +1155,15 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+      }
+      return
+    }
+
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
     await this.refreshAnnouncement(event.id)
     await this.refreshReminder(event.id)
@@ -1131,6 +1197,15 @@ export class EventBusiness {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
       await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+      }
       return
     }
 
@@ -1818,6 +1893,15 @@ export class EventBusiness {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
       await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+      } else {
+        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+      }
       return
     }
 
