@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Bot } from 'grammy'
+import { createCallbackQueryUpdate } from '@integration/helpers/callbackHelpers'
 import { createTextMessageUpdate } from '@integration/helpers/updateHelpers'
 import { TEST_CHAT_ID, ADMIN_ID, NON_ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
@@ -184,6 +185,118 @@ describe('event-ownership', () => {
         expect.stringContaining('not found'),
         expect.anything()
       )
+    })
+  })
+
+  describe('owner-only actions', () => {
+    async function setupAnnouncedEvent(courts = 2) {
+      const eventRepo = container.resolve('eventRepository')
+      const event = await eventRepo.createEvent({
+        datetime: new Date('2026-03-01T19:00:00Z'),
+        courts,
+        ownerId: String(CREATOR_ID),
+      })
+
+      const eventBusiness = container.resolve('eventBusiness')
+      await eventBusiness.announceEvent(event.id)
+
+      const announcedEvent = await eventRepo.findById(event.id)
+      const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
+
+      return { event: announcedEvent!, messageId }
+    }
+
+    it('should reject non-owner clicking add-court', async () => {
+      const { event, messageId } = await setupAnnouncedEvent()
+
+      const update = createCallbackQueryUpdate({
+        userId: NON_ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:add-court',
+      })
+      await bot.handleUpdate(update)
+
+      const eventRepo = container.resolve('eventRepository')
+      const unchanged = await eventRepo.findById(event.id)
+      expect(unchanged!.courts).toBe(2)
+
+      expect(api.answerCallbackQuery).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ text: 'Only the event owner can do this' })
+      )
+    })
+
+    it('should allow owner to add court', async () => {
+      const { event, messageId } = await setupAnnouncedEvent()
+
+      const update = createCallbackQueryUpdate({
+        userId: CREATOR_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:add-court',
+      })
+      await bot.handleUpdate(update)
+
+      const eventRepo = container.resolve('eventRepository')
+      const updated = await eventRepo.findById(event.id)
+      expect(updated!.courts).toBe(3)
+    })
+
+    it('should allow admin to add court', async () => {
+      const { event, messageId } = await setupAnnouncedEvent()
+
+      const update = createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:add-court',
+      })
+      await bot.handleUpdate(update)
+
+      const eventRepo = container.resolve('eventRepository')
+      const updated = await eventRepo.findById(event.id)
+      expect(updated!.courts).toBe(3)
+    })
+
+    it('should reject non-owner clicking finalize', async () => {
+      const { event, messageId } = await setupAnnouncedEvent()
+
+      const participantRepo = container.resolve('participantRepository')
+      const { participant } = await participantRepo.findOrCreateParticipant(
+        String(CREATOR_ID),
+        'creator',
+        'Creator'
+      )
+      await participantRepo.addToEvent(event.id, participant.id)
+
+      const update = createCallbackQueryUpdate({
+        userId: NON_ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:finalize',
+      })
+      await bot.handleUpdate(update)
+
+      const eventRepo = container.resolve('eventRepository')
+      const unchanged = await eventRepo.findById(event.id)
+      expect(unchanged!.status).toBe('announced')
+    })
+
+    it('should reject non-owner clicking cancel', async () => {
+      const { event, messageId } = await setupAnnouncedEvent()
+
+      const update = createCallbackQueryUpdate({
+        userId: NON_ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:cancel',
+      })
+      await bot.handleUpdate(update)
+
+      const eventRepo = container.resolve('eventRepository')
+      const unchanged = await eventRepo.findById(event.id)
+      expect(unchanged!.status).toBe('announced')
     })
   })
 })
