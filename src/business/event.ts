@@ -28,6 +28,11 @@ import type { PaymentRepo } from '~/storage/repo/payment'
 import type { NotificationRepo } from '~/storage/repo/notification'
 import type { Logger } from '~/services/logger'
 import type { Notification } from '~/types'
+
+const OWNER_ONLY_CALLBACK = 'Only the event owner can do this'
+const OWNER_ONLY_MESSAGE = '❌ Only the owner or admin can do this'
+const unfinalizeBlockedMsg = (paidCount: number) =>
+  `Can't undo: ${paidCount} ${paidCount === 1 ? 'payment' : 'payments'} already received`
 import { EventLock } from '~/utils/eventLock'
 import {
   buildInlineKeyboard,
@@ -475,7 +480,7 @@ export class EventBusiness {
     }
 
     if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
-      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -509,7 +514,7 @@ export class EventBusiness {
     }
 
     if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
-      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -548,7 +553,7 @@ export class EventBusiness {
     }
 
     if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
-      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -631,7 +636,7 @@ export class EventBusiness {
     }
 
     if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
-      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -663,7 +668,7 @@ export class EventBusiness {
     }
 
     if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
-      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -690,7 +695,7 @@ export class EventBusiness {
     }
 
     if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
-      await this.transport.answerCallback(data.callbackId, 'Only the event owner can do this')
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -706,7 +711,7 @@ export class EventBusiness {
       if (paidCount > 0) {
         await this.transport.answerCallback(
           data.callbackId,
-          `Can't undo: ${paidCount} payment(s) already received`
+          unfinalizeBlockedMsg(paidCount)
         )
         return
       }
@@ -992,9 +997,9 @@ export class EventBusiness {
 
     if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
       if (source.type === 'callback') {
-        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
       } else {
-        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
       }
       return
     }
@@ -1029,9 +1034,9 @@ export class EventBusiness {
 
     if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
       if (source.type === 'callback') {
-        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
       } else {
-        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
       }
       return
     }
@@ -1077,9 +1082,9 @@ export class EventBusiness {
 
     if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
       if (source.type === 'callback') {
-        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
       } else {
-        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
       }
       return
     }
@@ -1167,9 +1172,9 @@ export class EventBusiness {
 
     if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
       if (source.type === 'callback') {
-        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
       } else {
-        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
       }
       return
     }
@@ -1212,9 +1217,9 @@ export class EventBusiness {
 
     if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
       if (source.type === 'callback') {
-        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
       } else {
-        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
       }
       return
     }
@@ -1236,12 +1241,12 @@ export class EventBusiness {
         if (source.type === 'callback') {
           await this.transport.answerCallback(
             source.callbackId,
-            `Can't undo: ${paidCount} payment(s) already received`
+            unfinalizeBlockedMsg(paidCount)
           )
         } else {
           await this.transport.sendMessage(
             source.chat.id,
-            `❌ Can't undo: ${paidCount} payment(s) already received`
+            `❌ ${unfinalizeBlockedMsg(paidCount)}`
           )
         }
         return
@@ -1925,9 +1930,9 @@ export class EventBusiness {
 
     if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
       if (source.type === 'callback') {
-        await this.transport.answerCallback(source.callbackId, 'Only the event owner can do this')
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
       } else {
-        await this.transport.sendMessage(source.chat.id, '❌ Only the owner or admin can do this')
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
       }
       return
     }
