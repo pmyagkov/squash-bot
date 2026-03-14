@@ -299,4 +299,113 @@ describe('event-ownership', () => {
       expect(unchanged!.status).toBe('announced')
     })
   })
+
+  describe('owner-only commands (text)', () => {
+    async function setupAnnouncedEvent(courts = 2) {
+      const eventRepo = container.resolve('eventRepository')
+      const event = await eventRepo.createEvent({
+        datetime: new Date('2026-03-01T19:00:00Z'),
+        courts,
+        ownerId: String(CREATOR_ID),
+      })
+
+      const eventBusiness = container.resolve('eventBusiness')
+      await eventBusiness.announceEvent(event.id)
+
+      const announcedEvent = await eventRepo.findById(event.id)
+      return announcedEvent!
+    }
+
+    it('should reject non-owner /event create-court', async () => {
+      const event = await setupAnnouncedEvent()
+
+      const update = createTextMessageUpdate(
+        `/event create-court ${event.id}`,
+        { userId: NON_ADMIN_ID, chatId: TEST_CHAT_ID }
+      )
+      await bot.handleUpdate(update)
+      await tick()
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Only the owner or admin'),
+        expect.anything()
+      )
+
+      const eventRepo = container.resolve('eventRepository')
+      const unchanged = await eventRepo.findById(event.id)
+      expect(unchanged!.courts).toBe(2)
+    })
+
+    it('should reject non-owner /event delete-court', async () => {
+      const event = await setupAnnouncedEvent(3)
+
+      const update = createTextMessageUpdate(
+        `/event delete-court ${event.id}`,
+        { userId: NON_ADMIN_ID, chatId: TEST_CHAT_ID }
+      )
+      await bot.handleUpdate(update)
+      await tick()
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Only the owner or admin'),
+        expect.anything()
+      )
+
+      const eventRepo = container.resolve('eventRepository')
+      const unchanged = await eventRepo.findById(event.id)
+      expect(unchanged!.courts).toBe(3)
+    })
+
+    it('should reject non-owner /event finalize', async () => {
+      const event = await setupAnnouncedEvent()
+
+      const participantRepo = container.resolve('participantRepository')
+      const { participant } = await participantRepo.findOrCreateParticipant(
+        String(CREATOR_ID),
+        'creator',
+        'Creator'
+      )
+      await participantRepo.addToEvent(event.id, participant.id)
+
+      const update = createTextMessageUpdate(
+        `/event finalize ${event.id}`,
+        { userId: NON_ADMIN_ID, chatId: TEST_CHAT_ID }
+      )
+      await bot.handleUpdate(update)
+      await tick()
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Only the owner or admin'),
+        expect.anything()
+      )
+
+      const eventRepo = container.resolve('eventRepository')
+      const unchanged = await eventRepo.findById(event.id)
+      expect(unchanged!.status).toBe('announced')
+    })
+
+    it('should reject non-owner /event cancel', async () => {
+      const event = await setupAnnouncedEvent()
+
+      const update = createTextMessageUpdate(
+        `/event cancel ${event.id}`,
+        { userId: NON_ADMIN_ID, chatId: TEST_CHAT_ID }
+      )
+      await bot.handleUpdate(update)
+      await tick()
+
+      expect(api.sendMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.stringContaining('Only the owner or admin'),
+        expect.anything()
+      )
+
+      const eventRepo = container.resolve('eventRepository')
+      const unchanged = await eventRepo.findById(event.id)
+      expect(unchanged!.status).toBe('announced')
+    })
+  })
 })

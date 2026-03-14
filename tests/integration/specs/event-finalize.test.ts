@@ -44,12 +44,12 @@ describe('event-finalize', () => {
 
   async function setupAnnouncedEventWithParticipants(
     courts: number,
-    participantData: Array<{
+    participantData: {
       userId: number
       username?: string
       firstName: string
       participations?: number
-    }>
+    }[]
   ) {
     const event = await eventRepository.createEvent({
       datetime: new Date('2024-01-20T19:00:00Z'),
@@ -258,8 +258,16 @@ describe('event-finalize', () => {
     const announcedEvent = await eventRepository.findById(event.id)
     const messageId = parseInt(announcedEvent!.telegramMessageId!, 10)
 
-    const { participant: alice } = await participantRepository.findOrCreateParticipant('111', 'alice', 'Alice')
-    const { participant: bob } = await participantRepository.findOrCreateParticipant('222', 'bob', 'Bob')
+    const { participant: alice } = await participantRepository.findOrCreateParticipant(
+      '111',
+      'alice',
+      'Alice'
+    )
+    const { participant: bob } = await participantRepository.findOrCreateParticipant(
+      '222',
+      'bob',
+      'Bob'
+    )
 
     const eventParticipantRepository = container.resolve('eventParticipantRepository')
     await eventParticipantRepository.addToEvent(event.id, alice.id, 2)
