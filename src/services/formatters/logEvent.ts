@@ -64,7 +64,7 @@ export function formatLogEvent(event: LogEvent): string {
     case 'court_removed':
       return `➖ Court removed: ${code(event.event.id)} (now ${event.event.courts})`
     case 'payment_received':
-      return `💰 Payment received: ${event.amount} din from ${formatParticipantLabel(event.participant, full)}`
+      return `💰 Payment received: ${event.amount} din from ${formatParticipantLabel(event.participant, full)} · ${code(event.event.id)}`
     case 'payment_cancelled':
       return `💸 Payment cancelled: ${formatParticipantLabel(event.participant, full)} in ${code(event.event.id)}`
     case 'payment_check_completed':
