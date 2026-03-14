@@ -19,14 +19,14 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1741305600000,
+      "when": 1772554654313,
       "tag": "0002_add_event_participant_status",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1741305600002,
+      "when": 1772554654314,
       "tag": "0003_add_event_announcements",
       "breakpoints": true
     }
