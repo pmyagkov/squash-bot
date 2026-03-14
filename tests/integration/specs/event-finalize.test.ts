@@ -479,4 +479,74 @@ describe('event-finalize', () => {
       )
     })
   })
+
+  describe('unfinalize guard — paid payments', () => {
+    async function setupFinalizedEvent() {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2026-03-01T19:00:00Z'),
+        courts: 1,
+        ownerId: String(ADMIN_ID),
+      })
+      await eventBusiness.announceEvent(event.id)
+      const announced = await eventRepository.findById(event.id)
+      const messageId = parseInt(announced!.telegramMessageId!, 10)
+
+      const { participant } = await participantRepository.findOrCreateParticipant(
+        '111111111',
+        'alice',
+        'Alice'
+      )
+      await participantRepository.addToEvent(event.id, participant.id)
+
+      const finalizeUpdate = createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:finalize',
+      })
+      await bot.handleUpdate(finalizeUpdate)
+
+      return { event: announced!, messageId }
+    }
+
+    it('should block unfinalize when payments have been received', async () => {
+      const { event, messageId } = await setupFinalizedEvent()
+
+      const payments = await paymentRepository.getPaymentsByEvent(event.id)
+      expect(payments.length).toBe(1)
+      await paymentRepository.markAsPaid(payments[0].id!)
+
+      const unfinalizeUpdate = createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:undo-finalize',
+      })
+      await bot.handleUpdate(unfinalizeUpdate)
+
+      const stillFinalized = await eventRepository.findById(event.id)
+      expect(stillFinalized!.status).toBe('finalized')
+
+      const stillPayments = await paymentRepository.getPaymentsByEvent(event.id)
+      expect(stillPayments.length).toBe(1)
+    })
+
+    it('should allow unfinalize when no payments are paid', async () => {
+      const { event, messageId } = await setupFinalizedEvent()
+
+      const unfinalizeUpdate = createCallbackQueryUpdate({
+        userId: ADMIN_ID,
+        chatId: TEST_CHAT_ID,
+        messageId,
+        data: 'event:undo-finalize',
+      })
+      await bot.handleUpdate(unfinalizeUpdate)
+
+      const unfinalized = await eventRepository.findById(event.id)
+      expect(unfinalized!.status).toBe('announced')
+
+      const noPayments = await paymentRepository.getPaymentsByEvent(event.id)
+      expect(noPayments.length).toBe(0)
+    })
+  })
 })

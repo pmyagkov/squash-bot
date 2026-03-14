@@ -700,8 +700,18 @@ export class EventBusiness {
     }
 
     try {
-      // Try to delete personal DMs (best effort)
+      // Check for already-paid payments
       const payments = await this.paymentRepository.getPaymentsByEvent(event.id)
+      const paidCount = payments.filter((p) => p.paidAt).length
+      if (paidCount > 0) {
+        await this.transport.answerCallback(
+          data.callbackId,
+          `Can't undo: ${paidCount} payment(s) already received`
+        )
+        return
+      }
+
+      // Try to delete personal DMs (best effort)
       for (const payment of payments) {
         if (payment.personalMessageId) {
           const participant = await this.participantRepository.findById(payment.participantId)
@@ -1219,8 +1229,25 @@ export class EventBusiness {
     }
 
     try {
-      // Try to delete personal DMs (best effort)
+      // Check for already-paid payments
       const payments = await this.paymentRepository.getPaymentsByEvent(event.id)
+      const paidCount = payments.filter((p) => p.paidAt).length
+      if (paidCount > 0) {
+        if (source.type === 'callback') {
+          await this.transport.answerCallback(
+            source.callbackId,
+            `Can't undo: ${paidCount} payment(s) already received`
+          )
+        } else {
+          await this.transport.sendMessage(
+            source.chat.id,
+            `❌ Can't undo: ${paidCount} payment(s) already received`
+          )
+        }
+        return
+      }
+
+      // Try to delete personal DMs (best effort)
       for (const payment of payments) {
         if (payment.personalMessageId) {
           const participant = await this.participantRepository.findById(payment.participantId)
