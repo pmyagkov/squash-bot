@@ -407,6 +407,7 @@ export class EventBusiness {
   // === Callback Handlers ===
 
   private async handleJoin(data: CallbackTypes['event:join']): Promise<void> {
+    console.log(`[JOIN] START cb=${data.callbackId} user=${data.userId}`)
     const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
@@ -420,44 +421,64 @@ export class EventBusiness {
       return
     }
 
-    // Check current status
-    const existing = await this.participantRepository.findEventParticipant(event.id, participant.id)
-    let callbackText: string | undefined
-
-    if (existing?.status === 'out') {
-      await this.participantRepository.addToEvent(event.id, participant.id)
-      callbackText = 'Welcome back! ✋'
-    } else {
-      await this.participantRepository.addToEvent(event.id, participant.id)
+    const lockKey = `${event.id}:${data.userId}`
+    if (!this.eventLock.acquire(lockKey)) {
+      console.log(`[JOIN] BLOCKED by lock cb=${data.callbackId}`)
+      await this.transport.answerCallback(data.callbackId, '⏳ In progress')
+      return
     }
 
-    // Update message and answer callback concurrently (editMessage is slow on test server)
-    await Promise.all([
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
-      this.refreshReminder(event.id),
-      this.transport.answerCallback(data.callbackId, callbackText),
-    ])
+    console.log(`[JOIN] LOCK ACQUIRED cb=${data.callbackId}`)
+    try {
+      // Check current status to determine callback text
+      const existing = await this.participantRepository.findEventParticipant(
+        event.id,
+        participant.id
+      )
 
-    void this.logger.log(`User ${data.userId} joined event ${event.id}`)
-    void this.transport.logEvent({
-      type: 'participant_joined',
-      event,
-      participant,
-    })
+      // addToEvent returns new participations count via RETURNING clause
+      const result = await this.participantRepository.addToEvent(event.id, participant.id)
+      const count = result.participations
+      let callbackText: string
 
-    // Notify owner (fire-and-forget)
-    const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
-    const joinTotal = joinParticipants
-      .filter((ep) => ep.status === 'in')
-      .reduce((sum, ep) => sum + ep.participations, 0)
-    void this.notifyOwner(event, 'participant-joined', participant.displayName, {
-      totalParticipations: joinTotal,
-      courts: event.courts,
-      actorUserId: data.userId,
-    })
+      if (existing?.status === 'out') {
+        callbackText = 'Welcome back! ✋'
+      } else {
+        callbackText = count > 1 ? `Joined (×${count}) ✋` : 'Joined ✋'
+      }
+
+      // Update message and answer callback concurrently (editMessage is slow on test server)
+      await Promise.all([
+        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+        this.refreshReminder(event.id),
+        this.transport.answerCallback(data.callbackId, callbackText),
+      ])
+
+      void this.logger.log(`User ${data.userId} joined event ${event.id}`)
+      void this.transport.logEvent({
+        type: 'participant_joined',
+        event,
+        participant,
+      })
+
+      // Notify owner (fire-and-forget)
+      const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
+      const joinTotal = joinParticipants
+        .filter((ep) => ep.status === 'in')
+        .reduce((sum, ep) => sum + ep.participations, 0)
+      void this.notifyOwner(event, 'participant-joined', participant.displayName, {
+        totalParticipations: joinTotal,
+        courts: event.courts,
+        actorUserId: data.userId,
+      })
+    } finally {
+      console.log(`[JOIN] RELEASING lock cb=${data.callbackId}`)
+      this.eventLock.release(lockKey)
+    }
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
+    console.log(`[LEAVE] START cb=${data.callbackId} user=${data.userId}`)
     const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
@@ -470,45 +491,61 @@ export class EventBusiness {
       return
     }
 
-    // Check current status
-    const existing = await this.participantRepository.findEventParticipant(event.id, participant.id)
-    let callbackText: string
-
-    if (existing?.status === 'out') {
-      await this.transport.answerCallback(data.callbackId, "You're already skipping")
+    const lockKey = `${event.id}:${data.userId}`
+    if (!this.eventLock.acquire(lockKey)) {
+      console.log(`[LEAVE] BLOCKED by lock cb=${data.callbackId}`)
+      await this.transport.answerCallback(data.callbackId, '⏳ In progress')
       return
-    } else if (existing?.status === 'in') {
-      await this.participantRepository.markAsOut(event.id, participant.id)
-      callbackText = "You're out 😢"
-    } else {
-      // Not in event at all — create as 'out'
-      await this.participantRepository.markAsOut(event.id, participant.id)
-      callbackText = "Noted, you're skipping 😢"
     }
 
-    await Promise.all([
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
-      this.refreshReminder(event.id),
-      this.transport.answerCallback(data.callbackId, callbackText),
-    ])
+    console.log(`[LEAVE] LOCK ACQUIRED cb=${data.callbackId}`)
+    try {
+      // Check current status
+      const existing = await this.participantRepository.findEventParticipant(
+        event.id,
+        participant.id
+      )
+      let callbackText: string
 
-    void this.logger.log(`User ${data.userId} left event ${event.id}`)
-    void this.transport.logEvent({
-      type: 'participant_left',
-      event,
-      participant,
-    })
+      if (existing?.status === 'out') {
+        await this.transport.answerCallback(data.callbackId, "You're already skipping")
+        return
+      } else if (existing?.status === 'in') {
+        await this.participantRepository.markAsOut(event.id, participant.id)
+        callbackText = "You're out 😢"
+      } else {
+        // Not in event at all — create as 'out'
+        await this.participantRepository.markAsOut(event.id, participant.id)
+        callbackText = "Noted, you're skipping 😢"
+      }
 
-    // Notify owner (fire-and-forget)
-    const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
-    const leaveTotal = leaveParticipants
-      .filter((ep) => ep.status === 'in')
-      .reduce((sum, ep) => sum + ep.participations, 0)
-    void this.notifyOwner(event, 'participant-left', participant.displayName, {
-      totalParticipations: leaveTotal,
-      courts: event.courts,
-      actorUserId: data.userId,
-    })
+      await Promise.all([
+        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+        this.refreshReminder(event.id),
+        this.transport.answerCallback(data.callbackId, callbackText),
+      ])
+
+      void this.logger.log(`User ${data.userId} left event ${event.id}`)
+      void this.transport.logEvent({
+        type: 'participant_left',
+        event,
+        participant,
+      })
+
+      // Notify owner (fire-and-forget)
+      const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
+      const leaveTotal = leaveParticipants
+        .filter((ep) => ep.status === 'in')
+        .reduce((sum, ep) => sum + ep.participations, 0)
+      void this.notifyOwner(event, 'participant-left', participant.displayName, {
+        totalParticipations: leaveTotal,
+        courts: event.courts,
+        actorUserId: data.userId,
+      })
+    } finally {
+      console.log(`[LEAVE] RELEASING lock cb=${data.callbackId}`)
+      this.eventLock.release(lockKey)
+    }
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add-court']): Promise<void> {

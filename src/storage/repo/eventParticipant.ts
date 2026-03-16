@@ -4,8 +4,12 @@ import { eq, and, sql } from 'drizzle-orm'
 import type { EventParticipant, EventParticipantStatus } from '~/types'
 
 export class EventParticipantRepo {
-  async addToEvent(eventId: string, participantId: string, participations = 1): Promise<void> {
-    await db
+  async addToEvent(
+    eventId: string,
+    participantId: string,
+    participations = 1
+  ): Promise<{ participations: number }> {
+    const rows = await db
       .insert(eventParticipants)
       .values({
         eventId,
@@ -20,6 +24,8 @@ export class EventParticipantRepo {
           status: 'in',
         },
       })
+      .returning({ participations: eventParticipants.participations })
+    return { participations: rows[0].participations }
   }
 
   async markAsOut(eventId: string, participantId: string): Promise<void> {

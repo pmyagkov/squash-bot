@@ -1,15 +1,18 @@
 export class EventLock {
   private locks = new Map<string, boolean>()
 
-  acquire(eventId: string): boolean {
-    if (this.locks.get(eventId)) {
+  acquire(key: string): boolean {
+    const held = this.locks.get(key) ?? false
+    console.log(`[LOCK] acquire(${key}) — held=${held} → ${held ? 'REJECTED' : 'ACQUIRED'}`)
+    if (held) {
       return false
     }
-    this.locks.set(eventId, true)
+    this.locks.set(key, true)
     return true
   }
 
-  release(eventId: string): void {
-    this.locks.delete(eventId)
+  release(key: string): void {
+    console.log(`[LOCK] release(${key})`)
+    this.locks.delete(key)
   }
 }

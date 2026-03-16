@@ -53,15 +53,12 @@ export class ParticipantBusiness {
    * Checks `default_collector_id` setting first, falls back to admin's participant record.
    */
   async resolveDefaultCollectorId(): Promise<string | null> {
-    const settingValue = await this.settingsRepository.getDefaultCollectorId()
-    if (settingValue) {
-      return settingValue
-    }
-    const adminId = await this.settingsRepository.getAdminId()
-    if (!adminId) {
+    const collectorTelegramId = await this.settingsRepository.getDefaultCollectorId()
+    const telegramId = collectorTelegramId ?? (await this.settingsRepository.getAdminId())
+    if (!telegramId) {
       return null
     }
-    const admin = await this.participantRepository.findByTelegramId(adminId)
-    return admin?.id ?? null
+    const participant = await this.participantRepository.findByTelegramId(telegramId)
+    return participant?.id ?? null
   }
 }

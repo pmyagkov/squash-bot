@@ -106,7 +106,11 @@ export class ParticipantRepo {
 
   // Legacy methods - these delegate to EventParticipantService
   // These will be removed once all code is migrated
-  async addToEvent(eventId: string, participantId: string, participations = 1): Promise<void> {
+  async addToEvent(
+    eventId: string,
+    participantId: string,
+    participations = 1
+  ): Promise<{ participations: number }> {
     return this.eventParticipantRepository.addToEvent(eventId, participantId, participations)
   }
 

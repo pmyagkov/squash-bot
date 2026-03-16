@@ -420,7 +420,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_new', telegramId: '555' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 1 })
+      participantRepo.findEventParticipant.mockResolvedValue(null)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_join', participantId: 'p_new', participant }),
       ])
@@ -441,7 +442,7 @@ describe('EventBusiness', () => {
 
       expect(participantRepo.findByTelegramId).toHaveBeenCalledWith('555')
       expect(participantRepo.addToEvent).toHaveBeenCalledWith('ev_join', 'p_new')
-      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join', undefined)
+      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join', 'Joined ✋')
     })
 
     test('existing participant → adds to event', async ({ container }) => {
@@ -455,7 +456,14 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_existing' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 2 })
+      participantRepo.findEventParticipant.mockResolvedValue(
+        buildEventParticipant({
+          eventId: 'ev_join2',
+          participantId: 'p_existing',
+          participations: 1,
+        })
+      )
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({
           eventId: 'ev_join2',
@@ -480,6 +488,7 @@ describe('EventBusiness', () => {
       })
 
       expect(participantRepo.addToEvent).toHaveBeenCalledWith('ev_join2', 'p_existing')
+      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join2', 'Joined (×2) ✋')
     })
 
     test('updates announcement → calls editMessage', async ({ container }) => {
@@ -493,7 +502,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant()
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 1 })
+      participantRepo.findEventParticipant.mockResolvedValue(null)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_edit' }),
       ])
@@ -531,7 +541,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_r', telegramId: '555' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 1 })
+      participantRepo.findEventParticipant.mockResolvedValue(null)
       participantRepo.getEventParticipants.mockResolvedValue([])
       notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
         buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
