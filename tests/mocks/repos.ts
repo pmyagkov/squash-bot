@@ -1,4 +1,5 @@
 import { mockClass } from './utils'
+import { TEST_CONFIG } from '@fixtures/config'
 import { EventRepo } from '~/storage/repo/event'
 import { ScaffoldRepo } from '~/storage/repo/scaffold'
 import { EventParticipantRepo } from '~/storage/repo/eventParticipant'
@@ -51,7 +52,9 @@ export function mockPaymentRepo() {
  * Mock for SettingsRepo
  */
 export function mockSettingsRepo() {
-  return mockClass<typeof SettingsRepo>()
+  const mock = mockClass<typeof SettingsRepo>()
+  mock.getAdminId.mockResolvedValue(String(TEST_CONFIG.userId))
+  return mock
 }
 
 /**

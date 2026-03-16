@@ -29,6 +29,11 @@ import type { NotificationRepo } from '~/storage/repo/notification'
 import type { EventAnnouncementRepo } from '~/storage/repo/eventAnnouncement'
 import type { Logger } from '~/services/logger'
 import type { Notification } from '~/types'
+
+const OWNER_ONLY_CALLBACK = 'Only the event owner can do this'
+const OWNER_ONLY_MESSAGE = '❌ Only the owner or admin can do this'
+const unfinalizeBlockedMsg = (paidCount: number) =>
+  `Can't undo: ${paidCount} ${paidCount === 1 ? 'payment' : 'payments'} already received`
 import { EventLock } from '~/utils/eventLock'
 import {
   buildInlineKeyboard,
@@ -513,6 +518,11 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
+      return
+    }
+
     const newCourts = event.courts + 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
 
@@ -539,6 +549,11 @@ export class EventBusiness {
     const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -573,6 +588,11 @@ export class EventBusiness {
     const event = await this.resolveEventByMessageId(data.messageId)
     if (!event) {
       await this.transport.answerCallback(data.callbackId, 'Event not found')
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
       return
     }
 
@@ -655,6 +675,11 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
+      return
+    }
+
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
     const tasks: Promise<void>[] = [
@@ -682,6 +707,11 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
+      return
+    }
+
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
 
     const restoreTasks: Promise<void>[] = [
@@ -704,14 +734,26 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(data.userId, event.ownerId, this.settingsRepository))) {
+      await this.transport.answerCallback(data.callbackId, OWNER_ONLY_CALLBACK)
+      return
+    }
+
     if (!this.eventLock.acquire(event.id)) {
       await this.transport.answerCallback(data.callbackId, '⏳ Operation already in progress')
       return
     }
 
     try {
-      // Try to delete personal DMs (best effort)
+      // Check for already-paid payments
       const payments = await this.paymentRepository.getPaymentsByEvent(event.id)
+      const paidCount = payments.filter((p) => p.paidAt).length
+      if (paidCount > 0) {
+        await this.transport.answerCallback(data.callbackId, unfinalizeBlockedMsg(paidCount))
+        return
+      }
+
+      // Try to delete personal DMs (best effort)
       for (const payment of payments) {
         if (payment.personalMessageId) {
           const participant = await this.participantRepository.findById(payment.participantId)
@@ -990,6 +1032,15 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
+      } else {
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
+      }
+      return
+    }
+
     const newCourts = event.courts + 1
     await this.eventRepository.updateEvent(event.id, { courts: newCourts })
     await this.refreshAnnouncement(event.id)
@@ -1015,6 +1066,15 @@ export class EventBusiness {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
       await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
+      } else {
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
+      }
       return
     }
 
@@ -1054,6 +1114,15 @@ export class EventBusiness {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
       await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
+      } else {
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
+      }
       return
     }
 
@@ -1139,6 +1208,15 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
+      } else {
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
+      }
+      return
+    }
+
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
     await this.refreshAnnouncement(event.id)
     await this.refreshReminder(event.id)
@@ -1175,6 +1253,15 @@ export class EventBusiness {
       return
     }
 
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
+      } else {
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
+      }
+      return
+    }
+
     if (!this.eventLock.acquire(event.id)) {
       if (source.type === 'callback') {
         await this.transport.answerCallback(source.callbackId, '⏳ Operation already in progress')
@@ -1185,8 +1272,19 @@ export class EventBusiness {
     }
 
     try {
-      // Try to delete personal DMs (best effort)
+      // Check for already-paid payments
       const payments = await this.paymentRepository.getPaymentsByEvent(event.id)
+      const paidCount = payments.filter((p) => p.paidAt).length
+      if (paidCount > 0) {
+        if (source.type === 'callback') {
+          await this.transport.answerCallback(source.callbackId, unfinalizeBlockedMsg(paidCount))
+        } else {
+          await this.transport.sendMessage(source.chat.id, `❌ ${unfinalizeBlockedMsg(paidCount)}`)
+        }
+        return
+      }
+
+      // Try to delete personal DMs (best effort)
       for (const payment of payments) {
         if (payment.personalMessageId) {
           const participant = await this.participantRepository.findById(payment.participantId)
@@ -1859,6 +1957,15 @@ export class EventBusiness {
     const event = await this.eventRepository.findById(data.eventId)
     if (!event) {
       await this.transport.sendMessage(source.chat.id, `❌ Event ${code(data.eventId)} not found`)
+      return
+    }
+
+    if (!(await isOwnerOrAdmin(source.user.id, event.ownerId, this.settingsRepository))) {
+      if (source.type === 'callback') {
+        await this.transport.answerCallback(source.callbackId, OWNER_ONLY_CALLBACK)
+      } else {
+        await this.transport.sendMessage(source.chat.id, OWNER_ONLY_MESSAGE)
+      }
       return
     }
 

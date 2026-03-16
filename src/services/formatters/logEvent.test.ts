@@ -272,7 +272,9 @@ describe('formatLogEvent', () => {
         participant: testParticipant,
         amount: 2000,
       }
-      expect(formatLogEvent(event)).toBe('💰 Payment received: 2000 din from Alice · @alice')
+      expect(formatLogEvent(event)).toBe(
+        '💰 Payment received: 2000 din from Alice · @alice · <code>ev_123</code>'
+      )
     })
 
     it('should format payment_cancelled', () => {
