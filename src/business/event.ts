@@ -12,6 +12,7 @@ import { formatDate } from '~/ui/constants'
 import { formatEventListItem } from '~/services/formatters/list'
 import { formatParticipantLabel } from '~/services/formatters/participant'
 import type { TelegramTransport, CallbackTypes } from '~/services/transport/telegram'
+import { BotBlockedError } from '~/services/transport/telegram'
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { SourceContext } from '~/services/command/types'
 import type { WizardService } from '~/services/wizard/wizardService'
@@ -447,22 +448,27 @@ export class EventBusiness {
         callbackText = count > 1 ? `Joined (×${count}) ✋` : 'Joined ✋'
       }
 
-      // Update message and answer callback concurrently (editMessage is slow on test server)
+      // Update message and answer callback concurrently
       await Promise.all([
         this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
         this.refreshReminder(event.id),
         this.transport.answerCallback(data.callbackId, callbackText),
       ])
+    } finally {
+      console.log(`[JOIN] RELEASING lock cb=${data.callbackId}`)
+      this.eventLock.release(lockKey)
+    }
 
-      void this.logger.log(`User ${data.userId} joined event ${event.id}`)
-      void this.transport.logEvent({
-        type: 'participant_joined',
-        event,
-        participant,
-      })
+    // Fire-and-forget after lock is released
+    void this.logger.log(`User ${data.userId} joined event ${event.id}`)
+    void this.transport.logEvent({
+      type: 'participant_joined',
+      event,
+      participant,
+    })
 
-      // Notify owner (fire-and-forget)
-      const joinParticipants = await this.participantRepository.getEventParticipants(event.id)
+    // Notify owner (fire-and-forget)
+    void this.participantRepository.getEventParticipants(event.id).then((joinParticipants) => {
       const joinTotal = joinParticipants
         .filter((ep) => ep.status === 'in')
         .reduce((sum, ep) => sum + ep.participations, 0)
@@ -471,10 +477,7 @@ export class EventBusiness {
         courts: event.courts,
         actorUserId: data.userId,
       })
-    } finally {
-      console.log(`[JOIN] RELEASING lock cb=${data.callbackId}`)
-      this.eventLock.release(lockKey)
-    }
+    })
   }
 
   private async handleLeave(data: CallbackTypes['event:leave']): Promise<void> {
@@ -524,16 +527,21 @@ export class EventBusiness {
         this.refreshReminder(event.id),
         this.transport.answerCallback(data.callbackId, callbackText),
       ])
+    } finally {
+      console.log(`[LEAVE] RELEASING lock cb=${data.callbackId}`)
+      this.eventLock.release(lockKey)
+    }
 
-      void this.logger.log(`User ${data.userId} left event ${event.id}`)
-      void this.transport.logEvent({
-        type: 'participant_left',
-        event,
-        participant,
-      })
+    // Fire-and-forget after lock is released
+    void this.logger.log(`User ${data.userId} left event ${event.id}`)
+    void this.transport.logEvent({
+      type: 'participant_left',
+      event,
+      participant,
+    })
 
-      // Notify owner (fire-and-forget)
-      const leaveParticipants = await this.participantRepository.getEventParticipants(event.id)
+    // Notify owner (fire-and-forget)
+    void this.participantRepository.getEventParticipants(event.id).then((leaveParticipants) => {
       const leaveTotal = leaveParticipants
         .filter((ep) => ep.status === 'in')
         .reduce((sum, ep) => sum + ep.participations, 0)
@@ -542,10 +550,7 @@ export class EventBusiness {
         courts: event.courts,
         actorUserId: data.userId,
       })
-    } finally {
-      console.log(`[LEAVE] RELEASING lock cb=${data.callbackId}`)
-      this.eventLock.release(lockKey)
-    }
+    })
   }
 
   private async handleAddCourt(data: CallbackTypes['event:add-court']): Promise<void> {
@@ -2118,12 +2123,21 @@ export class EventBusiness {
 
       try {
         await this.transport.sendMessage(ownerTelegramId, message, keyboard)
-      } catch {
-        // Fallback to main chat
-        const mainChatId = await this.settingsRepository.getMainChatId()
-        if (mainChatId) {
-          await this.transport.sendMessage(mainChatId, message, keyboard)
+      } catch (sendError) {
+        if (sendError instanceof BotBlockedError) {
+          const mainChatId = await this.settingsRepository.getMainChatId()
+          if (mainChatId) {
+            const owner = await this.participantRepository.findByTelegramId(event.ownerId)
+            const ownerName = owner?.telegramUsername
+              ? `@${owner.telegramUsername}`
+              : (owner?.displayName ?? `User ${event.ownerId}`)
+            const botInfo = this.transport.getBotInfo()
+            const fallbackText = formatFallbackNotificationText([ownerName], botInfo.username ?? '')
+            await this.transport.sendMessage(mainChatId, fallbackText)
+          }
+          return
         }
+        throw sendError
       }
     } catch (error) {
       await this.logger.error(

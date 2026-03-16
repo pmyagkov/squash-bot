@@ -1,4 +1,4 @@
-import { Bot, Context } from 'grammy'
+import { Bot, Context, GrammyError } from 'grammy'
 import type { InlineKeyboardMarkup } from 'grammy/types'
 import type { CallbackTypes, CallbackAction } from './types'
 import { callbackParsers, ParseError } from './parsers'
@@ -7,6 +7,13 @@ import type { LogEvent } from '~/types/logEvent'
 import { formatLogEvent } from '~/services/formatters/logEvent'
 import type { config as configType } from '~/config'
 import type { WizardService } from '~/services/wizard/wizardService'
+
+export class BotBlockedError extends Error {
+  constructor(chatId: number) {
+    super(`Bot is blocked by user ${chatId}`)
+    this.name = 'BotBlockedError'
+  }
+}
 import type { CommandRegistry } from '~/services/command/commandRegistry'
 import type { CommandService } from '~/services/command/commandService'
 import type { SettingsRepo } from '~/storage/repo/settings'
@@ -126,8 +133,21 @@ export class TelegramTransport {
     text: string,
     keyboard?: InlineKeyboardMarkup
   ): Promise<number> {
-    const msg = await this.bot.api.sendMessage(chatId, text, { reply_markup: keyboard })
-    return msg.message_id
+    try {
+      const msg = await this.bot.api.sendMessage(chatId, text, { reply_markup: keyboard })
+      return msg.message_id
+    } catch (error) {
+      if (error instanceof GrammyError) {
+        if (error.error_code === 403) {
+          throw new BotBlockedError(chatId)
+        }
+        if (error.error_code === 429) {
+          void this.logger.warn(`Rate limited sending to ${chatId}: ${error.description}`)
+          return 0
+        }
+      }
+      throw error
+    }
   }
 
   async pinMessage(chatId: number, messageId: number): Promise<void> {
