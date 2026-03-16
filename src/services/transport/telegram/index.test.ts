@@ -173,6 +173,67 @@ describe('TelegramTransport', () => {
     })
   })
 
+  describe('sendMessage error handling', () => {
+    it('should throw BotBlockedError on 403', async () => {
+      const { GrammyError } = await import('grammy')
+      api.sendMessage.mockRejectedValueOnce(
+        new GrammyError(
+          'Forbidden: bot was blocked by the user',
+          {
+            ok: false,
+            error_code: 403,
+            description: 'Forbidden: bot was blocked by the user',
+          },
+          'sendMessage',
+          { chat_id: 12345, text: 'hello' }
+        )
+      )
+
+      const { BotBlockedError } = await import('./index')
+      await expect(transport.sendMessage(12345, 'hello')).rejects.toThrow(BotBlockedError)
+    })
+
+    it('should silently return 0 on 429 rate limit', async () => {
+      const { GrammyError } = await import('grammy')
+      api.sendMessage.mockRejectedValueOnce(
+        new GrammyError(
+          'Too Many Requests: retry after 3',
+          {
+            ok: false,
+            error_code: 429,
+            description: 'Too Many Requests: retry after 3',
+          },
+          'sendMessage',
+          { chat_id: 12345, text: 'hello' }
+        )
+      )
+
+      const result = await transport.sendMessage(12345, 'hello')
+      expect(result).toBe(0)
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Rate limited sending to 12345')
+      )
+    })
+
+    it('should rethrow other GrammyErrors', async () => {
+      const { GrammyError } = await import('grammy')
+      const error = new GrammyError(
+        'Internal Server Error',
+        {
+          ok: false,
+          error_code: 500,
+          description: 'Internal Server Error',
+        },
+        'sendMessage',
+        { chat_id: 12345, text: 'hello' }
+      )
+
+      api.sendMessage.mockRejectedValueOnce(error)
+
+      await expect(transport.sendMessage(12345, 'hello')).rejects.toThrow(error)
+    })
+  })
+
   describe('error handling', () => {
     it('should construct ParseError with correct name and message for user-friendly responses', () => {
       const error = new ParseError('Usage: /event create <day> <time> <courts>')

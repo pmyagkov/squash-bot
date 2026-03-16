@@ -1357,14 +1357,24 @@ describe('EventBusiness', () => {
       )
     })
 
-    test('falls back to main chat when DM fails', async ({ container }) => {
+    test('falls back to main chat with standard message on BotBlockedError', async ({
+      container,
+    }) => {
+      const { BotBlockedError } = await import('~/services/transport/telegram')
       const transport = container.resolve('transport')
       const settingsRepo = container.resolve('settingsRepository')
+      const participantRepo = container.resolve('participantRepository')
       settingsRepo.getMainChatId.mockResolvedValue(-100123)
       settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
       settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+      participantRepo.findByTelegramId.mockResolvedValue(
+        buildParticipant({ telegramUsername: 'owner_user' })
+      )
+      transport.getBotInfo.mockReturnValue({ username: 'test_bot' } as ReturnType<
+        typeof transport.getBotInfo
+      >)
 
-      transport.sendMessage.mockRejectedValueOnce(new Error('Forbidden')).mockResolvedValueOnce(1)
+      transport.sendMessage.mockRejectedValueOnce(new BotBlockedError(111)).mockResolvedValueOnce(1)
 
       const business = new EventBusiness(container)
       business.init()
@@ -1380,7 +1390,36 @@ describe('EventBusiness', () => {
       )
 
       expect(transport.sendMessage).toHaveBeenCalledTimes(2)
-      expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String), undefined)
+      // Fallback sends the standard "I can't reach you" message, not the original notification
+      expect(transport.sendMessage).toHaveBeenLastCalledWith(
+        -100123,
+        expect.stringContaining("can't reach")
+      )
+    })
+
+    test('does not fall back on non-BotBlockedError', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      transport.sendMessage.mockRejectedValueOnce(new Error('Network error'))
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@vasya',
+        {
+          totalParticipations: 5,
+          courts: 2,
+        }
+      )
+
+      // Only one call (the failed DM), no fallback
+      expect(transport.sendMessage).toHaveBeenCalledTimes(1)
     })
   })
 
