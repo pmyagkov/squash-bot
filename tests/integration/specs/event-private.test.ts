@@ -39,8 +39,16 @@ describe('event-private', () => {
    */
   async function setupPrivateAnnouncedEvent(courts = 2) {
     // Pre-create participants so wizard has options
-    const { participant: alice } = await participantRepository.findOrCreateParticipant('555555555', 'alice', 'Alice')
-    const { participant: bob } = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
+    const { participant: alice } = await participantRepository.findOrCreateParticipant(
+      '555555555',
+      'alice',
+      'Alice'
+    )
+    const { participant: bob } = await participantRepository.findOrCreateParticipant(
+      '666666666',
+      'bob',
+      'Bob'
+    )
 
     const event = await eventRepository.createEvent({
       datetime: new Date('2024-01-20T19:00:00Z'),
@@ -174,7 +182,7 @@ describe('event-private', () => {
       const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants — 1:')
+      expect(lastEdit?.[2]).toContain('✋ Playing — 1:')
       expect(lastEdit?.[2]).toContain('@alice')
     })
   })
@@ -269,18 +277,18 @@ describe('event-private', () => {
       await clickDone
       await tick()
 
-      // Verify Alice was removed, Bob remains
+      // Verify Alice is 'out', Bob remains 'in'
       const participants = await participantRepository.getEventParticipants(event.id)
-      expect(participants).toHaveLength(1)
-      expect(participants[0].participant.telegramUsername).toBe('bob')
+      const playing = participants.filter((p) => p.status === 'in')
+      expect(playing).toHaveLength(1)
+      expect(playing[0].participant.telegramUsername).toBe('bob')
 
       // Verify announcement was refreshed
       const editCalls = api.editMessageText.mock.calls.filter(([, msgId]) => msgId === messageId)
       expect(editCalls.length).toBeGreaterThanOrEqual(1)
       const lastEdit = editCalls[editCalls.length - 1]
-      expect(lastEdit?.[2]).toContain('Participants — 1:')
+      expect(lastEdit?.[2]).toContain('✋ Playing — 1:')
       expect(lastEdit?.[2]).toContain('@bob')
-      expect(lastEdit?.[2]).not.toContain('@alice')
     })
   })
 
@@ -380,7 +388,11 @@ describe('event-private', () => {
         'alice',
         'Alice'
       )
-      const { participant: bob } = await participantRepository.findOrCreateParticipant('666666666', 'bob', 'Bob')
+      const { participant: bob } = await participantRepository.findOrCreateParticipant(
+        '666666666',
+        'bob',
+        'Bob'
+      )
       await scaffoldRepository.addParticipant(scaffold.id, alice.id)
       await scaffoldRepository.addParticipant(scaffold.id, bob.id)
 

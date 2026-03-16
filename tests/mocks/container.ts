@@ -2,8 +2,22 @@ import { createContainer, asValue, InjectionMode, type AwilixContainer } from 'a
 import { Bot } from 'grammy'
 import type { MockProxy } from 'vitest-mock-extended'
 import { mockConfig } from './config'
-import { mockEventRepo, mockScaffoldRepo, mockEventParticipantRepo, mockPaymentRepo, mockSettingsRepo, mockParticipantRepo, mockNotificationRepo } from './repos'
-import { mockEventBusiness, mockScaffoldBusiness, mockUtilityBusiness, mockParticipantBusiness } from './business'
+import {
+  mockEventRepo,
+  mockScaffoldRepo,
+  mockEventParticipantRepo,
+  mockPaymentRepo,
+  mockSettingsRepo,
+  mockParticipantRepo,
+  mockNotificationRepo,
+  mockEventAnnouncementRepo,
+} from './repos'
+import {
+  mockEventBusiness,
+  mockScaffoldBusiness,
+  mockUtilityBusiness,
+  mockParticipantBusiness,
+} from './business'
 import { mockNotificationService } from './services'
 import { mockTelegramTransport } from './transport'
 import { mockLogger } from './logger'
@@ -14,6 +28,7 @@ import type { PaymentRepo } from '~/storage/repo/payment'
 import type { SettingsRepo } from '~/storage/repo/settings'
 import type { ParticipantRepo } from '~/storage/repo/participant'
 import type { NotificationRepo } from '~/storage/repo/notification'
+import type { EventAnnouncementRepo } from '~/storage/repo/eventAnnouncement'
 import type { NotificationService } from '~/services/notification'
 import type { EventBusiness } from '~/business/event'
 import type { ScaffoldBusiness } from '~/business/scaffold'
@@ -45,6 +60,7 @@ export interface MockContainer {
   settingsRepository: MockProxy<InstanceType<typeof SettingsRepo>>
   participantRepository: MockProxy<InstanceType<typeof ParticipantRepo>>
   notificationRepository: MockProxy<InstanceType<typeof NotificationRepo>>
+  eventAnnouncementRepository: MockProxy<InstanceType<typeof EventAnnouncementRepo>>
   notificationService: MockProxy<InstanceType<typeof NotificationService>>
   commandRegistry: MockProxy<InstanceType<typeof CommandRegistry>>
   wizardService: MockProxy<InstanceType<typeof WizardService>>
@@ -98,15 +114,24 @@ export function createMockContainer(overrides?: Partial<MockContainer>): MockApp
     logger: asValue(overrides?.logger ?? mockLogger()),
     eventRepository: asValue(overrides?.eventRepository ?? mockEventRepo()),
     scaffoldRepository: asValue(overrides?.scaffoldRepository ?? mockScaffoldRepo()),
-    eventParticipantRepository: asValue(overrides?.eventParticipantRepository ?? mockEventParticipantRepo()),
+    eventParticipantRepository: asValue(
+      overrides?.eventParticipantRepository ?? mockEventParticipantRepo()
+    ),
     paymentRepository: asValue(overrides?.paymentRepository ?? mockPaymentRepo()),
     settingsRepository: asValue(overrides?.settingsRepository ?? mockSettingsRepo()),
     participantRepository: asValue(overrides?.participantRepository ?? mockParticipantRepo()),
     notificationRepository: asValue(overrides?.notificationRepository ?? mockNotificationRepo()),
+    eventAnnouncementRepository: asValue(
+      overrides?.eventAnnouncementRepository ?? mockEventAnnouncementRepo()
+    ),
     notificationService: asValue(overrides?.notificationService ?? mockNotificationService()),
-    commandRegistry: asValue(overrides?.commandRegistry ?? mock<InstanceType<typeof CommandRegistry>>()),
+    commandRegistry: asValue(
+      overrides?.commandRegistry ?? mock<InstanceType<typeof CommandRegistry>>()
+    ),
     wizardService: asValue(overrides?.wizardService ?? mock<InstanceType<typeof WizardService>>()),
-    commandService: asValue(overrides?.commandService ?? mock<InstanceType<typeof CommandService>>()),
+    commandService: asValue(
+      overrides?.commandService ?? mock<InstanceType<typeof CommandService>>()
+    ),
     eventLock: asValue(overrides?.eventLock ?? new EventLock()),
     eventBusiness: asValue(overrides?.eventBusiness ?? mockEventBusiness()),
     scaffoldBusiness: asValue(overrides?.scaffoldBusiness ?? mockScaffoldBusiness()),

@@ -392,8 +392,8 @@ describe('scaffold-create', () => {
 
       await bot.handleUpdate(editUpdate)
 
-      const editCall = api.sendMessage.mock.calls.find(([, text]) =>
-        text.includes('Scaffold') && text.includes('Courts')
+      const editCall = api.sendMessage.mock.calls.find(
+        ([, text]) => text.includes('Scaffold') && text.includes('Courts')
       )
       expect(editCall).toBeDefined()
       expect(editCall![1]).toContain(scaffoldId)
@@ -444,7 +444,10 @@ describe('scaffold-create', () => {
           reply_markup: expect.objectContaining({
             inline_keyboard: expect.arrayContaining([
               expect.arrayContaining([
-                expect.objectContaining({ text: '🎾 Create', callback_data: 'wizard:select:create' }),
+                expect.objectContaining({
+                  text: '🎾 Create',
+                  callback_data: 'wizard:select:create',
+                }),
               ]),
             ]),
           }),

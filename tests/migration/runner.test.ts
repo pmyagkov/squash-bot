@@ -36,7 +36,10 @@ describe('migration testing', () => {
       let lastIndex = -1
       for (const tag of prodTags) {
         const index = testTags.indexOf(tag)
-        expect(index, `"${tag}" appears before previous production migration in test journal`).toBeGreaterThan(lastIndex)
+        expect(
+          index,
+          `"${tag}" appears before previous production migration in test journal`
+        ).toBeGreaterThan(lastIndex)
         lastIndex = index
       }
     })

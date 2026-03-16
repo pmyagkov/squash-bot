@@ -108,8 +108,8 @@ export class ParticipantActions extends TelegramWebPage {
    * Participants:
    * @pasha (×2), @vasya, @petya
    */
-  parseParticipants(message: string): Array<{ username: string; count: number }> {
-    const participants: Array<{ username: string; count: number }> = []
+  parseParticipants(message: string): { username: string; count: number }[] {
+    const participants: { username: string; count: number }[] = []
 
     // Check if nobody registered
     if (message.includes('(nobody yet)')) {
@@ -118,7 +118,9 @@ export class ParticipantActions extends TelegramWebPage {
 
     // Extract participants section
     const participantsMatch = message.match(/Participants(?:\s*\(\d+\))?:([\s\S]*?)(?:\n\n|$)/)
-    if (!participantsMatch) return participants
+    if (!participantsMatch) {
+      return participants
+    }
 
     const participantsText = participantsMatch[1]
 
@@ -189,7 +191,9 @@ export class ParticipantActions extends TelegramWebPage {
       const bubbles = document.querySelectorAll('.bubble[data-mid]')
       for (let i = bubbles.length - 1; i >= 0; i--) {
         const bubble = bubbles[i] as HTMLElement
-        if (!bubble.querySelector('.reply-markup')) continue
+        if (!bubble.querySelector('.reply-markup')) {
+          continue
+        }
         const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
         if (msgEl && msgEl.innerText.includes(searchEmoji)) {
           return bubble.getAttribute('data-mid')
@@ -219,7 +223,9 @@ export class ParticipantActions extends TelegramWebPage {
       const bubbles = document.querySelectorAll('.bubble')
       for (let i = bubbles.length - 1; i >= 0; i--) {
         const bubble = bubbles[i] as HTMLElement
-        if (!bubble.querySelector('.reply-markup')) continue
+        if (!bubble.querySelector('.reply-markup')) {
+          continue
+        }
         const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
         if (msgEl && msgEl.innerText.includes('🎾')) {
           return msgEl.innerText
@@ -245,10 +251,14 @@ export class ParticipantActions extends TelegramWebPage {
         const bubbles = document.querySelectorAll('.bubble')
         for (let i = bubbles.length - 1; i >= 0; i--) {
           const bubble = bubbles[i] as HTMLElement
-          if (!bubble.querySelector('.reply-markup')) continue
+          if (!bubble.querySelector('.reply-markup')) {
+            continue
+          }
           const msgEl = bubble.querySelector('.translatable-message') as HTMLElement | null
           if (msgEl && msgEl.innerText.includes('\u{1F3BE}')) {
-            if (msgEl.innerText !== prevText) return true
+            if (msgEl.innerText !== prevText) {
+              return true
+            }
             return false // Found announcement, text hasn't changed yet
           }
         }

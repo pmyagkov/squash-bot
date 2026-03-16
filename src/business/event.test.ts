@@ -420,7 +420,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_new', telegramId: '555' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 1 })
+      participantRepo.findEventParticipant.mockResolvedValue(null)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_join', participantId: 'p_new', participant }),
       ])
@@ -441,7 +442,7 @@ describe('EventBusiness', () => {
 
       expect(participantRepo.findByTelegramId).toHaveBeenCalledWith('555')
       expect(participantRepo.addToEvent).toHaveBeenCalledWith('ev_join', 'p_new')
-      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join')
+      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join', 'Joined ✋')
     })
 
     test('existing participant → adds to event', async ({ container }) => {
@@ -455,7 +456,14 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_existing' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 2 })
+      participantRepo.findEventParticipant.mockResolvedValue(
+        buildEventParticipant({
+          eventId: 'ev_join2',
+          participantId: 'p_existing',
+          participations: 1,
+        })
+      )
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({
           eventId: 'ev_join2',
@@ -480,6 +488,7 @@ describe('EventBusiness', () => {
       })
 
       expect(participantRepo.addToEvent).toHaveBeenCalledWith('ev_join2', 'p_existing')
+      expect(transport.answerCallback).toHaveBeenCalledWith('cb_join2', 'Joined (×2) ✋')
     })
 
     test('updates announcement → calls editMessage', async ({ container }) => {
@@ -493,7 +502,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant()
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 1 })
+      participantRepo.findEventParticipant.mockResolvedValue(null)
       participantRepo.getEventParticipants.mockResolvedValue([
         buildEventParticipant({ eventId: 'ev_edit' }),
       ])
@@ -531,7 +541,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_r', telegramId: '555' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.addToEvent.mockResolvedValue(undefined)
+      participantRepo.addToEvent.mockResolvedValue({ participations: 1 })
+      participantRepo.findEventParticipant.mockResolvedValue(null)
       participantRepo.getEventParticipants.mockResolvedValue([])
       notificationRepo.findSentByTypeAndEventId.mockResolvedValue(
         buildNotification({ messageId: '200', chatId: '999', status: 'sent' })
@@ -561,7 +572,7 @@ describe('EventBusiness', () => {
   // ── handleLeave ────────────────────────────────────────────────────
 
   describe('handleLeave', () => {
-    test('decrements participations', async ({ container }) => {
+    test('registered participant leaves → marks as out', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const transport = container.resolve('transport')
@@ -572,7 +583,15 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_leave' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.removeFromEvent.mockResolvedValue(undefined)
+      participantRepo.findEventParticipant.mockResolvedValue(
+        buildEventParticipant({
+          eventId: 'ev_leave',
+          participantId: 'p_leave',
+          status: 'in',
+          participant,
+        })
+      )
+      participantRepo.markAsOut.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([])
 
       const business = new EventBusiness(container)
@@ -587,11 +606,13 @@ describe('EventBusiness', () => {
         callbackId: 'cb_leave',
       })
 
-      expect(participantRepo.removeFromEvent).toHaveBeenCalledWith('ev_leave', 'p_leave')
-      expect(transport.answerCallback).toHaveBeenCalledWith('cb_leave')
+      expect(participantRepo.markAsOut).toHaveBeenCalledWith('ev_leave', 'p_leave')
+      expect(transport.answerCallback).toHaveBeenCalledWith('cb_leave', "You're out 😢")
     })
 
-    test('removes at zero → deletes event_participant', async ({ container }) => {
+    test('unregistered participant leaves → marks as out with noted message', async ({
+      container,
+    }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
       const transport = container.resolve('transport')
@@ -602,8 +623,8 @@ describe('EventBusiness', () => {
 
       const participant = buildParticipant({ id: 'p_leave2' })
       participantRepo.findByTelegramId.mockResolvedValue(participant)
-      participantRepo.removeFromEvent.mockResolvedValue(undefined)
-      // After removal, participant list is empty
+      participantRepo.findEventParticipant.mockResolvedValue(null)
+      participantRepo.markAsOut.mockResolvedValue(undefined)
       participantRepo.getEventParticipants.mockResolvedValue([])
 
       const business = new EventBusiness(container)
@@ -618,13 +639,10 @@ describe('EventBusiness', () => {
         callbackId: 'cb_leave2',
       })
 
-      expect(participantRepo.removeFromEvent).toHaveBeenCalledWith('ev_leave2', 'p_leave2')
-      // Message updated to show no participants
-      expect(transport.editMessage).toHaveBeenCalledWith(
-        TEST_CONFIG.chatId,
-        201,
-        expect.stringContaining('nobody yet'),
-        expect.anything()
+      expect(participantRepo.markAsOut).toHaveBeenCalledWith('ev_leave2', 'p_leave2')
+      expect(transport.answerCallback).toHaveBeenCalledWith(
+        'cb_leave2',
+        "Noted, you're skipping 😢"
       )
     })
 
@@ -1339,14 +1357,24 @@ describe('EventBusiness', () => {
       )
     })
 
-    test('falls back to main chat when DM fails', async ({ container }) => {
+    test('falls back to main chat with standard message on BotBlockedError', async ({
+      container,
+    }) => {
+      const { BotBlockedError } = await import('~/services/transport/telegram')
       const transport = container.resolve('transport')
       const settingsRepo = container.resolve('settingsRepository')
+      const participantRepo = container.resolve('participantRepository')
       settingsRepo.getMainChatId.mockResolvedValue(-100123)
       settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
       settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+      participantRepo.findByTelegramId.mockResolvedValue(
+        buildParticipant({ telegramUsername: 'owner_user' })
+      )
+      transport.getBotInfo.mockReturnValue({ username: 'test_bot' } as ReturnType<
+        typeof transport.getBotInfo
+      >)
 
-      transport.sendMessage.mockRejectedValueOnce(new Error('Forbidden')).mockResolvedValueOnce(1)
+      transport.sendMessage.mockRejectedValueOnce(new BotBlockedError(111)).mockResolvedValueOnce(1)
 
       const business = new EventBusiness(container)
       business.init()
@@ -1362,7 +1390,36 @@ describe('EventBusiness', () => {
       )
 
       expect(transport.sendMessage).toHaveBeenCalledTimes(2)
-      expect(transport.sendMessage).toHaveBeenLastCalledWith(-100123, expect.any(String), undefined)
+      // Fallback sends the standard "I can't reach you" message, not the original notification
+      expect(transport.sendMessage).toHaveBeenLastCalledWith(
+        -100123,
+        expect.stringContaining("can't reach")
+      )
+    })
+
+    test('does not fall back on non-BotBlockedError', async ({ container }) => {
+      const transport = container.resolve('transport')
+      const settingsRepo = container.resolve('settingsRepository')
+      settingsRepo.getMaxPlayersPerCourt.mockResolvedValue(4)
+      settingsRepo.getMinPlayersPerCourt.mockResolvedValue(2)
+
+      transport.sendMessage.mockRejectedValueOnce(new Error('Network error'))
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      await business.notifyOwner(
+        buildEvent({ id: 'ev_1', ownerId: '111' }),
+        'participant-joined',
+        '@vasya',
+        {
+          totalParticipations: 5,
+          courts: 2,
+        }
+      )
+
+      // Only one call (the failed DM), no fallback
+      expect(transport.sendMessage).toHaveBeenCalledTimes(1)
     })
   })
 

@@ -27,6 +27,8 @@ import type { ParticipantRepo } from './storage/repo/participant'
 import { ParticipantRepo as ParticipantRepoImpl } from './storage/repo/participant'
 import type { NotificationRepo } from './storage/repo/notification'
 import { NotificationRepo as NotificationRepoImpl } from './storage/repo/notification'
+import type { EventAnnouncementRepo } from './storage/repo/eventAnnouncement'
+import { EventAnnouncementRepo as EventAnnouncementRepoImpl } from './storage/repo/eventAnnouncement'
 import type { NotificationService } from './services/notification'
 import { NotificationService as NotificationServiceImpl } from './services/notification'
 import type { CommandRegistry } from './services/command/commandRegistry'
@@ -48,6 +50,7 @@ export interface Container {
   settingsRepository: SettingsRepo
   participantRepository: ParticipantRepo
   notificationRepository: NotificationRepo
+  eventAnnouncementRepository: EventAnnouncementRepo
   notificationService: NotificationService
   commandRegistry: CommandRegistry
   wizardService: WizardService
@@ -89,6 +92,7 @@ export function createAppContainer(bot: Bot): AppContainer {
     settingsRepository: asClass(SettingsRepoImpl).singleton(),
     participantRepository: asClass(ParticipantRepoImpl).singleton(),
     notificationRepository: asClass(NotificationRepoImpl).singleton(),
+    eventAnnouncementRepository: asClass(EventAnnouncementRepoImpl).singleton(),
     notificationService: asClass(NotificationServiceImpl).singleton(),
     commandRegistry: asClass(CommandRegistryImpl).singleton(),
     wizardService: asClass(WizardServiceImpl).singleton(),

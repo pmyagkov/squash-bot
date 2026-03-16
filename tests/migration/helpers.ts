@@ -108,10 +108,9 @@ export async function runProductionMigrations(connectionString: string): Promise
 export function restoreProdDump(dbName: string): void {
   const containerName = 'squash-bot-postgres-migration'
   execSync(`docker cp "${DUMP_FILE}" ${containerName}:/tmp/prod_dump.sql`)
-  execSync(
-    `docker exec ${containerName} psql -U postgres -d "${dbName}" -f /tmp/prod_dump.sql`,
-    { stdio: 'pipe' }
-  )
+  execSync(`docker exec ${containerName} psql -U postgres -d "${dbName}" -f /tmp/prod_dump.sql`, {
+    stdio: 'pipe',
+  })
 }
 
 /**
@@ -119,7 +118,7 @@ export function restoreProdDump(dbName: string): void {
  * Returns empty array if the table doesn't exist.
  */
 export async function getAppliedMigrations(db: postgres.Sql): Promise<string[]> {
-  const rows = await db<Array<{ tag: string }>>`
+  const rows = await db<{ tag: string }[]>`
     SELECT tag FROM __drizzle_migrations ORDER BY created_at
   `.catch(() => [])
   return rows.map((r) => r.tag)
@@ -139,8 +138,8 @@ export async function getNewMigrations(db: postgres.Sql): Promise<string[]> {
 export async function getTableColumns(
   db: postgres.Sql,
   tableName: string
-): Promise<Array<{ column_name: string; data_type: string; is_nullable: string }>> {
-  return db<Array<{ column_name: string; data_type: string; is_nullable: string }>>`
+): Promise<{ column_name: string; data_type: string; is_nullable: string }[]> {
+  return db<{ column_name: string; data_type: string; is_nullable: string }[]>`
     SELECT column_name, data_type, is_nullable
     FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = ${tableName}

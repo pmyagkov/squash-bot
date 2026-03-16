@@ -52,6 +52,7 @@ export function buildEventParticipant(overrides?: Partial<EventParticipant>): Ev
     eventId: 'ev_test123',
     participantId: 'p_test123',
     participations: 1,
+    status: 'in',
     participant: buildParticipant(),
     ...overrides,
   }

@@ -180,7 +180,9 @@ describe('event-cancel', () => {
         )
 
         // Check that NO cancellation notification was sent (only success message)
-        const cancelCalls = api.sendMessage.mock.calls.filter(([, text]) => text.includes('has been cancelled'))
+        const cancelCalls = api.sendMessage.mock.calls.filter(([, text]) =>
+          text.includes('has been cancelled')
+        )
         expect(cancelCalls).toHaveLength(0)
 
         // Verify event is cancelled

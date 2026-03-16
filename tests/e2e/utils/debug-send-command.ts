@@ -63,7 +63,10 @@ async function debugSendCommand() {
     const msg = newMessages[i]
     const msgId = await msg.getAttribute('data-mid')
     const classes = await msg.getAttribute('class')
-    const text = await msg.locator('.translatable-message').textContent().catch(() => '[no text]')
+    const text = await msg
+      .locator('.translatable-message')
+      .textContent()
+      .catch(() => '[no text]')
 
     console.log(`\nNew message ${i + 1}:`)
     console.log(`  ID (data-mid): ${msgId}`)

@@ -24,7 +24,7 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 /**
- * Participant with participation count
+ * Participant with participation count and status
  */
 export interface EventParticipantDisplay {
   participant: {
@@ -33,6 +33,7 @@ export interface EventParticipantDisplay {
     displayName: string
   }
   participations: number
+  status: 'in' | 'out'
 }
 
 /**
@@ -41,7 +42,8 @@ export interface EventParticipantDisplay {
 export function buildInlineKeyboard(
   status: EventStatus,
   isPrivate?: boolean,
-  eventId?: string
+  eventId?: string,
+  isOwner?: boolean
 ): InlineKeyboard {
   if (status === 'cancelled') {
     return new InlineKeyboard().text(BTN_RESTORE, 'event:undo-cancel')
@@ -51,17 +53,23 @@ export function buildInlineKeyboard(
     return new InlineKeyboard().text(BTN_UNFINALIZE, 'event:undo-finalize')
   }
 
-  // Private event — owner manages participants manually
+  // Private event — owner gets management buttons, participants get join/leave
   if (isPrivate && eventId) {
-    return new InlineKeyboard()
-      .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
-      .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
-      .row()
-      .text(BTN_ADD_COURT, 'event:add-court')
-      .text(BTN_REMOVE_COURT, 'event:delete-court')
-      .row()
-      .text(BTN_FINALIZE, 'event:finalize')
-      .text(BTN_CANCEL_EVENT, 'event:cancel')
+    const kb = new InlineKeyboard().text(BTN_JOIN, 'event:join').text(BTN_LEAVE, 'event:leave')
+
+    if (isOwner) {
+      kb.row()
+        .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
+        .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
+        .row()
+        .text(BTN_ADD_COURT, 'event:add-court')
+        .text(BTN_REMOVE_COURT, 'event:delete-court')
+        .row()
+        .text(BTN_FINALIZE, 'event:finalize')
+        .text(BTN_CANCEL_EVENT, 'event:cancel')
+    }
+
+    return kb
   }
 
   // Public event — self-serve join/leave
@@ -83,40 +91,49 @@ export function formatEventMessage(event: Event): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const icon = event.isPrivate ? '🔒' : '🎾'
 
-  return `${icon} Squash: ${formatDate(eventDate)}
-${formatCourts(event.courts)}
-
-Participants:
-(nobody yet)`
+  return `${icon} Squash: ${formatDate(eventDate)}\n${formatCourts(event.courts)}`
 }
 
 /**
- * Formats participant section shared by announcement and reminder.
+ * Formats participant sections: Playing and Skipping.
  */
-function formatParticipantSection(
+function formatParticipantSections(
   participants: EventParticipantDisplay[],
   paidParticipantIds: Set<string> = new Set()
 ): string {
-  if (participants.length === 0) {
-    return 'Participants:\n(nobody yet)'
+  const playing = participants.filter((ep) => ep.status === 'in')
+  const skipping = participants.filter((ep) => ep.status === 'out')
+
+  const sections: string[] = []
+
+  if (playing.length > 0) {
+    const totalCount = playing.reduce((sum, ep) => sum + ep.participations, 0)
+    const names = playing
+      .map((ep) => {
+        const username = ep.participant.telegramUsername
+          ? `@${ep.participant.telegramUsername}`
+          : ep.participant.displayName
+        const multiplier = ep.participations > 1 ? ` (×${ep.participations})` : ''
+        const paidMark = ep.participant.id && paidParticipantIds.has(ep.participant.id) ? ' ✓' : ''
+        return `${username}${multiplier}${paidMark}`
+      })
+      .join(', ')
+    sections.push(`✋ Playing — ${totalCount}:\n${names}`)
   }
 
-  const totalCount = participants.reduce((sum, ep) => sum + ep.participations, 0)
-  let text = `Participants — ${totalCount}:\n`
+  if (skipping.length > 0) {
+    const names = skipping
+      .map((ep) => {
+        const username = ep.participant.telegramUsername
+          ? `@${ep.participant.telegramUsername}`
+          : ep.participant.displayName
+        return `<code>${username}</code>`
+      })
+      .join(', ')
+    sections.push(`😢 Skipping — ${skipping.length}:\n${names}`)
+  }
 
-  const names = participants
-    .map((ep) => {
-      const username = ep.participant.telegramUsername
-        ? `@${ep.participant.telegramUsername}`
-        : ep.participant.displayName
-      const multiplier = ep.participations > 1 ? ` (×${ep.participations})` : ''
-      const paidMark = ep.participant.id && paidParticipantIds.has(ep.participant.id) ? ' ✓' : ''
-      return `${username}${multiplier}${paidMark}`
-    })
-    .join(', ')
-
-  text += names
-  return text
+  return sections.join('\n\n')
 }
 
 /**
@@ -132,10 +149,13 @@ export function formatAnnouncementText(
   const eventDate = dayjs.tz(event.datetime, config.timezone)
   const icon = event.isPrivate ? '🔒' : '🎾'
 
-  let messageText = `${icon} Squash: ${formatDate(eventDate)}\n${formatCourts(event.courts)}\n\n`
-  messageText += formatParticipantSection(participants, paidParticipantIds)
+  let messageText = `${icon} Squash: ${formatDate(eventDate)}\n${formatCourts(event.courts)}`
 
-  // Add status indicators
+  const participantText = formatParticipantSections(participants, paidParticipantIds)
+  if (participantText) {
+    messageText += `\n\n${participantText}`
+  }
+
   if (finalized) {
     messageText += '\n\n✅ Finalized'
   } else if (cancelled) {
@@ -231,8 +251,13 @@ export function formatNotFinalizedReminder(
 ): string {
   const eventDate = dayjs.tz(event.datetime, config.timezone)
 
-  let text = `⏰ ${formatDate(eventDate)} — not finalized\n${formatCourts(event.courts)}\n\n`
-  text += formatParticipantSection(participants)
+  let text = `⏰ ${formatDate(eventDate)} — not finalized\n${formatCourts(event.courts)}`
+
+  const participantText = formatParticipantSections(participants)
+  if (participantText) {
+    text += `\n\n${participantText}`
+  }
+
   text += '\n\nHit "✅ Finalize" if details are right, otherwise — change the details.'
 
   return text

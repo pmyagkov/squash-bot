@@ -59,7 +59,13 @@ describe('scaffold-ownership', () => {
   describe('ownership transfer', () => {
     it('should transfer scaffold to another user', async () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(OWNER_ID))
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(OWNER_ID)
+      )
 
       const participantRepo = container.resolve('participantRepository')
       await participantRepo.findOrCreateParticipant('444444444', 'vasya', 'Vasya')
@@ -82,7 +88,13 @@ describe('scaffold-ownership', () => {
 
     it('should allow global admin to transfer any scaffold', async () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(OWNER_ID))
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(OWNER_ID)
+      )
 
       const participantRepo = container.resolve('participantRepository')
       await participantRepo.findOrCreateParticipant('444444444', 'vasya', 'Vasya')
@@ -102,7 +114,13 @@ describe('scaffold-ownership', () => {
 
     it('should reject transfer by non-owner non-admin', async () => {
       const scaffoldRepo = container.resolve('scaffoldRepository')
-      const scaffold = await scaffoldRepo.createScaffold('Tue', '21:00', 2, undefined, String(OWNER_ID))
+      const scaffold = await scaffoldRepo.createScaffold(
+        'Tue',
+        '21:00',
+        2,
+        undefined,
+        String(OWNER_ID)
+      )
 
       const update = createTextMessageUpdate(`/scaffold transfer ${scaffold.id} @vasya`, {
         userId: NON_ADMIN_ID,

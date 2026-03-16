@@ -176,7 +176,9 @@ Private scaffolds and events — announcements go to owner's DM, owner manages p
 - Announcement sent to **owner's DM** instead of group chat (no pin)
 - Inline keyboard shows `[+ Participant]` / `[- Participant]` instead of `[I'm in]` / `[I'm out]`
 - Owner adds/removes participants via wizard picker
+- When owner adds a participant → that participant receives a personal DM with the announcement
 - Scaffold participants are auto-copied to event on creation
+- Any action (join, leave, skip, add/remove participant, court change) updates **all** participant DMs and the owner's DM
 - Privacy toggle in edit menu (cannot make public once announced privately)
 - `🔒` indicator shown in event list
 
@@ -571,6 +573,7 @@ Show who declined ("I'm out") in a separate "😢 Skipping" section in announcem
 - Skipping names in `<code>` tags (no Telegram mention/ping)
 
 **Finalization:** only `status = 'in'` participants → payments. Skipping participants ignored.
+After finalize, the "😢 Skipping" section remains visible in the announcement (for history), but join/leave buttons are removed.
 
 ---
 
@@ -699,8 +702,11 @@ Finalize session, create payment records, and send personal notifications.
 🎾 Squash: Tuesday, 21 January, 21:00
 Courts: 2
 
-Participants (4):
+✋ Playing — 4:
 @pasha (×2), @vasya, @petya
+
+😢 Skipping — 1:
+<code>@kolya</code>
 
 ✅ Finalized
 

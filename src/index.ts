@@ -1,4 +1,5 @@
 import { Bot } from 'grammy'
+import { run } from '@grammyjs/runner'
 import { createApiServer } from './services/transport/api'
 import { config } from './config'
 import { validateEnvConfig, validateDbSettings } from './config/validate'
@@ -65,21 +66,18 @@ async function main() {
       await logger.error(`Bot error [${ctx.update.update_id}]: ${errorMessage}`)
     })
 
-    // 7. Start Telegram bot (non-blocking — bot.start() resolves only on stop)
-    // If the polling loop crashes (409 Conflict, fatal transport error),
-    // exit so Docker can restart the container
-    bot
-      .start({
-        onStart: (botInfo) => {
-          logger.log(`Telegram bot started as @${botInfo.username}`)
-          const transport = container.resolve('transport')
-          transport.logEvent({ type: 'bot_started', botUsername: botInfo.username })
-        },
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error)
-        crashProcess(`Bot polling crashed: ${message}`, logger)
-      })
+    // 7. Start Telegram bot with concurrent runner
+    // run() processes updates concurrently, enabling per-user-per-event locking
+    const botInfo = await bot.api.getMe()
+    logger.log(`Telegram bot started as @${botInfo.username}`)
+    const transport = container.resolve('transport')
+    transport.logEvent({ type: 'bot_started', botUsername: botInfo.username })
+
+    const runner = run(bot)
+    runner.task()?.catch((error) => {
+      const message = error instanceof Error ? error.message : String(error)
+      crashProcess(`Bot runner crashed: ${message}`, logger)
+    })
 
     // 8. Start API server
     const server = await createApiServer(bot, container)
@@ -91,7 +89,7 @@ async function main() {
       const transport = container.resolve('transport')
       await transport.logEvent({ type: 'bot_stopped' })
       await logger.log('Shutting down...')
-      await bot.stop()
+      runner.stop()
       await server.close()
       process.exit(0)
     }

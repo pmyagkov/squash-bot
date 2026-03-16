@@ -51,9 +51,7 @@ describe('scaffold-edit (edit menu actions)', () => {
     await tick()
 
     // Verify editMessageText was called with updated courts (3)
-    const editCall = api.editMessageText.mock.calls.find(
-      ([chatId]) => chatId === TEST_CHAT_ID
-    )
+    const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
     expect(editCall).toBeDefined()
     expect(editCall![2]).toContain('Courts: 3')
 
@@ -76,9 +74,7 @@ describe('scaffold-edit (edit menu actions)', () => {
     )
     await tick()
 
-    const editCall = api.editMessageText.mock.calls.find(
-      ([chatId]) => chatId === TEST_CHAT_ID
-    )
+    const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
     expect(editCall).toBeDefined()
     expect(editCall![2]).toContain('Courts: 2')
 
@@ -121,9 +117,7 @@ describe('scaffold-edit (edit menu actions)', () => {
     )
     await tick()
 
-    const editCall = api.editMessageText.mock.calls.find(
-      ([chatId]) => chatId === TEST_CHAT_ID
-    )
+    const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
     expect(editCall).toBeDefined()
     expect(editCall![2]).toContain('Paused')
 
@@ -166,11 +160,7 @@ describe('scaffold-edit (edit menu actions)', () => {
     // Wizard message should be deleted (edit menu stays visible)
     expect(api.deleteMessage).toHaveBeenCalledWith(TEST_CHAT_ID, 2)
     // No "Cancelled." message sent
-    expect(api.sendMessage).not.toHaveBeenCalledWith(
-      TEST_CHAT_ID,
-      'Cancelled.',
-      expect.anything()
-    )
+    expect(api.sendMessage).not.toHaveBeenCalledWith(TEST_CHAT_ID, 'Cancelled.', expect.anything())
 
     // DB should be unchanged
     const updated = await scaffoldRepository.findById(scaffold.id)
@@ -230,9 +220,7 @@ describe('scaffold-edit (edit menu actions)', () => {
     )
     await tick()
 
-    const editCall = api.editMessageText.mock.calls.find(
-      ([chatId]) => chatId === TEST_CHAT_ID
-    )
+    const editCall = api.editMessageText.mock.calls.find(([chatId]) => chatId === TEST_CHAT_ID)
     expect(editCall).toBeDefined()
     expect(editCall![2]).toContain(`Scaffold <code>${scaffold.id}</code>`)
 

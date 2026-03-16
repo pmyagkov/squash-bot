@@ -7,6 +7,7 @@ import { PaymentRepo } from '~/storage/repo/payment'
 import { SettingsRepo } from '~/storage/repo/settings'
 import { ParticipantRepo } from '~/storage/repo/participant'
 import { NotificationRepo } from '~/storage/repo/notification'
+import { EventAnnouncementRepo } from '~/storage/repo/eventAnnouncement'
 
 /**
  * Mock for EventRepo
@@ -71,5 +72,15 @@ export function mockNotificationRepo() {
   mock.findDue.mockResolvedValue([])
   mock.findPendingByTypeAndEventId.mockResolvedValue(undefined)
   mock.findSentByTypeAndEventId.mockResolvedValue(undefined)
+  return mock
+}
+
+/**
+ * Mock for EventAnnouncementRepo
+ */
+export function mockEventAnnouncementRepo() {
+  const mock = mockClass<typeof EventAnnouncementRepo>()
+  mock.getByEventId.mockResolvedValue([])
+  mock.findEventByMessageId.mockResolvedValue(null)
   return mock
 }
