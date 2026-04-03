@@ -2459,6 +2459,16 @@ export class EventBusiness {
     const keyboard = buildInlineKeyboard('announced', event.isPrivate, event.id)
     const messageId = await this.transport.sendMessage(chatId, messageText, keyboard)
 
+    // Unpin previous announcement before pinning the new one (B12)
+    try {
+      const previous = await this.eventAnnouncementRepository.getLastByChatId(String(chatId))
+      if (previous) {
+        await this.transport.unpinMessage(chatId, parseInt(previous.telegramMessageId, 10))
+      }
+    } catch {
+      // Ignore unpin errors
+    }
+
     // Pin the message
     try {
       await this.transport.pinMessage(chatId, messageId)

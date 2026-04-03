@@ -82,5 +82,6 @@ export function mockEventAnnouncementRepo() {
   const mock = mockClass<typeof EventAnnouncementRepo>()
   mock.getByEventId.mockResolvedValue([])
   mock.findEventByMessageId.mockResolvedValue(null)
+  mock.getLastByChatId.mockResolvedValue(null)
   return mock
 }

@@ -337,12 +337,8 @@ export function formatOwnerNotification(
   if (capacityLimits) {
     if (capacityLimits.maxPerCourt && totalParticipations > courts * capacityLimits.maxPerCourt) {
       text += '\n   ⚠️ Over capacity'
-    } else if (
-      capacityLimits.minPerCourt &&
-      totalParticipations < courts * capacityLimits.minPerCourt
-    ) {
-      text += '\n   ⚠️ Low attendance'
     }
+    // Low attendance warning muted (B1) — calculation kept for future B2 rework
   }
 
   return text
