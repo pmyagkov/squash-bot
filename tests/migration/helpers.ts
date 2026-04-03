@@ -114,24 +114,27 @@ export function restoreProdDump(dbName: string): void {
 }
 
 /**
- * Get tags of migrations already applied (from __drizzle_migrations table in restored dump).
- * Returns empty array if the table doesn't exist.
+ * Get the created_at of the last applied migration from drizzle's tracking table.
+ * Drizzle stores migrations in "drizzle"."__drizzle_migrations" with columns:
+ *   id SERIAL, hash TEXT (sha256 of SQL), created_at NUMERIC (folderMillis from journal).
+ * Returns -1 if the table doesn't exist (fresh database).
  */
-export async function getAppliedMigrations(db: postgres.Sql): Promise<string[]> {
-  const rows = await db<{ tag: string }[]>`
-    SELECT tag FROM __drizzle_migrations ORDER BY created_at
+async function getLastAppliedTimestamp(db: postgres.Sql): Promise<number> {
+  const rows = await db<{ created_at: string }[]>`
+    SELECT created_at FROM "drizzle"."__drizzle_migrations" ORDER BY created_at DESC LIMIT 1
   `.catch(() => [])
-  return rows.map((r) => r.tag)
+  return rows.length > 0 ? Number(rows[0].created_at) : -1
 }
 
 /**
  * Determine which migrations are new: present in production journal but
  * not yet in __drizzle_migrations (i.e., not applied in the dump).
+ * Compares journal entry timestamps against the last applied migration timestamp.
  */
 export async function getNewMigrations(db: postgres.Sql): Promise<string[]> {
   const journal = readJournal('_journal.json')
-  const applied = await getAppliedMigrations(db)
-  return journal.entries.map((e) => e.tag).filter((tag) => !applied.includes(tag))
+  const lastApplied = await getLastAppliedTimestamp(db)
+  return journal.entries.filter((e) => e.when > lastApplied).map((e) => e.tag)
 }
 
 /** Query information_schema for table columns. */
