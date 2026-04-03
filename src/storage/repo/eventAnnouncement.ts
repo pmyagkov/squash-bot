@@ -1,6 +1,6 @@
 import { db } from '~/storage/db'
 import { eventAnnouncements } from '~/storage/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import type { EventAnnouncement } from '~/types'
 
 export class EventAnnouncementRepo {
@@ -50,25 +50,18 @@ export class EventAnnouncementRepo {
     return rows.length > 0 ? rows[0].eventId : null
   }
 
-  async getLastByChatId(chatId: string): Promise<EventAnnouncement | null> {
+  async getAllByChatId(chatId: string): Promise<EventAnnouncement[]> {
     const rows = await db
       .select()
       .from(eventAnnouncements)
       .where(eq(eventAnnouncements.telegramChatId, chatId))
-      .orderBy(desc(eventAnnouncements.id))
-      .limit(1)
 
-    if (rows.length === 0) {
-      return null
-    }
-
-    const row = rows[0]
-    return {
+    return rows.map((row) => ({
       id: row.id,
       eventId: row.eventId,
       telegramMessageId: row.telegramMessageId,
       telegramChatId: row.telegramChatId,
-    }
+    }))
   }
 
   async deleteByEventId(eventId: string): Promise<void> {

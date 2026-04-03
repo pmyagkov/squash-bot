@@ -5,6 +5,7 @@ import { TEST_CHAT_ID, ADMIN_ID } from '@integration/fixtures/testFixtures'
 import { mockBot, type BotApiMock } from '@mocks'
 import { createTestContainer, type TestContainer } from '../helpers/container'
 import type { EventRepo } from '~/storage/repo/event'
+import type { EventAnnouncementRepo } from '~/storage/repo/eventAnnouncement'
 import type { EventBusiness } from '~/business/event'
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -14,6 +15,7 @@ describe('event-announce', () => {
   let api: BotApiMock
   let container: TestContainer
   let eventRepository: EventRepo
+  let eventAnnouncementRepository: EventAnnouncementRepo
   let eventBusiness: EventBusiness
 
   beforeEach(async () => {
@@ -33,6 +35,7 @@ describe('event-announce', () => {
 
     // Resolve repositories
     eventRepository = container.resolve('eventRepository')
+    eventAnnouncementRepository = container.resolve('eventAnnouncementRepository')
     eventBusiness = container.resolve('eventBusiness')
 
     // Initialize bot (needed for handleUpdate)
@@ -170,6 +173,76 @@ describe('event-announce', () => {
       const calls = api.sendMessage.mock.calls
       const announceMessages = calls.filter((call) => call[1]?.includes('🎾 Squash'))
       expect(announceMessages).toHaveLength(0)
+    })
+
+    it('should unpin all previous announcements before pinning new one (B12)', async () => {
+      // Create and announce two events
+      const event1 = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+      await eventBusiness.announceEvent(event1.id)
+
+      const event2 = await eventRepository.createEvent({
+        datetime: new Date('2024-01-27T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+      await eventBusiness.announceEvent(event2.id)
+
+      // Get message IDs of both announcements
+      const ann1 = await eventAnnouncementRepository.getByEventId(event1.id)
+      const ann2 = await eventAnnouncementRepository.getByEventId(event2.id)
+      const firstMessageId = parseInt(ann1[0].telegramMessageId, 10)
+      const secondMessageId = parseInt(ann2[0].telegramMessageId, 10)
+
+      api.unpinChatMessage.mockClear()
+      api.pinChatMessage.mockClear()
+
+      // Create and announce third event
+      const event3 = await eventRepository.createEvent({
+        datetime: new Date('2024-02-03T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+      await eventBusiness.announceEvent(event3.id)
+
+      // Should have unpinned both previous announcements
+      expect(api.unpinChatMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        firstMessageId,
+        undefined
+      )
+      expect(api.unpinChatMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        secondMessageId,
+        undefined
+      )
+      expect(api.unpinChatMessage).toHaveBeenCalledTimes(2)
+
+      // Should have pinned the third announcement
+      expect(api.pinChatMessage).toHaveBeenCalled()
+    })
+
+    it('should not call unpin when no previous announcement exists', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+
+      await eventBusiness.announceEvent(event.id)
+
+      // No previous announcement — unpin should not be called
+      expect(api.unpinChatMessage).not.toHaveBeenCalled()
+
+      // Pin should still be called
+      expect(api.pinChatMessage).toHaveBeenCalled()
     })
 
     it('should format announcement message correctly', async () => {
