@@ -50,6 +50,20 @@ export class EventAnnouncementRepo {
     return rows.length > 0 ? rows[0].eventId : null
   }
 
+  async getAllByChatId(chatId: string): Promise<EventAnnouncement[]> {
+    const rows = await db
+      .select()
+      .from(eventAnnouncements)
+      .where(eq(eventAnnouncements.telegramChatId, chatId))
+
+    return rows.map((row) => ({
+      id: row.id,
+      eventId: row.eventId,
+      telegramMessageId: row.telegramMessageId,
+      telegramChatId: row.telegramChatId,
+    }))
+  }
+
   async deleteByEventId(eventId: string): Promise<void> {
     await db.delete(eventAnnouncements).where(eq(eventAnnouncements.eventId, eventId))
   }

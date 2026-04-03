@@ -201,9 +201,10 @@ describe('EventBusiness', () => {
       )
     })
 
-    test('unpins previous → calls pinMessage for new announcement', async ({ container }) => {
+    test('unpins previous announcement before pinning new one (B12)', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const settingsRepo = container.resolve('settingsRepository')
+      const announcementRepo = container.resolve('eventAnnouncementRepository')
       const transport = container.resolve('transport')
 
       const event = buildEvent({ id: 'ev_pin', status: 'created' })
@@ -214,12 +215,32 @@ describe('EventBusiness', () => {
         buildEvent({ id: 'ev_pin', status: 'announced', telegramMessageId: '55' })
       )
 
+      // Previous announcements exist in this chat
+      announcementRepo.getAllByChatId.mockResolvedValue([
+        {
+          id: 1,
+          eventId: 'ev_old',
+          telegramMessageId: '30',
+          telegramChatId: String(TEST_CONFIG.chatId),
+        },
+        {
+          id: 2,
+          eventId: 'ev_older',
+          telegramMessageId: '20',
+          telegramChatId: String(TEST_CONFIG.chatId),
+        },
+      ])
+
       const business = new EventBusiness(container)
       business.init()
 
       const handler = getCommandHandler(container, 'event:announce')
       await handler({ eventId: 'ev_pin' }, makeSource())
 
+      // Should unpin all previous announcements, then pin the new one
+      expect(transport.unpinMessage).toHaveBeenCalledWith(TEST_CONFIG.chatId, 30)
+      expect(transport.unpinMessage).toHaveBeenCalledWith(TEST_CONFIG.chatId, 20)
+      expect(transport.unpinMessage).toHaveBeenCalledTimes(2)
       expect(transport.pinMessage).toHaveBeenCalledWith(TEST_CONFIG.chatId, 55)
     })
   })

@@ -821,11 +821,11 @@ describe('event formatters', () => {
       expect(result).toContain('⚠️ Over capacity')
     })
 
-    it('should append low attendance warning', () => {
+    it('should not append low attendance warning (B1: muted)', () => {
       const result = formatOwnerNotification('participant-left', '@vasya', 'Tue 21 Jan', 1, 2, {
         minPerCourt: 2,
       })
-      expect(result).toContain('⚠️ Low attendance')
+      expect(result).not.toContain('⚠️ Low attendance')
     })
 
     it('should not append warning when balance is ok', () => {

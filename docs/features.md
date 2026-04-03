@@ -281,7 +281,7 @@ Announce event in chat.
 
 **Flow:**
 1. User sends `/event announce ev_15` (or auto after scaffold event creation)
-2. Bot unpins all previous event announcements
+2. Bot unpins all previous announcements in this chat
 3. Bot sends announcement message with inline buttons
 4. Bot pins new message
 5. Bot saves telegram_message_id in event
@@ -1367,7 +1367,7 @@ Real-time DM notifications to event owner about participant/court changes with c
 2. `notifyOwner()` is called (fire-and-forget)
 3. If actor is the owner → skip (no self-notification)
 4. Format message with event date, action, participant/court balance
-5. Check capacity: warn if over `maxPerCourt` or under `minPerCourt`
+5. Check capacity: warn if over `maxPerCourt` (low attendance warning muted — see B1)
 6. Try sending DM to owner
 7. If DM fails → fallback to main chat
 
@@ -1378,7 +1378,6 @@ Real-time DM notifications to event owner about participant/court changes with c
 
 🏟 Court added for Tue 21 Jan 21:00
    Participants: 5 · Courts: 3
-   ⚠️ Low attendance
 
 🎾 Your event announced: Tue 21 Jan 21:00
 
