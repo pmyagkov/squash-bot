@@ -42,7 +42,7 @@ describe('info-payment', () => {
 
     // Verify logEvent
     const logEventCall = api.sendMessage.mock.calls.find(
-      ([, text]) => typeof text === 'string' && text.includes('Payment info updated')
+      ([, text]) => typeof text === 'string' && text.includes('Payment info:')
     )
     expect(logEventCall).toBeDefined()
   })

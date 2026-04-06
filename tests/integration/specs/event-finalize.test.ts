@@ -104,7 +104,7 @@ describe('event-finalize', () => {
     expect(updatedEvent?.status).toBe('finalized')
 
     const logEventCall = api.sendMessage.mock.calls.find(
-      ([, text]) => typeof text === 'string' && text.includes('✅ Event finalized:')
+      ([, text]) => typeof text === 'string' && text.includes('✅ Finalized')
     )
     expect(logEventCall).toBeDefined()
   })

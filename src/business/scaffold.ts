@@ -217,8 +217,11 @@ export class ScaffoldBusiness {
       case 'toggle':
         await this.scaffoldRepository.setActive(entityId, !scaffold.isActive)
         void this.transport.logEvent({
-          type: 'scaffold_toggled',
+          type: 'scaffold_updated',
           scaffold: { ...scaffold, isActive: !scaffold.isActive },
+          field: 'active',
+          oldValue: scaffold.isActive,
+          newValue: !scaffold.isActive,
         })
         break
       case 'privacy':

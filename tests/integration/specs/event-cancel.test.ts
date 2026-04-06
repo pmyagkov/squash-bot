@@ -212,7 +212,7 @@ describe('event-cancel', () => {
 
       // Verify logEvent notification was sent
       const logEventCall = api.sendMessage.mock.calls.find(
-        ([, text]) => typeof text === 'string' && text.includes('❌ Event cancelled:')
+        ([, text]) => typeof text === 'string' && text.includes('❌ Cancelled')
       )
       expect(logEventCall).toBeDefined()
     })

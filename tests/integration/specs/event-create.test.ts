@@ -961,7 +961,7 @@ describe('event-create', () => {
 
       // Verify logEvent notification was sent
       const logEventCall = api.sendMessage.mock.calls.find(
-        ([, text]) => typeof text === 'string' && text.includes('📅 Event created')
+        ([, text]) => typeof text === 'string' && text.includes('📅 Created')
       )
       expect(logEventCall).toBeDefined()
     })

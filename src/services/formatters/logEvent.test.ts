@@ -39,11 +39,6 @@ const testEvent: Event = {
   isPrivate: false,
 }
 
-const testEventPrivate: Event = {
-  ...testEvent,
-  isPrivate: true,
-}
-
 const testScaffold: Scaffold = {
   id: 'sc_123',
   dayOfWeek: 'Tue',
@@ -54,322 +49,384 @@ const testScaffold: Scaffold = {
   participants: [],
 }
 
-const testScaffoldPrivate: Scaffold = {
-  id: 'sc_456',
-  dayOfWeek: 'Wed',
-  time: '19:00',
-  defaultCourts: 3,
-  isActive: false,
-  isPrivate: true,
-  participants: [],
-}
-
-// Helper to compute expected formatted date for a given Date object
-function expectedDate(datetime: Date): string {
+function ed(datetime: Date): string {
   return formatDate(dayjs.tz(datetime, config.timezone))
 }
 
 describe('formatLogEvent', () => {
-  describe('SystemEvent', () => {
-    it('should format bot_started', () => {
-      const event: SystemEvent = { type: 'bot_started', botUsername: 'squash_bot' }
-      expect(formatLogEvent(event)).toBe('🟢 Bot started as @squash_bot')
+  describe('SystemEvent (untagged)', () => {
+    it('bot_started', () => {
+      const e: SystemEvent = { type: 'bot_started', botUsername: 'squash_bot' }
+      expect(formatLogEvent(e)).toBe('🟢 Bot started as @squash_bot')
     })
 
-    it('should format bot_stopped', () => {
-      const event: SystemEvent = { type: 'bot_stopped' }
-      expect(formatLogEvent(event)).toBe('🔴 Bot stopped')
+    it('bot_stopped', () => {
+      const e: SystemEvent = { type: 'bot_stopped' }
+      expect(formatLogEvent(e)).toBe('🔴 Bot stopped')
     })
 
-    it('should format unhandled_error', () => {
-      const event: SystemEvent = { type: 'unhandled_error', error: 'Connection timeout' }
-      expect(formatLogEvent(event)).toBe('❌ Unhandled error: Connection timeout')
+    it('unhandled_error', () => {
+      const e: SystemEvent = { type: 'unhandled_error', error: 'Connection timeout' }
+      expect(formatLogEvent(e)).toBe('❌ Unhandled error: Connection timeout')
     })
   })
 
-  describe('BusinessEvent', () => {
-    // --- Event lifecycle ---
+  describe('Event lifecycle', () => {
+    it('event_created', () => {
+      const e: BusinessEvent = { type: 'event_created', event: testEvent }
+      expect(formatLogEvent(e)).toBe(`[ev_123] 📅 Created · ${ed(testEvent.datetime)} · 🏸 2`)
+    })
 
-    it('should format event_created', () => {
-      const event: BusinessEvent = {
-        type: 'event_created',
-        event: testEvent,
-      }
-      expect(formatLogEvent(event)).toBe(
-        `📅 Event created\n\n${expectedDate(testEvent.datetime)}\n🏟 Courts: 2 | 📝 Created | 📢 Public | <code>ev_123</code>`
+    it('event_created with owner', () => {
+      const e: BusinessEvent = { type: 'event_created', event: testEvent, owner: testOwner }
+      expect(formatLogEvent(e)).toBe(
+        `[ev_123] 📅 Created · ${ed(testEvent.datetime)} · 🏸 2 · 👑 Charlie · @charlie`
       )
     })
 
-    it('should format event_created with owner', () => {
-      const event: BusinessEvent = {
-        type: 'event_created',
-        event: testEventPrivate,
-        owner: testOwner,
-      }
-      expect(formatLogEvent(event)).toBe(
-        `📅 Event created\n\n${expectedDate(testEventPrivate.datetime)} | 👑 <code>Charlie · @charlie</code>\n🏟 Courts: 2 | 📝 Created | 🔒 Private | <code>ev_123</code>`
+    it('event_announced', () => {
+      const e: BusinessEvent = { type: 'event_announced', event: testEvent }
+      expect(formatLogEvent(e)).toBe(`[ev_123] 📢 Announced · ${ed(testEvent.datetime)}`)
+    })
+
+    it('event_announced with owner', () => {
+      const e: BusinessEvent = { type: 'event_announced', event: testEvent, owner: testOwner }
+      expect(formatLogEvent(e)).toBe(
+        `[ev_123] 📢 Announced · ${ed(testEvent.datetime)} · 👑 Charlie · @charlie`
       )
     })
 
-    it('should format event_announced', () => {
-      const event: BusinessEvent = {
-        type: 'event_announced',
-        event: testEvent,
-      }
-      expect(formatLogEvent(event)).toBe(
-        `📢 Event announced\n\n${expectedDate(testEvent.datetime)}\n🏟 Courts: 2 | 📢 Public | <code>ev_123</code>`
-      )
-    })
-
-    it('should format event_announced with owner and private', () => {
-      const event: BusinessEvent = {
-        type: 'event_announced',
-        event: { ...testEventPrivate, courts: 3 },
-        owner: testOwner,
-      }
-      expect(formatLogEvent(event)).toBe(
-        `📢 Event announced\n\n${expectedDate(testEventPrivate.datetime)} | 👑 <code>Charlie · @charlie</code>\n🏟 Courts: 3 | 🔒 Private | <code>ev_123</code>`
-      )
-    })
-
-    it('should format event_finalized', () => {
+    it('event_finalized', () => {
       const participants = [testParticipant, testParticipantNoUsername, testOwner]
-      const event: BusinessEvent = {
-        type: 'event_finalized',
-        event: testEvent,
-        participants,
-      }
-      expect(formatLogEvent(event)).toBe(
-        `✅ Event finalized: ${expectedDate(testEvent.datetime)}, 3 players`
-      )
+      const e: BusinessEvent = { type: 'event_finalized', event: testEvent, participants }
+      expect(formatLogEvent(e)).toBe('[ev_123] ✅ Finalized · 3 players')
     })
 
-    it('should format event_cancelled', () => {
-      const event: BusinessEvent = {
-        type: 'event_cancelled',
-        event: testEvent,
-      }
-      expect(formatLogEvent(event)).toBe(`❌ Event cancelled: ${expectedDate(testEvent.datetime)}`)
+    it('event_cancelled', () => {
+      const e: BusinessEvent = { type: 'event_cancelled', event: testEvent }
+      expect(formatLogEvent(e)).toBe('[ev_123] ❌ Cancelled')
     })
 
-    it('should format event_restored', () => {
-      const event: BusinessEvent = {
-        type: 'event_restored',
-        event: testEvent,
-      }
-      expect(formatLogEvent(event)).toBe(`🔄 Event restored: ${expectedDate(testEvent.datetime)}`)
+    it('event_restored', () => {
+      const e: BusinessEvent = { type: 'event_restored', event: testEvent }
+      expect(formatLogEvent(e)).toBe('[ev_123] 🔄 Restored')
     })
 
-    it('should format event_unfinalized', () => {
-      const event: BusinessEvent = {
-        type: 'event_unfinalized',
-        event: testEvent,
-      }
-      expect(formatLogEvent(event)).toBe(
-        `↩️ Event unfinalized: ${expectedDate(testEvent.datetime)}`
-      )
+    it('event_unfinalized', () => {
+      const e: BusinessEvent = { type: 'event_unfinalized', event: testEvent }
+      expect(formatLogEvent(e)).toBe('[ev_123] ↩️ Unfinalized')
     })
 
-    it('should format event_deleted', () => {
-      const event: BusinessEvent = {
-        type: 'event_deleted',
-        event: testEvent,
-      }
-      expect(formatLogEvent(event)).toBe('🗑 Event deleted: <code>ev_123</code>')
+    it('event_deleted', () => {
+      const e: BusinessEvent = { type: 'event_deleted', event: testEvent }
+      expect(formatLogEvent(e)).toBe('[ev_123] 🗑 Deleted')
     })
 
-    it('should format event_undeleted', () => {
-      const event: BusinessEvent = {
-        type: 'event_undeleted',
-        event: testEvent,
-      }
-      expect(formatLogEvent(event)).toBe('♻️ Event undeleted: <code>ev_123</code>')
+    it('event_undeleted', () => {
+      const e: BusinessEvent = { type: 'event_undeleted', event: testEvent }
+      expect(formatLogEvent(e)).toBe('[ev_123] ♻️ Undeleted')
     })
 
-    it('should format event_transferred', () => {
-      const event: BusinessEvent = {
+    it('event_transferred', () => {
+      const e: BusinessEvent = {
         type: 'event_transferred',
         event: testEvent,
         from: testParticipant,
         to: testParticipantNoUsername,
       }
-      expect(formatLogEvent(event)).toBe(
-        '🔄 Event <code>ev_123</code> transferred: Alice · @alice → Bob'
-      )
+      expect(formatLogEvent(e)).toBe('[ev_123] 🔄 Transferred: Alice · @alice → Bob')
+    })
+  })
+
+  describe('Event updates', () => {
+    it('courts changed', () => {
+      const e: BusinessEvent = {
+        type: 'event_updated',
+        event: testEvent,
+        field: 'courts',
+        oldValue: 2,
+        newValue: 3,
+      }
+      expect(formatLogEvent(e)).toBe('[ev_123] 📝 Courts: 2 → 3')
     })
 
-    // --- Participants ---
+    it('date changed', () => {
+      const oldDate = new Date('2026-01-20T18:00:00Z')
+      const newDate = new Date('2026-01-21T18:00:00Z')
+      const e: BusinessEvent = {
+        type: 'event_updated',
+        event: testEvent,
+        field: 'date',
+        oldValue: oldDate,
+        newValue: newDate,
+      }
+      expect(formatLogEvent(e)).toBe(`[ev_123] 📝 Date: ${ed(oldDate)} → ${ed(newDate)}`)
+    })
 
-    it('should format participant_joined', () => {
-      const event: BusinessEvent = {
+    it('privacy changed to private', () => {
+      const e: BusinessEvent = {
+        type: 'event_updated',
+        event: testEvent,
+        field: 'privacy',
+        oldValue: false,
+        newValue: true,
+      }
+      expect(formatLogEvent(e)).toBe('[ev_123] 📝 Privacy: public → private')
+    })
+
+    it('participant added', () => {
+      const e: BusinessEvent = {
+        type: 'event_updated',
+        event: testEvent,
+        field: 'participant_added',
+        participant: testParticipant,
+      }
+      expect(formatLogEvent(e)).toBe('[ev_123] 📝 +Alice · @alice')
+    })
+
+    it('participant removed', () => {
+      const e: BusinessEvent = {
+        type: 'event_updated',
+        event: testEvent,
+        field: 'participant_removed',
+        participant: testParticipantNoUsername,
+      }
+      expect(formatLogEvent(e)).toBe('[ev_123] 📝 −Bob')
+    })
+  })
+
+  describe('Participants', () => {
+    it('participant_joined', () => {
+      const e: BusinessEvent = {
         type: 'participant_joined',
         event: testEvent,
         participant: testParticipant,
       }
-      expect(formatLogEvent(event)).toBe('👋 Alice · @alice joined <code>ev_123</code>')
+      expect(formatLogEvent(e)).toBe('[ev_123] 👋 Alice · @alice joined')
     })
 
-    it('should format participant_joined without username', () => {
-      const event: BusinessEvent = {
+    it('participant_joined without username', () => {
+      const e: BusinessEvent = {
         type: 'participant_joined',
         event: testEvent,
         participant: testParticipantNoUsername,
       }
-      expect(formatLogEvent(event)).toBe('👋 Bob joined <code>ev_123</code>')
+      expect(formatLogEvent(e)).toBe('[ev_123] 👋 Bob joined')
     })
 
-    it('should format participant_left', () => {
-      const event: BusinessEvent = {
+    it('participant_left', () => {
+      const e: BusinessEvent = {
         type: 'participant_left',
         event: testEvent,
         participant: testParticipant,
       }
-      expect(formatLogEvent(event)).toBe('👋 Alice · @alice left <code>ev_123</code>')
+      expect(formatLogEvent(e)).toBe('[ev_123] 👋 Alice · @alice left')
     })
 
-    it('should format participant_registered with username', () => {
-      const event: BusinessEvent = {
+    it('participant_registered', () => {
+      const e: BusinessEvent = {
         type: 'participant_registered',
         participant: testParticipant,
       }
-      expect(formatLogEvent(event)).toBe(
-        '👤 New participant: Alice · @alice (<code>p_alice</code>)'
-      )
+      expect(formatLogEvent(e)).toBe('👤 New participant: Alice · @alice (p_alice)')
     })
 
-    it('should format participant_registered without username', () => {
-      const event: BusinessEvent = {
+    it('participant_registered without username', () => {
+      const e: BusinessEvent = {
         type: 'participant_registered',
         participant: testParticipantNoUsername,
       }
-      expect(formatLogEvent(event)).toBe('👤 New participant: Bob (<code>p_bob</code>)')
+      expect(formatLogEvent(e)).toBe('👤 New participant: Bob (p_bob)')
     })
+  })
 
-    // --- Courts ---
-
-    it('should format court_added', () => {
-      const event: BusinessEvent = {
-        type: 'court_added',
-        event: { ...testEvent, courts: 3 },
-      }
-      expect(formatLogEvent(event)).toBe('➕ Court added: <code>ev_123</code> (now 3)')
-    })
-
-    it('should format court_removed', () => {
-      const event: BusinessEvent = {
-        type: 'court_removed',
-        event: { ...testEvent, courts: 1 },
-      }
-      expect(formatLogEvent(event)).toBe('➖ Court removed: <code>ev_123</code> (now 1)')
-    })
-
-    // --- Payments ---
-
-    it('should format payment_received', () => {
-      const event: BusinessEvent = {
+  describe('Payments', () => {
+    it('payment_received', () => {
+      const e: BusinessEvent = {
         type: 'payment_received',
         event: testEvent,
         participant: testParticipant,
         amount: 2000,
       }
-      expect(formatLogEvent(event)).toBe(
-        '💰 Payment received: 2000 din from Alice · @alice · <code>ev_123</code>'
-      )
+      expect(formatLogEvent(e)).toBe('[ev_123] 💰 Payment: 2000 din from Alice · @alice')
     })
 
-    it('should format payment_cancelled', () => {
-      const event: BusinessEvent = {
+    it('payment_cancelled', () => {
+      const e: BusinessEvent = {
         type: 'payment_cancelled',
         event: testEvent,
         participant: testParticipant,
       }
-      expect(formatLogEvent(event)).toBe(
-        '💸 Payment cancelled: Alice · @alice in <code>ev_123</code>'
-      )
+      expect(formatLogEvent(e)).toBe('[ev_123] 💸 Payment cancelled: Alice · @alice')
     })
 
-    it('should format payment_check_completed', () => {
-      const event: BusinessEvent = { type: 'payment_check_completed', eventsChecked: 3 }
-      expect(formatLogEvent(event)).toBe('🔍 Payment check completed: 3 events checked')
+    it('payment_check_completed', () => {
+      const e: BusinessEvent = { type: 'payment_check_completed', eventsChecked: 5 }
+      expect(formatLogEvent(e)).toBe('🔍 Payment check: 5 events')
     })
 
-    // --- Scaffolds ---
+    it('info_payment_updated', () => {
+      const e: BusinessEvent = {
+        type: 'info_payment_updated',
+        participant: testParticipant,
+        paymentInfo: '1234567890',
+      }
+      expect(formatLogEvent(e)).toBe('💳 Payment info: Alice · @alice → 1234567890')
+    })
+  })
 
-    it('should format scaffold_created', () => {
-      const event: BusinessEvent = {
+  describe('Scaffolds', () => {
+    it('scaffold_created', () => {
+      const e: BusinessEvent = { type: 'scaffold_created', scaffold: testScaffold }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📋 Created · Tue, 21:00 · 🏸 2')
+    })
+
+    it('scaffold_created with owner', () => {
+      const e: BusinessEvent = {
         type: 'scaffold_created',
         scaffold: testScaffold,
-      }
-      expect(formatLogEvent(event)).toBe(
-        '📋 Scaffold created\n\nTue, 21:00\n🏟 Courts: 2 | 🟢 Active | 📢 Public | <code>sc_123</code>'
-      )
-    })
-
-    it('should format scaffold_created with owner and private', () => {
-      const event: BusinessEvent = {
-        type: 'scaffold_created',
-        scaffold: testScaffoldPrivate,
         owner: testOwner,
       }
-      expect(formatLogEvent(event)).toBe(
-        '📋 Scaffold created\n\nWed, 19:00 | 👑 <code>Charlie · @charlie</code>\n🏟 Courts: 3 | ⏸ Paused | 🔒 Private | <code>sc_456</code>'
+      expect(formatLogEvent(e)).toBe(
+        '[sc_123] 📋 Created · Tue, 21:00 · 🏸 2 · 👑 Charlie · @charlie'
       )
     })
 
-    it('should format scaffold_toggled', () => {
-      const event: BusinessEvent = {
-        type: 'scaffold_toggled',
-        scaffold: { ...testScaffold, isActive: false },
-      }
-      expect(formatLogEvent(event)).toBe('🔀 Scaffold <code>sc_123</code>: deactivated')
+    it('scaffold_deleted', () => {
+      const e: BusinessEvent = { type: 'scaffold_deleted', scaffold: testScaffold }
+      expect(formatLogEvent(e)).toBe('[sc_123] 🗑 Deleted')
     })
 
-    it('should format scaffold_toggled active', () => {
-      const event: BusinessEvent = {
-        type: 'scaffold_toggled',
-        scaffold: testScaffold,
-      }
-      expect(formatLogEvent(event)).toBe('🔀 Scaffold <code>sc_123</code>: activated')
+    it('scaffold_restored', () => {
+      const e: BusinessEvent = { type: 'scaffold_restored', scaffold: testScaffold }
+      expect(formatLogEvent(e)).toBe('[sc_123] ♻️ Restored')
     })
 
-    it('should format scaffold_deleted', () => {
-      const event: BusinessEvent = {
-        type: 'scaffold_deleted',
-        scaffold: testScaffold,
-      }
-      expect(formatLogEvent(event)).toBe('🗑 Scaffold deleted: <code>sc_123</code>')
-    })
-
-    it('should format scaffold_restored', () => {
-      const event: BusinessEvent = {
-        type: 'scaffold_restored',
-        scaffold: testScaffold,
-      }
-      expect(formatLogEvent(event)).toBe('♻️ Scaffold restored: <code>sc_123</code>')
-    })
-
-    it('should format scaffold_transferred', () => {
-      const event: BusinessEvent = {
+    it('scaffold_transferred', () => {
+      const e: BusinessEvent = {
         type: 'scaffold_transferred',
         scaffold: testScaffold,
         from: testParticipant,
         to: testParticipantNoUsername,
       }
-      expect(formatLogEvent(event)).toBe(
-        '🔄 Scaffold <code>sc_123</code> transferred: Alice · @alice → Bob'
-      )
+      expect(formatLogEvent(e)).toBe('[sc_123] 🔄 Transferred: Alice · @alice → Bob')
+    })
+  })
+
+  describe('Scaffold updates', () => {
+    it('courts changed', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'courts',
+        oldValue: 2,
+        newValue: 3,
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Courts: 2 → 3')
     })
 
-    // --- Notifications ---
-
-    it('should format event-not-finalized-reminder', () => {
-      const event: BusinessEvent = {
-        type: 'event-not-finalized-reminder',
-        event: testEvent,
+    it('day changed', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'day',
+        oldValue: 'Tue',
+        newValue: 'Wed',
       }
-      expect(formatLogEvent(event)).toBe(
-        `⏰ Event not-finalized reminder: <code>ev_123</code> (${expectedDate(testEvent.datetime)})`
-      )
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Day: Tue → Wed')
+    })
+
+    it('time changed', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'time',
+        oldValue: '21:00',
+        newValue: '19:00',
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Time: 21:00 → 19:00')
+    })
+
+    it('privacy changed', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'privacy',
+        oldValue: false,
+        newValue: true,
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Privacy: public → private')
+    })
+
+    it('active changed — deactivated', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'active',
+        oldValue: true,
+        newValue: false,
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Active: yes → no')
+    })
+
+    it('active changed — activated', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: { ...testScaffold, isActive: false },
+        field: 'active',
+        oldValue: false,
+        newValue: true,
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Active: no → yes')
+    })
+
+    it('deadline changed', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'deadline',
+        oldValue: '-2d 10:00',
+        newValue: '-3d 18:00',
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Deadline: -2d 10:00 → -3d 18:00')
+    })
+
+    it('deadline set from null', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'deadline',
+        oldValue: null,
+        newValue: '-1d 10:00',
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 Deadline: default → -1d 10:00')
+    })
+
+    it('participant added', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'participant_added',
+        participant: testParticipant,
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 +Alice · @alice')
+    })
+
+    it('participant removed', () => {
+      const e: BusinessEvent = {
+        type: 'scaffold_updated',
+        scaffold: testScaffold,
+        field: 'participant_removed',
+        participant: testParticipantNoUsername,
+      }
+      expect(formatLogEvent(e)).toBe('[sc_123] 📝 −Bob')
+    })
+  })
+
+  describe('Notifications', () => {
+    it('event-not-finalized-reminder', () => {
+      const e: BusinessEvent = { type: 'event-not-finalized-reminder', event: testEvent }
+      expect(formatLogEvent(e)).toBe('[ev_123] ⏰ Not finalized reminder')
     })
   })
 })

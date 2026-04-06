@@ -575,7 +575,13 @@ export class EventBusiness {
     ])
 
     void this.logger.log(`User ${data.userId} added court to ${event.id} (now ${newCourts})`)
-    void this.transport.logEvent({ type: 'court_added', event: { ...event, courts: newCourts } })
+    void this.transport.logEvent({
+      type: 'event_updated',
+      event: { ...event, courts: newCourts },
+      field: 'courts',
+      oldValue: event.courts,
+      newValue: newCourts,
+    })
 
     // Notify owner (fire-and-forget)
     const addCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
@@ -614,7 +620,13 @@ export class EventBusiness {
     ])
 
     void this.logger.log(`User ${data.userId} removed court from ${event.id} (now ${newCourts})`)
-    void this.transport.logEvent({ type: 'court_removed', event: { ...event, courts: newCourts } })
+    void this.transport.logEvent({
+      type: 'event_updated',
+      event: { ...event, courts: newCourts },
+      field: 'courts',
+      oldValue: event.courts,
+      newValue: newCourts,
+    })
 
     // Notify owner (fire-and-forget)
     const removeCourtParticipants = await this.participantRepository.getEventParticipants(event.id)
@@ -1098,7 +1110,13 @@ export class EventBusiness {
     }
 
     await this.logger.log(`User ${source.user.id} added court to ${event.id} (now ${newCourts})`)
-    void this.transport.logEvent({ type: 'court_added', event: { ...event, courts: newCourts } })
+    void this.transport.logEvent({
+      type: 'event_updated',
+      event: { ...event, courts: newCourts },
+      field: 'courts',
+      oldValue: event.courts,
+      newValue: newCourts,
+    })
   }
 
   private async handleRemoveCourtFromDef(
@@ -1146,7 +1164,13 @@ export class EventBusiness {
     await this.logger.log(
       `User ${source.user.id} removed court from ${event.id} (now ${newCourts})`
     )
-    void this.transport.logEvent({ type: 'court_removed', event: { ...event, courts: newCourts } })
+    void this.transport.logEvent({
+      type: 'event_updated',
+      event: { ...event, courts: newCourts },
+      field: 'courts',
+      oldValue: event.courts,
+      newValue: newCourts,
+    })
   }
 
   private async handleFinalizeFromDef(
