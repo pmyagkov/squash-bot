@@ -205,6 +205,13 @@ export class ScaffoldBusiness {
         await this.scaffoldRepository.updateFields(entityId, {
           defaultCourts: scaffold.defaultCourts + 1,
         })
+        void this.transport.logEvent({
+          type: 'scaffold_updated',
+          scaffold: { ...scaffold, defaultCourts: scaffold.defaultCourts + 1 },
+          field: 'courts',
+          oldValue: scaffold.defaultCourts,
+          newValue: scaffold.defaultCourts + 1,
+        })
         break
       case '-court':
         if (scaffold.defaultCourts <= 1) {
@@ -213,22 +220,46 @@ export class ScaffoldBusiness {
         await this.scaffoldRepository.updateFields(entityId, {
           defaultCourts: scaffold.defaultCourts - 1,
         })
+        void this.transport.logEvent({
+          type: 'scaffold_updated',
+          scaffold: { ...scaffold, defaultCourts: scaffold.defaultCourts - 1 },
+          field: 'courts',
+          oldValue: scaffold.defaultCourts,
+          newValue: scaffold.defaultCourts - 1,
+        })
         break
       case 'toggle':
         await this.scaffoldRepository.setActive(entityId, !scaffold.isActive)
         void this.transport.logEvent({
-          type: 'scaffold_toggled',
+          type: 'scaffold_updated',
           scaffold: { ...scaffold, isActive: !scaffold.isActive },
+          field: 'active',
+          oldValue: scaffold.isActive,
+          newValue: !scaffold.isActive,
         })
         break
       case 'privacy':
         await this.scaffoldRepository.updateFields(entityId, { isPrivate: !scaffold.isPrivate })
+        void this.transport.logEvent({
+          type: 'scaffold_updated',
+          scaffold: { ...scaffold, isPrivate: !scaffold.isPrivate },
+          field: 'privacy',
+          oldValue: scaffold.isPrivate,
+          newValue: !scaffold.isPrivate,
+        })
         break
       case 'day': {
         const hydratedDay = this.hydrateStep(dayStep)
         try {
           const newDay = await this.wizardService.collect(hydratedDay, ctx)
           await this.scaffoldRepository.updateFields(entityId, { dayOfWeek: newDay })
+          void this.transport.logEvent({
+            type: 'scaffold_updated',
+            scaffold: { ...scaffold, dayOfWeek: newDay },
+            field: 'day',
+            oldValue: scaffold.dayOfWeek,
+            newValue: newDay,
+          })
         } catch (e) {
           if (e instanceof WizardCancelledError) {
             break
@@ -242,6 +273,13 @@ export class ScaffoldBusiness {
         try {
           const newTime = await this.wizardService.collect(hydratedTime, ctx)
           await this.scaffoldRepository.updateFields(entityId, { time: newTime })
+          void this.transport.logEvent({
+            type: 'scaffold_updated',
+            scaffold: { ...scaffold, time: newTime },
+            field: 'time',
+            oldValue: scaffold.time,
+            newValue: newTime,
+          })
         } catch (e) {
           if (e instanceof WizardCancelledError) {
             break
@@ -290,6 +328,15 @@ export class ScaffoldBusiness {
         try {
           const participantId = await this.wizardService.collect(step, ctx)
           await this.scaffoldRepository.addParticipant(entityId, participantId)
+          const addedParticipant = await this.participantRepository.findById(participantId)
+          if (addedParticipant) {
+            void this.transport.logEvent({
+              type: 'scaffold_updated',
+              scaffold,
+              field: 'participant_added',
+              participant: addedParticipant,
+            })
+          }
         } catch (e) {
           if (!(e instanceof WizardCancelledError)) {
             throw e
@@ -327,6 +374,15 @@ export class ScaffoldBusiness {
         try {
           const participantId = await this.wizardService.collect(removeStep, ctx)
           await this.scaffoldRepository.removeParticipant(entityId, participantId)
+          const removedP = currentForRemove.participants.find((p) => p.id === participantId)
+          if (removedP) {
+            void this.transport.logEvent({
+              type: 'scaffold_updated',
+              scaffold,
+              field: 'participant_removed',
+              participant: removedP,
+            })
+          }
         } catch (e) {
           if (!(e instanceof WizardCancelledError)) {
             throw e
@@ -402,6 +458,13 @@ export class ScaffoldBusiness {
 
         const notation = `${dayOffset} ${time}`
         await this.scaffoldRepository.updateFields(entityId, { announcementDeadline: notation })
+        void this.transport.logEvent({
+          type: 'scaffold_updated',
+          scaffold: { ...scaffold, announcementDeadline: notation },
+          field: 'deadline',
+          oldValue: scaffold.announcementDeadline ?? null,
+          newValue: notation,
+        })
         break
       }
       case 'done': {

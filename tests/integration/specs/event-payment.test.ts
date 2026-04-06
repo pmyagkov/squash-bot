@@ -176,7 +176,7 @@ describe('event-payment', () => {
       await bot.handleUpdate(markUpdate)
 
       const logCall = api.sendMessage.mock.calls.find(
-        ([, text]) => typeof text === 'string' && text.includes('💰 Payment received')
+        ([, text]) => typeof text === 'string' && text.includes('💰 Payment:')
       )
       expect(logCall).toBeDefined()
     })
