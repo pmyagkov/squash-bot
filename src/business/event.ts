@@ -2819,12 +2819,26 @@ export class EventBusiness {
     switch (action) {
       case '+court':
         await this.eventRepository.updateEvent(entityId, { courts: event.courts + 1 })
+        void this.transport.logEvent({
+          type: 'event_updated',
+          event: { ...event, courts: event.courts + 1 },
+          field: 'courts',
+          oldValue: event.courts,
+          newValue: event.courts + 1,
+        })
         break
       case '-court':
         if (event.courts <= 1) {
           return
         }
         await this.eventRepository.updateEvent(entityId, { courts: event.courts - 1 })
+        void this.transport.logEvent({
+          type: 'event_updated',
+          event: { ...event, courts: event.courts - 1 },
+          field: 'courts',
+          oldValue: event.courts,
+          newValue: event.courts - 1,
+        })
         break
       case 'date': {
         const hydratedDay = this.hydrateStep(eventDateStep)
@@ -2837,6 +2851,13 @@ export class EventBusiness {
             .minute(existingTime.minute())
             .toDate()
           await this.eventRepository.updateEvent(entityId, { datetime: combined })
+          void this.transport.logEvent({
+            type: 'event_updated',
+            event: { ...event, datetime: combined },
+            field: 'date',
+            oldValue: event.datetime,
+            newValue: combined,
+          })
         } catch (e) {
           if (e instanceof WizardCancelledError) {
             break
@@ -2852,6 +2873,13 @@ export class EventBusiness {
           const [h, m] = newTime.split(':').map(Number)
           const combined = dayjs(event.datetime).hour(h).minute(m).toDate()
           await this.eventRepository.updateEvent(entityId, { datetime: combined })
+          void this.transport.logEvent({
+            type: 'event_updated',
+            event: { ...event, datetime: combined },
+            field: 'date',
+            oldValue: event.datetime,
+            newValue: combined,
+          })
         } catch (e) {
           if (e instanceof WizardCancelledError) {
             break
@@ -2868,6 +2896,13 @@ export class EventBusiness {
           return
         }
         await this.eventRepository.updateEvent(entityId, { isPrivate: !event.isPrivate })
+        void this.transport.logEvent({
+          type: 'event_updated',
+          event: { ...event, isPrivate: !event.isPrivate },
+          field: 'privacy',
+          oldValue: event.isPrivate,
+          newValue: !event.isPrivate,
+        })
         break
       }
       case '+participant': {
@@ -2893,15 +2928,24 @@ export class EventBusiness {
           const participantId = await this.wizardService.collect(addStep, ctx)
           await this.participantRepository.addToEvent(entityId, participantId)
 
+          const addedParticipant = await this.participantRepository.findById(participantId)
+          if (addedParticipant) {
+            void this.transport.logEvent({
+              type: 'event_updated',
+              event,
+              field: 'participant_added',
+              participant: addedParticipant,
+            })
+          }
+
           // For private events, send a personal DM to the newly added participant
           if (event.isPrivate) {
-            const newParticipant = await this.participantRepository.findById(participantId)
-            if (newParticipant?.telegramId) {
+            if (addedParticipant?.telegramId) {
               const participants = await this.participantRepository.getEventParticipants(entityId)
               const messageText = formatAnnouncementText(event, participants)
               const keyboard = buildInlineKeyboard('announced', true, entityId, false)
               try {
-                const participantChatId = parseInt(newParticipant.telegramId, 10)
+                const participantChatId = parseInt(addedParticipant.telegramId, 10)
                 const msgId = await this.transport.sendMessage(
                   participantChatId,
                   messageText,
@@ -2913,7 +2957,7 @@ export class EventBusiness {
                   String(participantChatId)
                 )
               } catch {
-                await this.logger.error(`Failed to send DM to ${newParticipant.displayName}`)
+                await this.logger.error(`Failed to send DM to ${addedParticipant.displayName}`)
               }
             }
           }
@@ -2949,6 +2993,16 @@ export class EventBusiness {
         try {
           const participantId = await this.wizardService.collect(removeStep, ctx)
           await this.participantRepository.removeFromEvent(entityId, participantId)
+
+          const removedEp = participantsForRemove.find((p) => p.participantId === participantId)
+          if (removedEp) {
+            void this.transport.logEvent({
+              type: 'event_updated',
+              event,
+              field: 'participant_removed',
+              participant: removedEp.participant,
+            })
+          }
         } catch (e) {
           if (!(e instanceof WizardCancelledError)) {
             throw e
