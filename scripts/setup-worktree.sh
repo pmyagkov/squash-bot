@@ -14,21 +14,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAIN_WORKTREE="$(dirname "$SCRIPT_DIR")"
 CURRENT_DIR="$(pwd)"
 
-# Check if running from main worktree
-if [[ "$CURRENT_DIR" == "$MAIN_WORKTREE" ]]; then
-  echo -e "${YELLOW}Warning: You're in the main worktree. This script is for setting up .worktrees/* directories.${NC}"
-  read -p "Continue anyway? (y/N) " -n 1 -r
-  echo
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Cancelled."
-    exit 0
-  fi
-fi
-
 # Files to copy
 FILES_TO_COPY=(
-  ".env.test"
-  ".claude/settings.local.json"
 )
 
 # Function to copy a file
