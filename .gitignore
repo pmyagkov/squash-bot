@@ -49,3 +49,4 @@ playwright-report/
 
 # Migration test production dump
 tests/migration/prod_dump.sql
+.claude/settings.local.json
