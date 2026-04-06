@@ -57,6 +57,10 @@ docs/
 - **Strict TypeScript**: `strict: true`, `noUnusedLocals`, `noUnusedParameters`
 - **Architecture invariants**: Layer boundaries and dependency rules are defined in [docs/architecture.md](docs/architecture.md) — verify during code review
 
+## Code Review
+
+- **DRY**: Flag repetitive structures — extract shared fields in types, use helpers instead of copy-paste
+
 ## Important Documents
 
 Before starting work, check these documents for context:
