@@ -1,9 +1,6 @@
 import type { Event, Scaffold, Participant } from '~/types'
 
-export type SystemEvent =
-  | { type: 'bot_started'; botUsername: string }
-  | { type: 'bot_stopped' }
-  | { type: 'unhandled_error'; error: string }
+export type SystemEvent = { type: 'bot_started'; botUsername: string } | { type: 'bot_stopped' }
 
 export type EventUpdatedEvent =
   | { type: 'event_updated'; event: Event; field: 'courts'; oldValue: number; newValue: number }
@@ -91,7 +88,6 @@ export type BusinessEvent =
   // Payments
   | { type: 'payment_received'; event: Event; participant: Participant; amount: number }
   | { type: 'payment_cancelled'; event: Event; participant: Participant }
-  | { type: 'payment_check_completed'; eventsChecked: number }
   | { type: 'info_payment_updated'; participant: Participant; paymentInfo: string }
 
   // Scaffolds

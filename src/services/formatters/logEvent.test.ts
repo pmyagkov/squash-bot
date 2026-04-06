@@ -64,11 +64,6 @@ describe('formatLogEvent', () => {
       const e: SystemEvent = { type: 'bot_stopped' }
       expect(formatLogEvent(e)).toBe('🔴 Bot stopped')
     })
-
-    it('unhandled_error', () => {
-      const e: SystemEvent = { type: 'unhandled_error', error: 'Connection timeout' }
-      expect(formatLogEvent(e)).toBe('❌ Unhandled error: Connection timeout')
-    })
   })
 
   describe('Event lifecycle', () => {
@@ -258,11 +253,6 @@ describe('formatLogEvent', () => {
         participant: testParticipant,
       }
       expect(formatLogEvent(e)).toBe('[ev_123] 💸 Payment cancelled: Alice · @alice')
-    })
-
-    it('payment_check_completed', () => {
-      const e: BusinessEvent = { type: 'payment_check_completed', eventsChecked: 5 }
-      expect(formatLogEvent(e)).toBe('🔍 Payment check: 5 events')
     })
 
     it('info_payment_updated', () => {

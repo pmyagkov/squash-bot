@@ -35,9 +35,6 @@ export function formatLogEvent(event: LogEvent): string {
       return `🟢 Bot started as @${event.botUsername}`
     case 'bot_stopped':
       return '🔴 Bot stopped'
-    case 'unhandled_error':
-      return `❌ Unhandled error: ${event.error}`
-
     // --- Event lifecycle ---
     case 'event_created': {
       const owner = event.owner ? ` · 👑 ${pl(event.owner)}` : ''
@@ -91,8 +88,6 @@ export function formatLogEvent(event: LogEvent): string {
       return `[${event.event.id}] 💰 Payment: ${event.amount} din from ${pl(event.participant)}`
     case 'payment_cancelled':
       return `[${event.event.id}] 💸 Payment cancelled: ${pl(event.participant)}`
-    case 'payment_check_completed':
-      return `🔍 Payment check: ${event.eventsChecked} events`
     case 'info_payment_updated':
       return `💳 Payment info: ${pl(event.participant)} → ${event.paymentInfo}`
 
