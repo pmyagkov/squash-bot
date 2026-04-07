@@ -39,9 +39,13 @@ describe('event formatters', () => {
       expect(buttons).toHaveLength(1)
       expect(buttons[0]).toHaveLength(2)
       expect(buttons[0][0].text).toBe(BTN_JOIN)
-      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe('event:join')
+      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:join'
+      )
       expect(buttons[0][1].text).toBe(BTN_LEAVE)
-      expect((buttons[0][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe('event:leave')
+      expect((buttons[0][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:leave'
+      )
     })
 
     it('should show full management buttons for announced public event (owner)', () => {
@@ -65,7 +69,9 @@ describe('event formatters', () => {
       expect(buttons).toHaveLength(1)
       expect(buttons[0]).toHaveLength(1)
       expect(buttons[0][0].text).toBe(BTN_RESTORE)
-      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe('event:undo-cancel')
+      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:undo-cancel'
+      )
     })
 
     it('should show empty keyboard for non-owner on cancelled status', () => {
@@ -84,7 +90,9 @@ describe('event formatters', () => {
       expect(buttons).toHaveLength(1)
       expect(buttons[0]).toHaveLength(1)
       expect(buttons[0][0].text).toBe(BTN_UNFINALIZE)
-      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe('event:undo-finalize')
+      expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
+        'event:undo-finalize'
+      )
     })
 
     it('should show empty keyboard for non-owner on finalized status', () => {

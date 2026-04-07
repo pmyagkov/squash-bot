@@ -749,8 +749,8 @@ export class EventBusiness {
       tasks.push(
         this.transport
           .unpinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
-          .catch(() => {})
           .then(() => this.eventAnnouncementRepository.unpin(ann.id))
+          .catch(() => {})
       )
     }
     await Promise.all(tasks)
@@ -786,8 +786,8 @@ export class EventBusiness {
       restoreTasks.push(
         this.transport
           .pinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
-          .catch(() => {})
           .then(() => this.eventAnnouncementRepository.markPinned(ann.id))
+          .catch(() => {})
       )
     }
     await Promise.all(restoreTasks)
@@ -1307,8 +1307,8 @@ export class EventBusiness {
     for (const ann of announcements) {
       await this.transport
         .pinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
-        .catch(() => {})
         .then(() => this.eventAnnouncementRepository.markPinned(ann.id))
+        .catch(() => {})
     }
 
     if (source.type === 'callback') {

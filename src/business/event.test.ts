@@ -1127,6 +1127,51 @@ describe('EventBusiness', () => {
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_cancel')
     })
 
+    test('does not mark announcement unpinned in DB when transport.unpinMessage fails', async ({
+      container,
+    }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const announcementRepo = container.resolve('eventAnnouncementRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_unpin_fail', status: 'announced', telegramMessageId: '600' })
+      eventRepo.findByMessageId.mockResolvedValue(event)
+      eventRepo.findById.mockResolvedValue(buildEvent({ id: 'ev_unpin_fail', status: 'cancelled' }))
+      eventRepo.updateEvent.mockResolvedValue(
+        buildEvent({ id: 'ev_unpin_fail', status: 'cancelled' })
+      )
+      participantRepo.getEventParticipants.mockResolvedValue([])
+
+      announcementRepo.getByEventId.mockResolvedValue([
+        {
+          id: 1,
+          eventId: 'ev_unpin_fail',
+          telegramMessageId: '600',
+          telegramChatId: String(TEST_CONFIG.chatId),
+          pinned: true,
+        },
+      ])
+
+      // Transport unpin fails
+      transport.unpinMessage.mockRejectedValue(new Error('Telegram API error'))
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCallbackHandler(transport, 'event:cancel')
+      await handler({
+        userId: TEST_CONFIG.userId,
+        chatId: TEST_CONFIG.chatId,
+        chatType: 'group' as const,
+        messageId: 600,
+        callbackId: 'cb_cancel_fail',
+      })
+
+      // DB should NOT be updated when transport fails
+      expect(announcementRepo.unpin).not.toHaveBeenCalled()
+    })
+
     test('refreshes reminder after cancel', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
@@ -1207,6 +1252,49 @@ describe('EventBusiness', () => {
         expect.anything()
       )
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_restore')
+    })
+
+    test('does not mark announcement pinned in DB when transport.pinMessage fails', async ({
+      container,
+    }) => {
+      const eventRepo = container.resolve('eventRepository')
+      const participantRepo = container.resolve('participantRepository')
+      const announcementRepo = container.resolve('eventAnnouncementRepository')
+      const transport = container.resolve('transport')
+
+      const event = buildEvent({ id: 'ev_pin_fail', status: 'cancelled', telegramMessageId: '700' })
+      eventRepo.findByMessageId.mockResolvedValue(event)
+      eventRepo.findById.mockResolvedValue(buildEvent({ id: 'ev_pin_fail', status: 'announced' }))
+      eventRepo.updateEvent.mockResolvedValue(buildEvent({ id: 'ev_pin_fail', status: 'announced' }))
+      participantRepo.getEventParticipants.mockResolvedValue([])
+
+      announcementRepo.getByEventId.mockResolvedValue([
+        {
+          id: 1,
+          eventId: 'ev_pin_fail',
+          telegramMessageId: '700',
+          telegramChatId: String(TEST_CONFIG.chatId),
+          pinned: false,
+        },
+      ])
+
+      // Transport pin fails
+      transport.pinMessage.mockRejectedValue(new Error('Telegram API error'))
+
+      const business = new EventBusiness(container)
+      business.init()
+
+      const handler = getCallbackHandler(transport, 'event:undo-cancel')
+      await handler({
+        userId: TEST_CONFIG.userId,
+        chatId: TEST_CONFIG.chatId,
+        chatType: 'group' as const,
+        messageId: 700,
+        callbackId: 'cb_restore_fail',
+      })
+
+      // DB should NOT be updated when transport fails
+      expect(announcementRepo.markPinned).not.toHaveBeenCalled()
     })
   })
 
