@@ -72,10 +72,7 @@ export class EventAnnouncementRepo {
       .select()
       .from(eventAnnouncements)
       .where(
-        and(
-          eq(eventAnnouncements.telegramChatId, chatId),
-          eq(eventAnnouncements.pinned, true)
-        )
+        and(eq(eventAnnouncements.telegramChatId, chatId), eq(eventAnnouncements.pinned, true))
       )
 
     return rows.map((row) => ({
@@ -88,10 +85,11 @@ export class EventAnnouncementRepo {
   }
 
   async unpin(id: number): Promise<void> {
-    await db
-      .update(eventAnnouncements)
-      .set({ pinned: false })
-      .where(eq(eventAnnouncements.id, id))
+    await db.update(eventAnnouncements).set({ pinned: false }).where(eq(eventAnnouncements.id, id))
+  }
+
+  async markPinned(id: number): Promise<void> {
+    await db.update(eventAnnouncements).set({ pinned: true }).where(eq(eventAnnouncements.id, id))
   }
 
   async deleteByEventId(eventId: string): Promise<void> {

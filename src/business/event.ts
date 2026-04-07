@@ -737,8 +737,9 @@ export class EventBusiness {
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
     // Unpin all pinned announcements for this event (group + owner DM)
-    const pinnedAnns = (await this.eventAnnouncementRepository.getByEventId(event.id))
-      .filter((a) => a.pinned)
+    const pinnedAnns = (await this.eventAnnouncementRepository.getByEventId(event.id)).filter(
+      (a) => a.pinned
+    )
     const tasks: Promise<void>[] = [
       this.refreshAnnouncement(event.id),
       this.refreshReminder(event.id),
@@ -786,6 +787,7 @@ export class EventBusiness {
         this.transport
           .pinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
           .catch(() => {})
+          .then(() => this.eventAnnouncementRepository.markPinned(ann.id))
       )
     }
     await Promise.all(restoreTasks)
@@ -1300,16 +1302,13 @@ export class EventBusiness {
     await this.refreshAnnouncement(event.id)
     await this.refreshReminder(event.id)
 
-    // Re-pin if possible (only for public events)
-    if (!event.isPrivate && event.telegramMessageId) {
-      const announceChatId = await this.getAnnouncementChatId(event)
-      if (announceChatId) {
-        try {
-          await this.transport.pinMessage(announceChatId, parseInt(event.telegramMessageId, 10))
-        } catch {
-          // Ignore pin errors
-        }
-      }
+    // Re-pin all announcements for this event
+    const announcements = await this.eventAnnouncementRepository.getByEventId(event.id)
+    for (const ann of announcements) {
+      await this.transport
+        .pinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
+        .catch(() => {})
+        .then(() => this.eventAnnouncementRepository.markPinned(ann.id))
     }
 
     if (source.type === 'callback') {
@@ -2301,7 +2300,12 @@ export class EventBusiness {
         event.status === 'cancelled',
         paidParticipantIds
       )
-      const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id, false)
+      const keyboard = buildInlineKeyboard(
+        event.status as EventStatus,
+        event.isPrivate,
+        event.id,
+        false
+      )
 
       try {
         await this.transport.editMessage(

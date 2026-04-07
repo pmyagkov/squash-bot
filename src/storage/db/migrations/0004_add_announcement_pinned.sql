@@ -1,1 +1,1 @@
-ALTER TABLE "event_announcements" ADD COLUMN "pinned" boolean DEFAULT true NOT NULL;
+ALTER TABLE "event_announcements" ADD COLUMN "pinned" integer DEFAULT 1 NOT NULL;
