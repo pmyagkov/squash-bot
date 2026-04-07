@@ -83,5 +83,6 @@ export function mockEventAnnouncementRepo() {
   mock.getByEventId.mockResolvedValue([])
   mock.findEventByMessageId.mockResolvedValue(null)
   mock.getAllByChatId.mockResolvedValue([])
+  mock.getPinnedByChatId.mockResolvedValue([])
   return mock
 }

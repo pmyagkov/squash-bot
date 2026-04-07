@@ -148,13 +148,21 @@ describe('EventBusiness', () => {
       const handler = getCommandHandler(container, 'event:announce')
       await handler({ eventId: 'ev_ann' }, makeSource())
 
-      // announceEvent sends message, pins it, updates event
+      // announceEvent sends TWO messages: group (join/leave only) + owner DM (management buttons)
       expect(transport.sendMessage).toHaveBeenCalledWith(
         TEST_CONFIG.chatId,
         expect.stringContaining('Squash'),
         expect.anything()
       )
+      const ownerChatId = parseInt(event.ownerId, 10)
+      expect(transport.sendMessage).toHaveBeenCalledWith(
+        ownerChatId,
+        expect.stringContaining('Squash'),
+        expect.anything()
+      )
+      // Pins both group and owner DM
       expect(transport.pinMessage).toHaveBeenCalledWith(TEST_CONFIG.chatId, 42)
+      expect(transport.pinMessage).toHaveBeenCalledWith(ownerChatId, 42)
       expect(eventRepo.updateEvent).toHaveBeenCalledWith(
         'ev_ann',
         expect.objectContaining({
@@ -215,23 +223,28 @@ describe('EventBusiness', () => {
         buildEvent({ id: 'ev_pin', status: 'announced', telegramMessageId: '55' })
       )
 
-      // Previous announcements exist in this chat
-      announcementRepo.getAllByChatId.mockResolvedValue([
-        {
-          id: 1,
-          eventId: 'ev_old',
-          telegramMessageId: '30',
-          telegramChatId: String(TEST_CONFIG.chatId),
-          pinned: true,
-        },
-        {
-          id: 2,
-          eventId: 'ev_older',
-          telegramMessageId: '20',
-          telegramChatId: String(TEST_CONFIG.chatId),
-          pinned: true,
-        },
-      ])
+      // Previous pinned announcements exist in group chat and owner DM
+      announcementRepo.getPinnedByChatId.mockImplementation(async (chatId: string) => {
+        if (chatId === String(TEST_CONFIG.chatId)) {
+          return [
+            {
+              id: 1,
+              eventId: 'ev_old',
+              telegramMessageId: '30',
+              telegramChatId: String(TEST_CONFIG.chatId),
+              pinned: true,
+            },
+            {
+              id: 2,
+              eventId: 'ev_older',
+              telegramMessageId: '20',
+              telegramChatId: String(TEST_CONFIG.chatId),
+              pinned: true,
+            },
+          ]
+        }
+        return []
+      })
 
       const business = new EventBusiness(container)
       business.init()
@@ -514,14 +527,28 @@ describe('EventBusiness', () => {
       expect(transport.answerCallback).toHaveBeenCalledWith('cb_join2', 'Joined (×2) ✋')
     })
 
-    test('updates announcement → calls editMessage', async ({ container }) => {
+    test('updates announcement → calls editMessage via refreshAnnouncement', async ({
+      container,
+    }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
+      const announcementRepo = container.resolve('eventAnnouncementRepository')
       const transport = container.resolve('transport')
 
       const event = buildEvent({ id: 'ev_edit', status: 'announced', telegramMessageId: '102' })
       eventRepo.findByMessageId.mockResolvedValue(event)
       eventRepo.findById.mockResolvedValue(event)
+
+      // refreshAnnouncement queries announcement records
+      announcementRepo.getByEventId.mockResolvedValue([
+        {
+          id: 1,
+          eventId: 'ev_edit',
+          telegramMessageId: '102',
+          telegramChatId: String(TEST_CONFIG.chatId),
+          pinned: true,
+        },
+      ])
 
       const participant = buildParticipant()
       participantRepo.findByTelegramId.mockResolvedValue(participant)
@@ -1055,6 +1082,7 @@ describe('EventBusiness', () => {
     test('changes status → cancelled, updates message', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
+      const announcementRepo = container.resolve('eventAnnouncementRepository')
       const transport = container.resolve('transport')
 
       const event = buildEvent({ id: 'ev_cbcancel', status: 'announced', telegramMessageId: '600' })
@@ -1064,6 +1092,17 @@ describe('EventBusiness', () => {
         buildEvent({ id: 'ev_cbcancel', status: 'cancelled' })
       )
       participantRepo.getEventParticipants.mockResolvedValue([])
+
+      // handleCancel calls getByEventId to find pinned announcements + refreshAnnouncement
+      announcementRepo.getByEventId.mockResolvedValue([
+        {
+          id: 1,
+          eventId: 'ev_cbcancel',
+          telegramMessageId: '600',
+          telegramChatId: String(TEST_CONFIG.chatId),
+          pinned: true,
+        },
+      ])
 
       const business = new EventBusiness(container)
       business.init()
@@ -1127,6 +1166,7 @@ describe('EventBusiness', () => {
     test('restores → announced, restores buttons', async ({ container }) => {
       const eventRepo = container.resolve('eventRepository')
       const participantRepo = container.resolve('participantRepository')
+      const announcementRepo = container.resolve('eventAnnouncementRepository')
       const transport = container.resolve('transport')
 
       const event = buildEvent({ id: 'ev_restore', status: 'cancelled', telegramMessageId: '700' })
@@ -1134,6 +1174,17 @@ describe('EventBusiness', () => {
       eventRepo.findById.mockResolvedValue(buildEvent({ id: 'ev_restore', status: 'announced' }))
       eventRepo.updateEvent.mockResolvedValue(buildEvent({ id: 'ev_restore', status: 'announced' }))
       participantRepo.getEventParticipants.mockResolvedValue([])
+
+      // handleRestore calls getByEventId to pin all announcements + refreshAnnouncement
+      announcementRepo.getByEventId.mockResolvedValue([
+        {
+          id: 1,
+          eventId: 'ev_restore',
+          telegramMessageId: '700',
+          telegramChatId: String(TEST_CONFIG.chatId),
+          pinned: false,
+        },
+      ])
 
       const business = new EventBusiness(container)
       business.init()
