@@ -450,7 +450,7 @@ export class EventBusiness {
 
       // Update message and answer callback concurrently
       await Promise.all([
-        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+        this.refreshAnnouncement(event.id),
         this.refreshReminder(event.id),
         this.transport.answerCallback(data.callbackId, callbackText),
       ])
@@ -523,7 +523,7 @@ export class EventBusiness {
       }
 
       await Promise.all([
-        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+        this.refreshAnnouncement(event.id),
         this.refreshReminder(event.id),
         this.transport.answerCallback(data.callbackId, callbackText),
       ])
@@ -736,13 +736,21 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'cancelled' })
 
+    // Unpin all pinned announcements for this event (group + owner DM)
+    const pinnedAnns = (await this.eventAnnouncementRepository.getByEventId(event.id))
+      .filter((a) => a.pinned)
     const tasks: Promise<void>[] = [
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false, true),
+      this.refreshAnnouncement(event.id),
       this.refreshReminder(event.id),
       this.transport.answerCallback(data.callbackId),
     ]
-    if (!event.isPrivate) {
-      tasks.push(this.transport.unpinMessage(data.chatId, data.messageId).catch(() => {}))
+    for (const ann of pinnedAnns) {
+      tasks.push(
+        this.transport
+          .unpinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
+          .catch(() => {})
+          .then(() => this.eventAnnouncementRepository.unpin(ann.id))
+      )
     }
     await Promise.all(tasks)
 
@@ -768,12 +776,17 @@ export class EventBusiness {
 
     await this.eventRepository.updateEvent(event.id, { status: 'announced' })
 
+    const announcements = await this.eventAnnouncementRepository.getByEventId(event.id)
     const restoreTasks: Promise<void>[] = [
-      this.updateAnnouncementMessage(event.id, data.chatId, data.messageId),
+      this.refreshAnnouncement(event.id),
       this.transport.answerCallback(data.callbackId),
     ]
-    if (!event.isPrivate) {
-      restoreTasks.push(this.transport.pinMessage(data.chatId, data.messageId).catch(() => {}))
+    for (const ann of announcements) {
+      restoreTasks.push(
+        this.transport
+          .pinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
+          .catch(() => {})
+      )
     }
     await Promise.all(restoreTasks)
 
@@ -832,7 +845,7 @@ export class EventBusiness {
 
       // Restore announcement message
       await Promise.all([
-        this.updateAnnouncementMessage(event.id, data.chatId, data.messageId, false),
+        this.refreshAnnouncement(event.id),
         this.transport.answerCallback(data.callbackId),
       ])
 
@@ -2056,44 +2069,6 @@ export class EventBusiness {
 
   // === Helper Methods ===
 
-  private async updateAnnouncementMessage(
-    eventId: string,
-    chatId: number,
-    messageId: number,
-    finalized: boolean = false,
-    cancelled: boolean = false
-  ): Promise<void> {
-    const event = await this.eventRepository.findById(eventId)
-    if (!event) {
-      return
-    }
-
-    if (event.isPrivate) {
-      // Private events: update ALL announcement messages via refreshAnnouncement
-      await this.refreshAnnouncement(eventId)
-      return
-    }
-
-    // Public event: update single group message
-    const participants = await this.participantRepository.getEventParticipants(eventId)
-    const messageText = formatAnnouncementText(event, participants, finalized, cancelled)
-    const status =
-      event.status === 'cancelled'
-        ? 'cancelled'
-        : event.status === 'finalized'
-          ? 'finalized'
-          : 'announced'
-    const keyboard = buildInlineKeyboard(status as EventStatus, event.isPrivate, event.id)
-
-    try {
-      await this.transport.editMessage(chatId, messageId, messageText, keyboard)
-    } catch (error) {
-      await this.logger.error(
-        `Error updating announcement: ${error instanceof Error ? error.message : String(error)}`
-      )
-    }
-  }
-
   async notifyOwner(
     event: Event,
     type:
@@ -2326,7 +2301,7 @@ export class EventBusiness {
         event.status === 'cancelled',
         paidParticipantIds
       )
-      const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id)
+      const keyboard = buildInlineKeyboard(event.status as EventStatus, event.isPrivate, event.id, false)
 
       try {
         await this.transport.editMessage(
@@ -2560,11 +2535,7 @@ export class EventBusiness {
 
     // Update message if event was announced
     if (sendNotification && event.status === 'announced' && event.telegramMessageId) {
-      const chatId = await this.getAnnouncementChatId(event)
-      if (chatId) {
-        const messageId = parseInt(event.telegramMessageId, 10)
-        await this.updateAnnouncementMessage(id, chatId, messageId, false, true)
-      }
+      await this.refreshAnnouncement(id)
     }
 
     return updatedEvent
