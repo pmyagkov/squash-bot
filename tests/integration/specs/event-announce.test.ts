@@ -193,11 +193,12 @@ describe('event-announce', () => {
       })
       await eventBusiness.announceEvent(event2.id)
 
-      // Get message IDs of both announcements
-      const ann1 = await eventAnnouncementRepository.getByEventId(event1.id)
+      // Get announcements for event2 (each has group + owner DM)
       const ann2 = await eventAnnouncementRepository.getByEventId(event2.id)
-      const firstMessageId = parseInt(ann1[0].telegramMessageId, 10)
-      const secondMessageId = parseInt(ann2[0].telegramMessageId, 10)
+
+      // Find group-specific and owner DM announcements for event2
+      const ann2Group = ann2.find((a) => a.telegramChatId === String(TEST_CHAT_ID))!
+      const ann2OwnerDm = ann2.find((a) => a.telegramChatId === String(ADMIN_ID))!
 
       api.unpinChatMessage.mockClear()
       api.pinChatMessage.mockClear()
@@ -211,21 +212,157 @@ describe('event-announce', () => {
       })
       await eventBusiness.announceEvent(event3.id)
 
-      // Should have unpinned both previous announcements
+      // event1 was unpinned when event2 was announced, so only event2 remains pinned
+      // Should have unpinned event2's group and owner DM announcements
       expect(api.unpinChatMessage).toHaveBeenCalledWith(
         TEST_CHAT_ID,
-        firstMessageId,
+        parseInt(ann2Group.telegramMessageId, 10),
         undefined
       )
       expect(api.unpinChatMessage).toHaveBeenCalledWith(
-        TEST_CHAT_ID,
-        secondMessageId,
+        ADMIN_ID,
+        parseInt(ann2OwnerDm.telegramMessageId, 10),
         undefined
       )
+      // 1 event × 2 announcements (group + owner DM) = 2 unpin calls
       expect(api.unpinChatMessage).toHaveBeenCalledTimes(2)
 
       // Should have pinned the third announcement
       expect(api.pinChatMessage).toHaveBeenCalled()
+    })
+
+    it('should send management DM to owner on public announce', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+
+      await eventBusiness.announceEvent(event.id)
+
+      // Should have sent message to owner DM with management keyboard
+      const ownerDmCall = api.sendMessage.mock.calls.find(
+        ([chatId]) => chatId === ADMIN_ID
+      )
+      expect(ownerDmCall).toBeDefined()
+
+      const replyMarkup = (ownerDmCall![2] as Record<string, unknown>)
+        ?.reply_markup as { inline_keyboard: { text: string }[][] }
+      expect(replyMarkup?.inline_keyboard).toBeDefined()
+
+      // Owner DM should have management buttons (3 rows)
+      const buttons = replyMarkup.inline_keyboard
+      expect(buttons).toHaveLength(3)
+      expect(buttons[0][0].text).toBe("✋ I'm in")
+      expect(buttons[1][0].text).toBe("➕ Court")
+      expect(buttons[2][0].text).toBe("✅ Finalize")
+    })
+
+    it('should create two announcement records for public event', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+
+      await eventBusiness.announceEvent(event.id)
+
+      const announcements = await eventAnnouncementRepository.getByEventId(event.id)
+      expect(announcements).toHaveLength(2)
+
+      // One for group, one for owner DM
+      const chatIds = announcements.map((a) => a.telegramChatId)
+      expect(chatIds).toContain(String(TEST_CHAT_ID))
+      expect(chatIds).toContain(String(ADMIN_ID))
+
+      // Both should be pinned
+      expect(announcements.every((a) => a.pinned)).toBe(true)
+    })
+
+    it('should pin message in owner DM', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+
+      await eventBusiness.announceEvent(event.id)
+
+      // Should have pinned in both group and owner DM
+      expect(api.pinChatMessage).toHaveBeenCalledWith(
+        TEST_CHAT_ID,
+        expect.any(Number),
+        undefined
+      )
+      expect(api.pinChatMessage).toHaveBeenCalledWith(
+        ADMIN_ID,
+        expect.any(Number),
+        undefined
+      )
+    })
+
+    it('should unpin previous announcements in both group and owner DM', async () => {
+      // Announce first event
+      const event1 = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+      await eventBusiness.announceEvent(event1.id)
+
+      api.unpinChatMessage.mockClear()
+      api.pinChatMessage.mockClear()
+
+      // Announce second event
+      const event2 = await eventRepository.createEvent({
+        datetime: new Date('2024-01-27T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+      await eventBusiness.announceEvent(event2.id)
+
+      // Should have unpinned both group and owner DM from first event
+      expect(api.unpinChatMessage).toHaveBeenCalledTimes(2)
+
+      // First event announcements should be marked as unpinned
+      const ann1 = await eventAnnouncementRepository.getByEventId(event1.id)
+      expect(ann1.every((a) => !a.pinned)).toBe(true)
+
+      // Second event announcements should be pinned
+      const ann2 = await eventAnnouncementRepository.getByEventId(event2.id)
+      expect(ann2.every((a) => a.pinned)).toBe(true)
+    })
+
+    it('should show only join/leave buttons in group announcement', async () => {
+      const event = await eventRepository.createEvent({
+        datetime: new Date('2024-01-20T19:00:00'),
+        courts: 2,
+        status: 'created',
+        ownerId: String(ADMIN_ID),
+      })
+
+      await eventBusiness.announceEvent(event.id)
+
+      // Find the group announcement (sent to TEST_CHAT_ID with squash emoji)
+      const groupCall = api.sendMessage.mock.calls.find(
+        ([chatId, text]) => chatId === TEST_CHAT_ID && text.includes('🎾 Squash')
+      )
+      expect(groupCall).toBeDefined()
+
+      const replyMarkup = (groupCall![2] as Record<string, unknown>)
+        ?.reply_markup as { inline_keyboard: { text: string }[][] }
+      const buttons = replyMarkup.inline_keyboard
+
+      // Only 1 row with join/leave — no management buttons
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0]).toHaveLength(2)
+      expect(buttons[0][0].text).toBe("✋ I'm in")
+      expect(buttons[0][1].text).toBe("😢 I'm out")
     })
 
     it('should not call unpin when no previous announcement exists', async () => {
