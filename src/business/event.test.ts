@@ -1135,7 +1135,11 @@ describe('EventBusiness', () => {
       const announcementRepo = container.resolve('eventAnnouncementRepository')
       const transport = container.resolve('transport')
 
-      const event = buildEvent({ id: 'ev_unpin_fail', status: 'announced', telegramMessageId: '600' })
+      const event = buildEvent({
+        id: 'ev_unpin_fail',
+        status: 'announced',
+        telegramMessageId: '600',
+      })
       eventRepo.findByMessageId.mockResolvedValue(event)
       eventRepo.findById.mockResolvedValue(buildEvent({ id: 'ev_unpin_fail', status: 'cancelled' }))
       eventRepo.updateEvent.mockResolvedValue(
@@ -1265,7 +1269,9 @@ describe('EventBusiness', () => {
       const event = buildEvent({ id: 'ev_pin_fail', status: 'cancelled', telegramMessageId: '700' })
       eventRepo.findByMessageId.mockResolvedValue(event)
       eventRepo.findById.mockResolvedValue(buildEvent({ id: 'ev_pin_fail', status: 'announced' }))
-      eventRepo.updateEvent.mockResolvedValue(buildEvent({ id: 'ev_pin_fail', status: 'announced' }))
+      eventRepo.updateEvent.mockResolvedValue(
+        buildEvent({ id: 'ev_pin_fail', status: 'announced' })
+      )
       participantRepo.getEventParticipants.mockResolvedValue([])
 
       announcementRepo.getByEventId.mockResolvedValue([
