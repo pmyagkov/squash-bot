@@ -2478,26 +2478,47 @@ export class EventBusiness {
     }
     const chatId = mainChatId
 
-    // Send announcement via transport layer
-    const messageText = formatEventMessage(event)
-    const keyboard = buildInlineKeyboard('announced', event.isPrivate, event.id)
-    const messageId = await this.transport.sendMessage(chatId, messageText, keyboard)
-
-    // Unpin all previous announcements before pinning the new one (B12)
-    const previous = await this.eventAnnouncementRepository.getAllByChatId(String(chatId))
-    for (const ann of previous) {
-      await this.transport.unpinMessage(chatId, parseInt(ann.telegramMessageId, 10)).catch(() => {})
+    // Unpin all previously pinned announcements (group + owner DM)
+    const ownerChatId = parseInt(event.ownerId, 10)
+    const pinnedInGroup = await this.eventAnnouncementRepository.getPinnedByChatId(String(chatId))
+    const pinnedInOwnerDm = await this.eventAnnouncementRepository.getPinnedByChatId(event.ownerId)
+    for (const ann of [...pinnedInGroup, ...pinnedInOwnerDm]) {
+      await this.transport
+        .unpinMessage(parseInt(ann.telegramChatId, 10), parseInt(ann.telegramMessageId, 10))
+        .catch(() => {})
+      await this.eventAnnouncementRepository.unpin(ann.id)
     }
 
-    // Pin the message
+    // Send announcement to group chat (join/leave only)
+    const messageText = formatEventMessage(event)
+    const groupKeyboard = buildInlineKeyboard('announced', false, event.id, false)
+    const messageId = await this.transport.sendMessage(chatId, messageText, groupKeyboard)
+
+    // Pin group message
     try {
       await this.transport.pinMessage(chatId, messageId)
     } catch {
       // Ignore pin errors
     }
 
-    // Store announcement in event_announcements table
+    // Save group announcement record
     await this.eventAnnouncementRepository.create(event.id, String(messageId), String(chatId))
+
+    // Send mirrored announcement to owner DM (full management buttons)
+    const ownerKeyboard = buildInlineKeyboard('announced', false, event.id, true)
+    try {
+      const ownerMsgId = await this.transport.sendMessage(ownerChatId, messageText, ownerKeyboard)
+      await this.eventAnnouncementRepository.create(event.id, String(ownerMsgId), event.ownerId)
+
+      // Pin in owner DM
+      try {
+        await this.transport.pinMessage(ownerChatId, ownerMsgId)
+      } catch {
+        // Ignore pin errors
+      }
+    } catch (error) {
+      await this.logger.error(`Failed to send management DM to owner: ${error}`)
+    }
 
     // Update event status (keep legacy fields for backward compatibility)
     const updatedEvent = await this.eventRepository.updateEvent(id, {

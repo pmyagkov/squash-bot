@@ -222,12 +222,14 @@ describe('EventBusiness', () => {
           eventId: 'ev_old',
           telegramMessageId: '30',
           telegramChatId: String(TEST_CONFIG.chatId),
+          pinned: true,
         },
         {
           id: 2,
           eventId: 'ev_older',
           telegramMessageId: '20',
           telegramChatId: String(TEST_CONFIG.chatId),
+          pinned: true,
         },
       ])
 

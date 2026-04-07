@@ -7,7 +7,6 @@ import {
   serial,
   customType,
   unique,
-  boolean,
 } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
