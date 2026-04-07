@@ -32,14 +32,11 @@ import {
 
 describe('event formatters', () => {
   describe('buildInlineKeyboard', () => {
-    it('should show full button set for announced status', () => {
+    it('should show only join/leave for announced public event (non-owner)', () => {
       const keyboard = buildInlineKeyboard('announced')
       const buttons = keyboard.inline_keyboard
 
-      // Should have 3 rows
-      expect(buttons).toHaveLength(3)
-
-      // First row: I'm in, I'm out
+      expect(buttons).toHaveLength(1)
       expect(buttons[0]).toHaveLength(2)
       expect(buttons[0][0].text).toBe(BTN_JOIN)
       expect((buttons[0][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
@@ -49,35 +46,26 @@ describe('event formatters', () => {
       expect((buttons[0][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
         'event:leave'
       )
-
-      // Second row: +court, -court
-      expect(buttons[1]).toHaveLength(2)
-      expect(buttons[1][0].text).toBe(BTN_ADD_COURT)
-      expect((buttons[1][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:add-court'
-      )
-      expect(buttons[1][1].text).toBe(BTN_REMOVE_COURT)
-      expect((buttons[1][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:delete-court'
-      )
-
-      // Third row: Finalize, Cancel
-      expect(buttons[2]).toHaveLength(2)
-      expect(buttons[2][0].text).toBe(BTN_FINALIZE)
-      expect((buttons[2][0] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:finalize'
-      )
-      expect(buttons[2][1].text).toBe(BTN_CANCEL_EVENT)
-      expect((buttons[2][1] as InlineKeyboardButton.CallbackButton).callback_data).toBe(
-        'event:cancel'
-      )
     })
 
-    it('should show only Restore button for cancelled status', () => {
-      const keyboard = buildInlineKeyboard('cancelled')
+    it('should show full management buttons for announced public event (owner)', () => {
+      const keyboard = buildInlineKeyboard('announced', false, 'ev_test', true)
       const buttons = keyboard.inline_keyboard
 
-      // Should have 1 row with 1 button
+      // Row 1: join/leave, Row 2: +court/-court, Row 3: finalize/cancel
+      expect(buttons).toHaveLength(3)
+      expect(buttons[0][0].text).toBe(BTN_JOIN)
+      expect(buttons[0][1].text).toBe(BTN_LEAVE)
+      expect(buttons[1][0].text).toBe(BTN_ADD_COURT)
+      expect(buttons[1][1].text).toBe(BTN_REMOVE_COURT)
+      expect(buttons[2][0].text).toBe(BTN_FINALIZE)
+      expect(buttons[2][1].text).toBe(BTN_CANCEL_EVENT)
+    })
+
+    it('should show Restore only for owner on cancelled status', () => {
+      const keyboard = buildInlineKeyboard('cancelled', false, 'ev_test', true)
+      const buttons = keyboard.inline_keyboard
+
       expect(buttons).toHaveLength(1)
       expect(buttons[0]).toHaveLength(1)
       expect(buttons[0][0].text).toBe(BTN_RESTORE)
@@ -86,8 +74,17 @@ describe('event formatters', () => {
       )
     })
 
-    it('should show Unfinalize button for finalized status', () => {
-      const keyboard = buildInlineKeyboard('finalized')
+    it('should show empty keyboard for non-owner on cancelled status', () => {
+      const keyboard = buildInlineKeyboard('cancelled')
+      const buttons = keyboard.inline_keyboard
+
+      // Empty keyboard (no rows, or one empty row)
+      const totalButtons = buttons.flat().length
+      expect(totalButtons).toBe(0)
+    })
+
+    it('should show Unfinalize only for owner on finalized status', () => {
+      const keyboard = buildInlineKeyboard('finalized', false, 'ev_test', true)
       const buttons = keyboard.inline_keyboard
 
       expect(buttons).toHaveLength(1)
@@ -98,6 +95,14 @@ describe('event formatters', () => {
       )
     })
 
+    it('should show empty keyboard for non-owner on finalized status', () => {
+      const keyboard = buildInlineKeyboard('finalized')
+      const buttons = keyboard.inline_keyboard
+
+      const totalButtons = buttons.flat().length
+      expect(totalButtons).toBe(0)
+    })
+
     it('should show join/leave for non-owner private announced event', () => {
       const keyboard = buildInlineKeyboard('announced', true, 'ev_test', false)
       const buttons = keyboard.inline_keyboard
@@ -106,22 +111,26 @@ describe('event formatters', () => {
       expect(buttons[0][1].text).toBe(BTN_LEAVE)
     })
 
-    it('should show full management buttons for owner private announced event', () => {
+    it('should show full management + participant buttons for owner private announced event', () => {
       const keyboard = buildInlineKeyboard('announced', true, 'ev_test', true)
       const buttons = keyboard.inline_keyboard
+      // Row 1: join/leave, Row 2: +participant/-participant, Row 3: +court/-court, Row 4: finalize/cancel
+      expect(buttons).toHaveLength(4)
       expect(buttons[0][0].text).toBe(BTN_JOIN)
       expect(buttons[0][1].text).toBe(BTN_LEAVE)
       expect(buttons[1][0].text).toBe(BTN_ADD_PARTICIPANT)
       expect(buttons[1][1].text).toBe(BTN_REMOVE_PARTICIPANT)
+      expect(buttons[2][0].text).toBe(BTN_ADD_COURT)
+      expect(buttons[2][1].text).toBe(BTN_REMOVE_COURT)
+      expect(buttons[3][0].text).toBe(BTN_FINALIZE)
+      expect(buttons[3][1].text).toBe(BTN_CANCEL_EVENT)
     })
 
-    it('should show full button set for created status', () => {
+    it('should show only join/leave for created status (non-owner)', () => {
       const keyboard = buildInlineKeyboard('created')
       const buttons = keyboard.inline_keyboard
-
-      // Created events should get the same buttons as announced
-      // (based on the implementation, any status that's not 'cancelled' or 'finalized' gets full set)
       expect(buttons.length).toBeGreaterThan(0)
+      expect(buttons[0][0].text).toBe(BTN_JOIN)
     })
   })
 

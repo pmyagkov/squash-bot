@@ -174,8 +174,9 @@ describe('event-finalize', () => {
     })
     await bot.handleUpdate(finalizeUpdate)
 
+    // Unfinalize button only appears in owner DM, not in group message
     const editCall = api.editMessageText.mock.calls.find(
-      ([chatId, msgId]) => chatId === TEST_CHAT_ID && msgId === messageId
+      ([chatId]) => chatId === ADMIN_ID
     )
     expect(editCall).toBeDefined()
     const keyboard = editCall![3]?.reply_markup

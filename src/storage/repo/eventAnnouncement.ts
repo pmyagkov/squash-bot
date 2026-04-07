@@ -1,6 +1,6 @@
 import { db } from '~/storage/db'
 import { eventAnnouncements } from '~/storage/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import type { EventAnnouncement } from '~/types'
 
 export class EventAnnouncementRepo {
@@ -23,6 +23,7 @@ export class EventAnnouncementRepo {
       eventId: row.eventId,
       telegramMessageId: row.telegramMessageId,
       telegramChatId: row.telegramChatId,
+      pinned: row.pinned,
     }
   }
 
@@ -37,6 +38,7 @@ export class EventAnnouncementRepo {
       eventId: row.eventId,
       telegramMessageId: row.telegramMessageId,
       telegramChatId: row.telegramChatId,
+      pinned: row.pinned,
     }))
   }
 
@@ -61,7 +63,33 @@ export class EventAnnouncementRepo {
       eventId: row.eventId,
       telegramMessageId: row.telegramMessageId,
       telegramChatId: row.telegramChatId,
+      pinned: row.pinned,
     }))
+  }
+
+  async getPinnedByChatId(chatId: string): Promise<EventAnnouncement[]> {
+    const rows = await db
+      .select()
+      .from(eventAnnouncements)
+      .where(
+        and(eq(eventAnnouncements.telegramChatId, chatId), eq(eventAnnouncements.pinned, true))
+      )
+
+    return rows.map((row) => ({
+      id: row.id,
+      eventId: row.eventId,
+      telegramMessageId: row.telegramMessageId,
+      telegramChatId: row.telegramChatId,
+      pinned: row.pinned,
+    }))
+  }
+
+  async unpin(id: number): Promise<void> {
+    await db.update(eventAnnouncements).set({ pinned: false }).where(eq(eventAnnouncements.id, id))
+  }
+
+  async markPinned(id: number): Promise<void> {
+    await db.update(eventAnnouncements).set({ pinned: true }).where(eq(eventAnnouncements.id, id))
   }
 
   async deleteByEventId(eventId: string): Promise<void> {

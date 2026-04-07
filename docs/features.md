@@ -281,12 +281,14 @@ Announce event in chat.
 
 **Flow:**
 1. User sends `/event announce ev_15` (or auto after scaffold event creation)
-2. Bot unpins all previous announcements in this chat
-3. Bot sends announcement message with inline buttons
-4. Bot pins new message
-5. Bot saves telegram_message_id in event
-6. Bot updates event status → announced
-7. Bot replies: `✅ Event ev_15 announced`
+2. Bot unpins all previously pinned announcements (group + owner DM)
+3. Bot sends announcement to group with join/leave buttons
+4. Bot pins group message
+5. Bot sends mirrored announcement to owner DM with management buttons
+6. Bot pins owner DM message
+7. Bot saves announcement records (group + owner DM)
+8. Bot updates event status → announced
+9. Bot replies: `✅ Event ev_15 announced`
 
 **Message format:**
 ```
@@ -297,12 +299,19 @@ Participants:
 (nobody yet)
 ```
 
-**Inline buttons (announced status):**
+**Inline buttons (group message — announced status):**
+```
+[I'm in] [I'm out]
+```
+
+**Inline buttons (owner DM — announced status):**
 ```
 [I'm in] [I'm out]
 [+court] [-court]
 [✅ Finalize] [❌ Cancel]
 ```
+
+**Owner DM:** When a public event is announced, the bot sends a mirrored announcement to the owner's DM with management buttons. Both group and DM messages are pinned and kept in sync.
 
 **Errors:**
 - Missing ID → `Usage: /event announce <id>\n\nExample: /event announce ev_a1b2`

@@ -58,4 +58,34 @@ describe('EventAnnouncementRepo', () => {
     const list = await announcementRepo.getByEventId(testEventId)
     expect(list).toHaveLength(0)
   })
+
+  it('should create announcement with pinned=true by default', async () => {
+    const ann = await announcementRepo.create(testEventId, '100', '-1001234')
+    expect(ann.pinned).toBe(true)
+  })
+
+  it('should get pinned announcements by chat ID', async () => {
+    await announcementRepo.create(testEventId, '100', '-1001234')
+    await announcementRepo.create(testEventId, '101', '-1001234')
+
+    const pinned = await announcementRepo.getPinnedByChatId('-1001234')
+    expect(pinned).toHaveLength(2)
+    expect(pinned.every((a) => a.pinned)).toBe(true)
+  })
+
+  it('should unpin announcement by ID', async () => {
+    const ann = await announcementRepo.create(testEventId, '100', '-1001234')
+    await announcementRepo.unpin(ann.id)
+
+    const list = await announcementRepo.getByEventId(testEventId)
+    expect(list[0].pinned).toBe(false)
+  })
+
+  it('should not return unpinned announcements from getPinnedByChatId', async () => {
+    const ann = await announcementRepo.create(testEventId, '100', '-1001234')
+    await announcementRepo.unpin(ann.id)
+
+    const pinned = await announcementRepo.getPinnedByChatId('-1001234')
+    expect(pinned).toHaveLength(0)
+  })
 })

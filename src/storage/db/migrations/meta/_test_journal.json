@@ -43,6 +43,20 @@
       "when": 1772554654316,
       "tag": "0003_add_event_announcements.expected",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1772554654317,
+      "tag": "0004_add_announcement_pinned",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772554654318,
+      "tag": "0004_add_announcement_pinned.expected",
+      "breakpoints": true
     }
   ]
 }

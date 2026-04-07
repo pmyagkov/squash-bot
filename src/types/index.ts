@@ -63,6 +63,7 @@ export interface EventAnnouncement {
   eventId: string
   telegramMessageId: string
   telegramChatId: string
+  pinned: boolean
 }
 
 // Payment
