@@ -89,6 +89,7 @@ function createTables(db: ReturnType<typeof drizzle>) {
       event_id TEXT NOT NULL,
       telegram_message_id TEXT NOT NULL,
       telegram_chat_id TEXT NOT NULL,
+      pinned INTEGER NOT NULL DEFAULT 1,
       FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
     )
   `)

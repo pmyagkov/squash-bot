@@ -69,7 +69,7 @@ export const eventAnnouncements = pgTable('event_announcements', {
     .notNull(),
   telegramMessageId: text('telegram_message_id').notNull(),
   telegramChatId: text('telegram_chat_id').notNull(),
-  pinned: boolean('pinned').notNull().default(true),
+  pinned: booleanInt('pinned').notNull().default(sql`1`),
 })
 
 // Participants table
