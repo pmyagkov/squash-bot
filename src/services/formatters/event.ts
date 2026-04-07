@@ -46,42 +46,36 @@ export function buildInlineKeyboard(
   isOwner?: boolean
 ): InlineKeyboard {
   if (status === 'cancelled') {
-    return new InlineKeyboard().text(BTN_RESTORE, 'event:undo-cancel')
+    if (isOwner) {
+      return new InlineKeyboard().text(BTN_RESTORE, 'event:undo-cancel')
+    }
+    return new InlineKeyboard()
   }
 
   if (status === 'finalized') {
-    return new InlineKeyboard().text(BTN_UNFINALIZE, 'event:undo-finalize')
+    if (isOwner) {
+      return new InlineKeyboard().text(BTN_UNFINALIZE, 'event:undo-finalize')
+    }
+    return new InlineKeyboard()
   }
 
-  // Private event — owner gets management buttons, participants get join/leave
-  if (isPrivate && eventId) {
-    const kb = new InlineKeyboard().text(BTN_JOIN, 'event:join').text(BTN_LEAVE, 'event:leave')
+  const kb = new InlineKeyboard().text(BTN_JOIN, 'event:join').text(BTN_LEAVE, 'event:leave')
 
-    if (isOwner) {
+  if (isOwner) {
+    if (isPrivate && eventId) {
       kb.row()
         .text(BTN_ADD_PARTICIPANT, `edit:event:+participant:${eventId}`)
         .text(BTN_REMOVE_PARTICIPANT, `edit:event:-participant:${eventId}`)
-        .row()
-        .text(BTN_ADD_COURT, 'event:add-court')
-        .text(BTN_REMOVE_COURT, 'event:delete-court')
-        .row()
-        .text(BTN_FINALIZE, 'event:finalize')
-        .text(BTN_CANCEL_EVENT, 'event:cancel')
     }
-
-    return kb
+    kb.row()
+      .text(BTN_ADD_COURT, 'event:add-court')
+      .text(BTN_REMOVE_COURT, 'event:delete-court')
+      .row()
+      .text(BTN_FINALIZE, 'event:finalize')
+      .text(BTN_CANCEL_EVENT, 'event:cancel')
   }
 
-  // Public event — self-serve join/leave
-  return new InlineKeyboard()
-    .text(BTN_JOIN, 'event:join')
-    .text(BTN_LEAVE, 'event:leave')
-    .row()
-    .text(BTN_ADD_COURT, 'event:add-court')
-    .text(BTN_REMOVE_COURT, 'event:delete-court')
-    .row()
-    .text(BTN_FINALIZE, 'event:finalize')
-    .text(BTN_CANCEL_EVENT, 'event:cancel')
+  return kb
 }
 
 /**
